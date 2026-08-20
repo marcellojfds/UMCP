@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# A small, dependency-free, fail-closed CI scan. It deliberately scans only
+# tracked source material: generated test databases, exports, and logs must
+# never be uploaded, and scanning them would risk re-printing sensitive bytes.
+repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$repo_root"
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "scan-ci-safety requires a Git work tree" >&2
+  exit 1
+fi
+
+tracked_files="$(git ls-files)"
+if [[ -z "$tracked_files" ]]; then
+  echo "scan-ci-safety requires tracked source files; refusing an empty-worktree green result" >&2
+  exit 1
+fi
+for forbidden in \
+  '.env' '.env.local' 'exports/' 'artifacts/' \
+  '.sqlite' '.sqlite3' '.dump' '.db' '.omp'; do
+  if printf '%s\n' "$tracked_files" | grep -Eq "(^|/).*${forbidden//./\\.}($|/)"; then
+    echo "forbidden tracked CI artifact or local-data path detected: $forbidden" >&2
+    exit 1
+  fi
+done
+
+# These patterns intentionally target credential-shaped values, not OMP_*
+# setting names or the synthetic test password. Print only paths on failure so
+# a scanner failure does not echo a suspected credential into workflow logs.
+if git grep -lEI \
+  -- \
+  '(AKIA[0-9A-Z]{16}|-----BEGIN( [A-Z]+)? PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|AIza[0-9A-Za-z_-]{35})'; then
+  echo "secret-shaped value detected in tracked runtime/package material" >&2
+  exit 1
+fi
+
+echo "CI safety scan passed: no prohibited tracked data paths or secret-shaped values."

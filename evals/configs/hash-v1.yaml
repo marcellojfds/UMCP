@@ -1,0 +1,10 @@
+dataset: evals/datasets/retrieval-v0
+profile_id: hash
+profile_version: v1
+dimension: 64
+threshold: 0.78
+candidate_limit: 50
+result_limit: 5
+warmups: 3
+runs: 2
+p95_budget_ms: 2500

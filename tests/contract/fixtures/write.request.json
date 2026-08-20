@@ -1,0 +1,14 @@
+{
+  "content": "Geographic density should precede expansion for local-network marketplaces.",
+  "type": "insight",
+  "owner_id": "owner-a",
+  "importance": 0.82,
+  "confidence": 0.76,
+  "provenance": {
+    "source_type": "conversation",
+    "captured_at": "2026-01-01T12:00:00Z",
+    "source_id": "synthetic-mba-001",
+    "source_model": "synthetic-client-a"
+  },
+  "idempotency_key": "write-mba-001"
+}

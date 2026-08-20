@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-memory.protocol/contracts/mcp/v0/capabilities.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "request_id", "mcp_protocol_version", "server_name", "server_version", "transport", "tools", "limits", "local_owner_payload"],
+  "properties": {
+    "protocol_version": { "const": "omp.mcp.v0" },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "mcp_protocol_version": { "type": "string" },
+    "server_name": { "type": "string" },
+    "server_version": { "type": "string" },
+    "transport": { "const": "stdio" },
+    "tools": { "type": "array", "items": { "type": "string", "enum": ["memory.write", "memory.search", "memory.update", "memory.forget"] } },
+    "limits": { "type": "object", "additionalProperties": { "type": "integer" } },
+    "local_owner_payload": { "type": "boolean" }
+  }
+}

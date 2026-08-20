@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Restore only into a disposable, empty target. This intentionally does not
+# attempt to erase an existing database or implement retention automatically.
+if [[ "$#" -ne 1 || -z "${OMP_DATABASE_URL:-}" ]]; then
+  echo "usage: OMP_DATABASE_URL=postgresql://... $0 /secure/path/omp.dump" >&2
+  exit 2
+fi
+
+backup="$1"
+if [[ ! -f "$backup" ]]; then
+  echo "backup file not found" >&2
+  exit 2
+fi
+pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --dbname="$OMP_DATABASE_URL" "$backup"
+echo "backup restored; immediately run the forget-after-restore verification in docs/runbooks/mcp-local.md"

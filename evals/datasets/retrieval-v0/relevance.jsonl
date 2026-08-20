@@ -1,0 +1,85 @@
+{"query_id":"query-01-a","memory_id":"memory-01-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-01-a","memory_id":"memory-01-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-01-b","memory_id":"memory-01-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-01-b","memory_id":"memory-01-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-02-a","memory_id":"memory-02-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-02-a","memory_id":"memory-02-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-02-b","memory_id":"memory-02-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-02-b","memory_id":"memory-02-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-03-a","memory_id":"memory-03-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-03-a","memory_id":"memory-03-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-03-b","memory_id":"memory-03-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-03-b","memory_id":"memory-03-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-04-a","memory_id":"memory-04-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-04-a","memory_id":"memory-04-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-04-b","memory_id":"memory-04-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-04-b","memory_id":"memory-04-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-05-a","memory_id":"memory-05-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-05-a","memory_id":"memory-05-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-05-b","memory_id":"memory-05-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-05-b","memory_id":"memory-05-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-06-a","memory_id":"memory-06-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-06-a","memory_id":"memory-06-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-06-b","memory_id":"memory-06-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-06-b","memory_id":"memory-06-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-07-a","memory_id":"memory-07-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-07-a","memory_id":"memory-07-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-07-b","memory_id":"memory-07-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-07-b","memory_id":"memory-07-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-08-a","memory_id":"memory-08-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-08-a","memory_id":"memory-08-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-08-b","memory_id":"memory-08-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-08-b","memory_id":"memory-08-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-09-a","memory_id":"memory-09-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-09-a","memory_id":"memory-09-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-09-b","memory_id":"memory-09-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-10-a","memory_id":"memory-10-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-10-a","memory_id":"memory-10-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-10-b","memory_id":"memory-10-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-11-a","memory_id":"memory-11-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-11-a","memory_id":"memory-11-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-11-b","memory_id":"memory-11-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-12-a","memory_id":"memory-12-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-12-a","memory_id":"memory-12-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-12-b","memory_id":"memory-12-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-13-a","memory_id":"memory-13-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-13-a","memory_id":"memory-13-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-13-b","memory_id":"memory-13-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-14-a","memory_id":"memory-14-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-14-a","memory_id":"memory-14-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-14-b","memory_id":"memory-14-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-15-a","memory_id":"memory-15-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-15-a","memory_id":"memory-15-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-15-b","memory_id":"memory-15-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-16-a","memory_id":"memory-16-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-16-a","memory_id":"memory-16-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-16-b","memory_id":"memory-16-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-17-a","memory_id":"memory-17-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-17-a","memory_id":"memory-17-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-17-b","memory_id":"memory-17-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-18-a","memory_id":"memory-18-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-18-a","memory_id":"memory-18-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-18-b","memory_id":"memory-18-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-19-a","memory_id":"memory-19-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-19-a","memory_id":"memory-19-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-19-b","memory_id":"memory-19-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-20-a","memory_id":"memory-20-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-20-a","memory_id":"memory-20-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-20-b","memory_id":"memory-20-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-21-a","memory_id":"memory-21-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-21-a","memory_id":"memory-21-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-21-b","memory_id":"memory-21-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-21-b","memory_id":"memory-21-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-22-a","memory_id":"memory-22-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-22-a","memory_id":"memory-22-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-22-b","memory_id":"memory-22-core","grade":2,"reason":"Cross-domain principle supports the requested rollout decision despite low lexical overlap."}
+{"query_id":"query-22-b","memory_id":"memory-22-current","grade":1,"reason":"Current action operationalizes the cross-domain principle."}
+{"query_id":"query-23-a","memory_id":"memory-23-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-23-a","memory_id":"memory-23-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-23-b","memory_id":"memory-23-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-24-a","memory_id":"memory-24-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-24-a","memory_id":"memory-24-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-24-b","memory_id":"memory-24-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}
+{"query_id":"query-25-a","memory_id":"memory-25-current","grade":2,"reason":"Direct current decision or preference that answers the request."}
+{"query_id":"query-25-a","memory_id":"memory-25-core","grade":1,"reason":"Supporting domain insight, but less directly actionable than the current record."}
+{"query_id":"query-25-b","memory_id":"memory-25-distractor","grade":0,"reason":"Lexically plausible policy-like memory with a different intent; must not be returned."}

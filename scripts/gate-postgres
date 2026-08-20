@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+compose_file="$repo_root/ops/postgres/compose.yaml"
+database_url="${OMP_TEST_DATABASE_URL:-postgresql+asyncpg://omp_test:omp_test@127.0.0.1:55433/omp_test}"
+container_started=0
+
+cleanup() {
+  if [[ "$container_started" == "1" ]]; then
+    docker compose -f "$compose_file" down --remove-orphans >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+if [[ -z "${OMP_TEST_DATABASE_URL:-}" ]]; then
+  docker compose -f "$compose_file" up -d --wait
+  container_started=1
+  docker compose -f "$compose_file" exec -T postgres psql -U omp_test -d omp_test -Atc \
+    "SELECT 'postgres=' || version(); SELECT 'pgvector=' || extversion FROM pg_extension WHERE extname = 'vector'"
+fi
+
+# This gate is deliberately fail-closed.  In CI OMP_TEST_DATABASE_URL points
+# at the Actions service; locally the disposable Compose service is used.
+# Either an unreachable server, an old PostgreSQL, or a missing pgvector
+# extension must stop here rather than turn the pytest collection into green
+# skips.
+export OMP_TEST_DATABASE_URL="$database_url"
+export OMP_REQUIRE_POSTGRES_TESTS=1
+
+python -c '
+import asyncio
+import os
+import sys
+
+import asyncpg
+
+
+async def main() -> None:
+    url = os.environ["OMP_TEST_DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://", 1)
+    connection = await asyncpg.connect(url)
+    try:
+        server_version = int(await connection.fetchval("SHOW server_version_num"))
+        vector_version = await connection.fetchval(
+            "SELECT default_version FROM pg_available_extensions WHERE name = $1", "vector"
+        )
+    finally:
+        await connection.close()
+    if not 160000 <= server_version < 170000:
+        raise RuntimeError(f"PostgreSQL 16 is required; found server_version_num={server_version}")
+    if vector_version is None:
+        raise RuntimeError("pgvector extension vector is unavailable to CREATE EXTENSION")
+    print(f"postgres_server_version_num={server_version}")
+    print(f"pgvector_available={vector_version}")
+
+
+asyncio.run(main())
+'
+
+OMP_DATABASE_URL="$database_url" python -m alembic downgrade base
+OMP_DATABASE_URL="$database_url" python -m alembic upgrade head
+installed_vector_version="$(OMP_DATABASE_URL="$database_url" python -c '
+import asyncio
+import os
+
+import asyncpg
+
+
+async def main() -> None:
+    url = os.environ["OMP_DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://", 1)
+    connection = await asyncpg.connect(url)
+    try:
+        version = await connection.fetchval("SELECT extversion FROM pg_extension WHERE extname = $1", "vector")
+    finally:
+        await connection.close()
+    if version is None:
+        raise RuntimeError("migration head did not install pgvector extension vector")
+    print(version)
+
+
+asyncio.run(main())
+')"
+echo "pgvector_installed=$installed_vector_version"
+head_revision="$(OMP_DATABASE_URL="$database_url" python -m alembic heads | awk 'NR == 1 {print $1}')"
+current_revision="$(OMP_DATABASE_URL="$database_url" python -m alembic current | awk 'NR == 1 {print $1}')"
+if [[ -z "$head_revision" || "$current_revision" != "$head_revision" ]]; then
+  echo "migration head verification failed: expected=$head_revision current=$current_revision" >&2
+  exit 1
+fi
+echo "migration_head=$head_revision"
+if [[ "$container_started" == "1" ]]; then
+  docker compose -f "$compose_file" exec -T postgres psql -U omp_test -d omp_test -Atc \
+    "SELECT 'pgvector=' || extversion FROM pg_extension WHERE extname = 'vector'"
+fi
+
+pytest -q tests/integration tests/e2e
+
+OMP_DATABASE_URL="$database_url" python -m alembic downgrade base
+OMP_DATABASE_URL="$database_url" python -m alembic upgrade head
+current_revision="$(OMP_DATABASE_URL="$database_url" python -m alembic current | awk 'NR == 1 {print $1}')"
+if [[ "$current_revision" != "$head_revision" ]]; then
+  echo "migration re-upgrade verification failed: expected=$head_revision current=$current_revision" >&2
+  exit 1
+fi

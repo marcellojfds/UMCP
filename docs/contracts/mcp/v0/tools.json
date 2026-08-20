@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-memory.protocol/contracts/mcp/v0/tools.json",
+  "protocol_version": "omp.mcp.v0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "memory.write": { "$ref": "requests.json#/$defs/WriteRequest" },
+    "memory.search": { "$ref": "requests.json#/$defs/SearchRequest" },
+    "memory.update": { "$ref": "requests.json#/$defs/UpdateRequest" },
+    "memory.forget": { "$ref": "requests.json#/$defs/ForgetRequest" }
+  },
+  "required": ["memory.write", "memory.search", "memory.update", "memory.forget"]
+}
