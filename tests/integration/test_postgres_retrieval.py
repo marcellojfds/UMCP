@@ -9,6 +9,7 @@ into an explicit failure instead of a skip.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import subprocess
 import sys
@@ -626,6 +627,13 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
                     owner_id=f"cloud:{tenant}:subject", memory_id=created.memory.id
                 )
         assert found is not None and found.id == created.memory.id
+        with tenant_scope(tenant):
+            async with factory() as uow:
+                assert await uow.memories.rewrap_envelopes(key_version=2) == 1
+                reread = await uow.memories.get(
+                    owner_id=f"cloud:{tenant}:subject", memory_id=created.memory.id
+                )
+        assert reread is not None and reread.content == "postgres canary"
         async with engine_object.connect() as connection:
             row = (
                 await connection.execute(
@@ -639,6 +647,7 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
         assert row["content"] is None and row["provenance"] is None
         assert "postgres canary" not in row["content_ciphertext"]
         assert "postgres canary" not in row["provenance_ciphertext"]
+        assert json.loads(row["content_ciphertext"])["k"] == 2
     finally:
         await engine_object.dispose()
 

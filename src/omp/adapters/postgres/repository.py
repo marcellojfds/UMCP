@@ -223,7 +223,7 @@ class PostgresMemoryRepository:
         self._encryptor = encryptor
 
     def _cloud_fields(
-        self, *, record_id: UUID, content: str, provenance: Provenance
+        self, *, record_id: UUID, content: str, provenance: Provenance, key_version: int = 1
     ) -> dict[str, object]:
         tenant_id = current_tenant_or_none()
         if tenant_id is None:
@@ -242,7 +242,7 @@ class PostgresMemoryRepository:
                 record_id=record_id,
                 field="content",
                 plaintext=content,
-                key_version=1,
+                key_version=key_version,
             ).encode(),
             "provenance": None,
             "provenance_ciphertext": self._encryptor.encrypt(
@@ -250,7 +250,7 @@ class PostgresMemoryRepository:
                 record_id=record_id,
                 field="provenance",
                 plaintext=json.dumps(_provenance_to_json(provenance), sort_keys=True),
-                key_version=1,
+                key_version=key_version,
             ).encode(),
         }
 
@@ -277,6 +277,37 @@ class PostgresMemoryRepository:
         result = await self._session.execute(stmt)
         row = result.first()
         return self._memory_from_row(row) if row is not None else None
+
+    async def rewrap_envelopes(self, *, key_version: int) -> int:
+        """Re-encrypt Cloud content/provenance for the bound tenant only."""
+        tenant_id = current_tenant()
+        if self._encryptor is None:
+            raise TenantContextError("Cloud PostgreSQL storage requires envelope encryption")
+        if key_version < 1:
+            raise ValueError("key version must be positive")
+        result = await self._session.execute(
+            select(memories).where(memories.c.tenant_id == tenant_id)
+        )
+        migrated = 0
+        for row in result:
+            mapping = row._mapping
+            if mapping["content_ciphertext"] is None:
+                continue
+            memory = self._memory_from_row(row)
+            await self._session.execute(
+                update(memories)
+                .where(memories.c.id == memory.id)
+                .values(
+                    self._cloud_fields(
+                        record_id=memory.id,
+                        content=memory.content,
+                        provenance=memory.provenance,
+                        key_version=key_version,
+                    )
+                )
+            )
+            migrated += 1
+        return migrated
 
     async def get_version(self, *, owner_id: str, memory_id: UUID, version: int) -> Memory | None:
         current = await self.get(owner_id=owner_id, memory_id=memory_id)
