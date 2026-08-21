@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
   "repository": {
-    "path": "/private/tmp/umcp-roadmap-verification",
-    "branch": "roadmap/luna-verification",
-    "sha": "ca072cd0bb69198587f16a26178052c371b6e8c8"
+    "path": "/private/tmp/umcp-roadmap-integration",
+    "branch": "roadmap/integration",
+    "sha": "ac2fc09"
   },
   "gates": [
     {"name": "gate-fast", "sha": "2c305ed1d339bec1252a087df60d38e2741235c7", "freshness": "environment-blocked", "result": "blocked", "artifact": "evidence/gate-fast.log", "reason": "lint/mypy and 71 tests passed; two HTTP MCP contract tests could not bind a loopback socket in the sandbox; see findings/M0-ENV-002.md"},
     {"name": "unit-contract", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "baseline evidence predates Verification-owned paths"},
-    {"name": "postgres-migrations", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/postgres-migrations.md", "reason": "19 integration tests and zero-to-head/downgrade/re-upgrade passed"},
-    {"name": "mcp-stdio-conformance", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/conformance-and-evals.log", "reason": "fixture conformance and contract MCP tests passed; Core candidate is not integrated"},
+    {"name": "postgres-migrations", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/postgres-migrations.md", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "mcp-stdio-conformance", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/conformance-and-evals.log", "reason": "frozen fixture conformance evidence; rerun on roadmap/integration"},
     {"name": "mcp-http", "sha": "2c305ed1d339bec1252a087df60d38e2741235c7", "freshness": "environment-blocked", "result": "blocked", "artifact": "evidence/gate-fast.log", "reason": "two HTTP MCP contract tests could not bind a loopback socket; see findings/M0-ENV-002.md"},
     {"name": "browser-e2e", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "environment-blocked", "result": "blocked", "artifact": "evidence/browser-preflight.json", "reason": "managed browser runtime had zero connected backends; no browser pass inferred"},
-    {"name": "auth-negative", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "fail-closed auth and hosted owner-boundary contract tests passed"},
-    {"name": "rls-cross-tenant", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/postgres-migrations.md", "reason": "PostgreSQL RLS and forged cross-tenant owner tests passed"},
-    {"name": "encryption-rotation", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "ciphertext binding and rewrap unit tests passed"},
-    {"name": "backup-restore-tombstones", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "content-free tombstone restore test passed"},
-    {"name": "worker-retry-restart", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "tenant-bound retry/DLQ and restart recovery tests passed"},
-    {"name": "sdk", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/sdk-web.log", "reason": "TypeScript SDK tests passed"},
-    {"name": "web", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/sdk-web.log", "reason": "web check/tests/build passed"},
-    {"name": "secret-pii", "sha": "57f248e0e149e1d9451cb3bdcfdd7f25f8f0bb21", "freshness": "current", "result": "pass", "artifact": "evidence/checksums.sha256", "reason": "tracked-source and synthetic runtime-output scans passed"},
-    {"name": "dependency-vulnerability", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/dependency-audit.log", "reason": "pip-audit reported no known vulnerabilities with controlled network access"},
-    {"name": "sbom", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/sbom.json", "reason": "CycloneDX SBOM generated locally"},
+    {"name": "auth-negative", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "rls-cross-tenant", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/postgres-migrations.md", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "encryption-rotation", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "backup-restore-tombstones", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "worker-retry-restart", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "sdk", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/sdk-web.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "web", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/sdk-web.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "secret-pii", "sha": "57f248e0e149e1d9451cb3bdcfdd7f25f8f0bb21", "freshness": "historical", "result": "pass", "artifact": "evidence/checksums.sha256", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "dependency-vulnerability", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/dependency-audit.log", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
+    {"name": "sbom", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "historical", "result": "pass", "artifact": "evidence/sbom.json", "reason": "frozen Verification-lane evidence; rerun on roadmap/integration"},
     {"name": "links-claims", "sha": "2c305ed1d339bec1252a087df60d38e2741235c7", "freshness": "historical", "result": "pass", "artifact": "evidence/links-claims.log", "reason": "local Markdown files checked before later handoff-document changes; rerun on the integrated candidate"},
-    {"name": "integration-readiness", "sha": "51f09433a71b4114332c9732fc72830b01fe6e26", "freshness": "current", "result": "not-run", "artifact": "evidence/sync-readiness.log", "reason": "roadmap/integration has not published M00-INTEGRATED.md; checker returned WAITING/exit 2 from a clean worktree"},
-    {"name": "root-pytest", "sha": "9bb60cbe6dfdfc18e21cefa49687c748dafc0b34", "freshness": "current", "result": "fail", "artifact": "evidence/full-pytest.log", "reason": "95 passed, 4 failed, 19 skipped: two loopback HTTP tests are environment-blocked and two frozen E5 prefix assertions fail; see findings/M1-EVAL-001.md"}
+    {"name": "integration-readiness", "sha": "51f09433a71b4114332c9732fc72830b01fe6e26", "freshness": "historical", "result": "not-run", "artifact": "evidence/sync-readiness.log", "reason": "frozen Verification-lane evidence; integration readiness is rerun on roadmap/integration"},
+    {"name": "root-pytest", "sha": "9bb60cbe6dfdfc18e21cefa49687c748dafc0b34", "freshness": "historical", "result": "fail", "artifact": "evidence/full-pytest.log", "reason": "frozen Verification-lane evidence; E5 assertions were corrected at the integration boundary and suite rerun"}
   ]
 }
