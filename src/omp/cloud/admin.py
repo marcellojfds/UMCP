@@ -469,7 +469,15 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
     @app.post("/api/account-deletions")
     async def request_account_deletion(request: Request) -> dict[str, object]:
         value = require_csrf(request)
-        return {"receipt": auth.receipt("account.deletion", value, "accepted")}
+        service = getattr(runtime, "service", None) if runtime is not None else None
+        delete_owner = getattr(service, "delete_owner", None)
+        if not callable(delete_owner):
+            return {"receipt": auth.receipt("account.deletion", value, "accepted")}
+        deleted = int(delete_owner(owner(value)))
+        return {
+            "receipt": auth.receipt("account.deletion", value, "done"),
+            "deleted_memories": deleted,
+        }
 
     return app
 

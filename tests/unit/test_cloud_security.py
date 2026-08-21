@@ -154,6 +154,30 @@ def test_cloud_backup_restore_reapplies_content_free_tombstone() -> None:
     assert restored.search({"owner_id": owner, "query": "backup"}) == []
 
 
+def test_cloud_account_deletion_is_owner_scoped_and_leaves_content_free_tombstones() -> None:
+    tenant, other_tenant, subject = uuid4(), uuid4(), uuid4()
+    owner, other_owner = f"cloud:{tenant}:{subject}", f"cloud:{other_tenant}:{uuid4()}"
+    service = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    records = (
+        (owner, "ACCOUNT-DELETE-CANARY", "delete-a"),
+        (other_owner, "other tenant", "delete-b"),
+    )
+    for owner_id, content, key in records:
+        service.write(
+            {
+                "owner_id": owner_id,
+                "content": content,
+                "type": "fact",
+                "provenance": {"source_type": "user"},
+                "idempotency_key": key,
+            }
+        )
+    assert service.delete_owner(owner) == 1
+    assert service.search({"owner_id": owner, "query": "account"}) == []
+    assert len(service.search({"owner_id": other_owner, "query": "other"})) == 1
+    assert "ACCOUNT-DELETE-CANARY" not in repr(service.tombstones())
+
+
 @pytest.mark.asyncio
 async def test_worker_is_tenant_bound_deduplicated_and_retries_to_dlq() -> None:
     secret, tenant, principal = b"s" * 32, uuid4(), uuid4()

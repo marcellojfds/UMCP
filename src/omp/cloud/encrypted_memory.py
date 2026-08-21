@@ -174,6 +174,30 @@ class EncryptedCloudMemoryService:
         del self._records[key[1]]
         return {"status": "forgotten"}
 
+    def delete_owner(self, owner_id: str) -> int:
+        """Apply a local account deletion without retaining deleted payloads.
+
+        Production account deletion is an asynchronous, externally provisioned
+        workflow. The local Cloud adapter performs the equivalent owner-scoped
+        operation synchronously so its Admin API contract is executable.
+        """
+        self._tenant(owner_id)
+        memory_ids = [
+            memory_id
+            for memory_id, record in self._records.items()
+            if record["owner_id"] == owner_id
+        ]
+        for memory_id in memory_ids:
+            self._forget_keys.add((owner_id, memory_id))
+            self._tombstones[(owner_id, memory_id)] = _now()
+            del self._records[memory_id]
+        self._write_keys = {
+            key: memory_id
+            for key, memory_id in self._write_keys.items()
+            if key[0] != owner_id
+        }
+        return len(memory_ids)
+
     def tombstones(self) -> tuple[dict[str, str], ...]:
         """Return the content-free deletion ledger for an external restore job."""
         return tuple(

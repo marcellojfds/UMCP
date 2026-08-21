@@ -194,7 +194,20 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
         ).json()["status"] == "forgotten"
         export = client.post("/admin/api/exports", headers=headers).json()["receipt"]
         assert client.get(f"/admin/api/operations/{export['id']}").status_code == 200
-        assert client.post("/admin/api/account-deletions", headers=headers).status_code == 200
+        assert client.post(
+            "/admin/api/memories",
+            headers=headers,
+            json={
+                "content": "account deletion canary",
+                "type": "fact",
+                "provenance": {"source_type": "user", "captured_at": "2026-01-01T00:00:00Z"},
+                "idempotency_key": "account-deletion-create",
+            },
+        ).status_code == 200
+        deletion = client.post("/admin/api/account-deletions", headers=headers).json()
+        assert deletion["receipt"]["status"] == "done"
+        assert deletion["deleted_memories"] == 1
+        assert client.get("/admin/api/memories", params={"query": "account"}).json()["count"] == 0
 
         # The mounted application does not weaken the hosted MCP boundary.
         assert client.post(
