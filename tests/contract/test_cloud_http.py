@@ -130,9 +130,40 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
         assert callback.status_code == 200
         assert client.get("/admin/api/session").status_code == 200
         csrf = callback.json()["csrf"]
+        headers = {"x-umcp-csrf": csrf}
+        created = client.post(
+            "/admin/api/memories",
+            headers=headers,
+            json={
+                "content": "local web lifecycle memory",
+                "type": "fact",
+                "provenance": {"source_type": "user", "captured_at": "2026-01-01T00:00:00Z"},
+                "idempotency_key": "web-lifecycle-create",
+            },
+        )
+        assert created.status_code == 200
+        memory = created.json()["memory"]
+        assert "owner_id" not in memory
+        assert client.patch(
+            f"/admin/api/memories/{memory['id']}",
+            headers=headers,
+            json={
+                "expected_version": memory["version"],
+                "patch": {"content": "local web lifecycle updated"},
+                "idempotency_key": "web-lifecycle-update",
+            },
+        ).status_code == 200
+        connection = client.post(
+            "/admin/api/connections",
+            headers=headers,
+            json={"name": "local browser", "scopes": ["memory:read"]},
+        ).json()["connection"]
+        assert client.post(
+            f"/admin/api/connections/{connection['id']}/revoke", headers=headers
+        ).json()["connection"]["status"] == "revoked"
         credential = client.post(
             "/admin/api/agent-credentials",
-            headers={"x-umcp-csrf": csrf},
+            headers=headers,
             json={"name": "local mcp", "scopes": ["memory:read"]},
         ).json()
         raw_pat = credential["token"]
@@ -146,7 +177,7 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
         ).status_code == 200
         assert client.post(
             f"/admin/api/agent-credentials/{credential['credential']['id']}/revoke",
-            headers={"x-umcp-csrf": csrf},
+            headers=headers,
         ).status_code == 200
         assert client.post(
             "/mcp",
@@ -156,6 +187,14 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
             },
             json={"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": {}},
         ).status_code == 401
+        assert client.delete(
+            f"/admin/api/memories/{memory['id']}",
+            params={"idempotency_key": "web-lifecycle-forget"},
+            headers=headers,
+        ).json()["status"] == "forgotten"
+        export = client.post("/admin/api/exports", headers=headers).json()["receipt"]
+        assert client.get(f"/admin/api/operations/{export['id']}").status_code == 200
+        assert client.post("/admin/api/account-deletions", headers=headers).status_code == 200
 
         # The mounted application does not weaken the hosted MCP boundary.
         assert client.post(
