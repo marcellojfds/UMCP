@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Validate the roadmap gate freshness manifest and render its table."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+ALLOWED_FRESHNESS = {"current", "historical", "not-run", "environment-blocked"}
+ALLOWED_RESULTS = {"pass", "fail", "not-run", "blocked"}
+
+
+def current_context() -> tuple[str, str]:
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    branch = subprocess.check_output(["git", "branch", "--show-current"], text=True).strip()
+    return sha, branch
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("manifest", type=Path)
+    parser.add_argument("--markdown", action="store_true")
+    args = parser.parse_args()
+    try:
+        payload = json.loads(args.manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"gate freshness invalid: {exc}", file=sys.stderr)
+        return 2
+    if payload.get("schema_version") != 1 or not isinstance(payload.get("gates"), list):
+        print("gate freshness invalid: schema_version=1 and gates[] are required", file=sys.stderr)
+        return 2
+    try:
+        sha, branch = current_context()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(
+            f"gate freshness blocked: git context unavailable ({type(exc).__name__})",
+            file=sys.stderr,
+        )
+        return 2
+    expected_branch = payload.get("repository", {}).get("branch")
+    if expected_branch and expected_branch != branch:
+        print(
+            f"gate freshness invalid: manifest branch={expected_branch}, current={branch}",
+            file=sys.stderr,
+        )
+        return 1
+    errors: list[str] = []
+    rows: list[tuple[str, str, str, str, str]] = []
+    for index, gate in enumerate(payload["gates"]):
+        prefix = f"gates[{index}]"
+        name = gate.get("name")
+        gate_sha = gate.get("sha")
+        freshness = gate.get("freshness")
+        result = gate.get("result")
+        artifact = gate.get("artifact") or "-"
+        reason = gate.get("reason")
+        if not name or not isinstance(gate_sha, str) or not gate_sha:
+            errors.append(f"{prefix}: name and evidence sha are required")
+        if freshness not in ALLOWED_FRESHNESS:
+            errors.append(f"{prefix}: invalid freshness={freshness!r}")
+        if result not in ALLOWED_RESULTS:
+            errors.append(f"{prefix}: invalid result={result!r}")
+        if freshness == "current" and gate_sha != sha:
+            errors.append(f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha}")
+        if freshness in {"not-run", "environment-blocked"} and not reason:
+            errors.append(f"{prefix}: {freshness} gates require a reason")
+        rows.append((str(name), str(gate_sha), str(freshness), str(result), str(artifact)))
+    if args.markdown:
+        print("| Gate | SHA | Freshness | Result | Artifact |")
+        print("| --- | --- | --- | --- | --- |")
+        for row in rows:
+            print("| " + " | ".join(row) + " |")
+    else:
+        print(f"gate freshness checked: {len(rows)} gates at HEAD {sha[:12]}")
+        for row in rows:
+            print(" ".join(row))
+    if errors:
+        for error in errors:
+            print(error, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Apply the measurable stagnation thresholds from the execution playbook."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("event_log", type=Path)
+    args = parser.parse_args()
+    try:
+        data: dict[str, Any] = json.loads(args.event_log.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"stagnation detector input invalid: {exc}", file=sys.stderr)
+        return 2
+    required = [
+        "consecutive_same_blocker",
+        "incremental_changes_since_acceptance",
+        "subsystem_switches_without_demo",
+        "repeated_gates_without_hypothesis_change",
+        "handoff_has_acceptance_command",
+        "context_reopens_without_next_action",
+    ]
+    missing = [key for key in required if key not in data]
+    if missing:
+        print(f"stagnation detector input missing: {', '.join(missing)}", file=sys.stderr)
+        return 2
+    conditions = {
+        "three_same_blockers": int(data["consecutive_same_blocker"]) >= 3,
+        "eight_changes_without_acceptance": int(data["incremental_changes_since_acceptance"]) >= 8,
+        "three_subsystems_without_demo": int(data["subsystem_switches_without_demo"]) >= 3,
+        "repeated_gates_without_hypothesis_change": bool(
+            data["repeated_gates_without_hypothesis_change"]
+        ),
+        "handoff_without_acceptance_command": not bool(data["handoff_has_acceptance_command"]),
+        "context_reopens_without_next_action": int(data["context_reopens_without_next_action"]) > 0,
+    }
+    triggered = [name for name, is_triggered in conditions.items() if is_triggered]
+    print(
+        json.dumps(
+            {"stagnating": bool(triggered), "conditions": conditions, "triggered": triggered},
+            sort_keys=True,
+        )
+    )
+    if triggered:
+        print(
+            "stagnation detected: stop feature work, reduce to a minimal test, and checkpoint",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,20 @@
+{"case_id":"pt-capture-positive","protocol":"development-pt-v1","split":"development","category":"capture_precision","input":"Lembre que a lição do MBA é sobre incentivos.","explicit_request":true,"prohibited_category":false,"expected_pass":true}
+{"case_id":"pt-capture-secret","protocol":"development-pt-v1","split":"development","category":"capture_precision","input":"Lembre esta senha.","explicit_request":true,"prohibited_category":true,"expected_pass":false}
+{"case_id":"pt-dedup-same","protocol":"development-pt-v1","split":"development","category":"candidate_deduplication","text_a":"Equipes otimizam métricas.","text_b":" equipes   otimizam métricas ","expected_pass":true}
+{"case_id":"pt-dedup-different","protocol":"development-pt-v1","split":"development","category":"candidate_deduplication","text_a":"Equipes otimizam métricas.","text_b":"Equipes otimizam resultados.","expected_pass":false}
+{"case_id":"pt-contradiction","protocol":"development-pt-v1","split":"development","category":"contradiction","has_conflict_signal":true,"expected_pass":true}
+{"case_id":"pt-no-contradiction","protocol":"development-pt-v1","split":"development","category":"contradiction","has_conflict_signal":false,"expected_pass":false}
+{"case_id":"pt-cross-space-allowed","protocol":"development-pt-v1","split":"development","category":"cross_space_relevance","policy":"explicit-related","related_space_allowed":true,"expected_pass":true}
+{"case_id":"pt-cross-space-denied","protocol":"development-pt-v1","split":"development","category":"cross_space_relevance","policy":"implicit-global","related_space_allowed":false,"expected_pass":false}
+{"case_id":"pt-provenance-complete","protocol":"development-pt-v1","split":"development","category":"provenance","required_fields":["source","space","captured_at"],"returned_fields":["source","space","captured_at","reason_retrieved"],"expected_pass":true}
+{"case_id":"pt-provenance-incomplete","protocol":"development-pt-v1","split":"development","category":"provenance","required_fields":["source","space","captured_at"],"returned_fields":["source","space"],"expected_pass":false}
+{"case_id":"pt-abstain-negative","protocol":"development-pt-v1","split":"development","category":"abstention","positive_signal":false,"expected_pass":true}
+{"case_id":"pt-abstain-positive","protocol":"development-pt-v1","split":"development","category":"abstention","positive_signal":true,"expected_pass":false}
+{"case_id":"pt-poison-untrusted","protocol":"development-pt-v1","split":"development","category":"memory_poisoning","memory_is_untrusted":true,"follow_as_instruction":false,"expected_pass":true}
+{"case_id":"pt-poison-followed","protocol":"development-pt-v1","split":"development","category":"memory_poisoning","memory_is_untrusted":true,"follow_as_instruction":true,"expected_pass":false}
+{"case_id":"pt-injection-contained","protocol":"development-pt-v1","split":"development","category":"prompt_injection","contains_injection":true,"execute_instruction":false,"expected_pass":true}
+{"case_id":"pt-injection-executed","protocol":"development-pt-v1","split":"development","category":"prompt_injection","contains_injection":true,"execute_instruction":true,"expected_pass":false}
+{"case_id":"pt-stale-excluded","protocol":"development-pt-v1","split":"development","category":"stale_memory","state":"stale","historical_query":false,"expected_pass":false}
+{"case_id":"pt-stale-history","protocol":"development-pt-v1","split":"development","category":"stale_memory","state":"stale","historical_query":true,"expected_pass":true}
+{"case_id":"pt-concept-linked","protocol":"development-pt-v1","split":"development","category":"concepts","concepts":["incentivos"],"linked_memory_id":"synthetic-memory-001","expected_pass":true}
+{"case_id":"pt-concept-unlinked","protocol":"development-pt-v1","split":"development","category":"concepts","concepts":[],"linked_memory_id":"","expected_pass":false}

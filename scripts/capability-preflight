@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Record local capabilities without turning environment gaps into product passes."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Any
+
+
+def probe_command(name: str, version_args: list[str]) -> dict[str, Any]:
+    path = shutil.which(name)
+    result: dict[str, Any] = {"name": name, "status": "available" if path else "missing"}
+    if path:
+        result["path"] = path
+        try:
+            completed = subprocess.run(
+                [path, *version_args], capture_output=True, text=True, timeout=5, check=False
+            )
+            result["smoke_exit_code"] = completed.returncode
+            version = (completed.stdout or completed.stderr).splitlines()
+            if version:
+                result["version"] = version[0][:160]
+            if completed.returncode != 0:
+                result["status"] = "environment-blocked"
+                result["reason"] = "version smoke returned non-zero"
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            result["status"] = "environment-blocked"
+            result["reason"] = type(exc).__name__
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", dest="json_path", type=Path)
+    args = parser.parse_args()
+
+    repo_root = Path.cwd().resolve()
+    try:
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        branch = subprocess.check_output(["git", "branch", "--show-current"], text=True).strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"capability preflight failed: git context unavailable ({type(exc).__name__})")
+        return 1
+
+    commands = [
+        probe_command("python3", ["--version"]),
+        probe_command("pytest", ["--version"]),
+        probe_command("ruff", ["--version"]),
+        probe_command("mypy", ["--version"]),
+        probe_command("node", ["--version"]),
+        probe_command("npm", ["--version"]),
+        probe_command("docker", ["--version"]),
+        probe_command("psql", ["--version"]),
+        probe_command("pg_isready", ["--version"]),
+    ]
+    checks: list[dict[str, Any]] = []
+    with tempfile.TemporaryDirectory(prefix="umcp-verification-") as temp_dir:
+        probe = Path(temp_dir) / "lifecycle-probe"
+        probe.write_text("ok\n", encoding="utf-8")
+        checks.append({"name": "writable-disposable-path", "status": "pass", "path": temp_dir})
+        child = subprocess.run(
+            ["python3", "-c", "print('child-lifecycle-ok')"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        checks.append(
+            {
+                "name": "child-process-lifecycle",
+                "status": "pass" if child.returncode == 0 else "environment-blocked",
+                "exit_code": child.returncode,
+            }
+        )
+
+    docker_info = probe_command("docker", ["info"])
+    if docker_info["status"] == "available":
+        docker_info["status"] = (
+            "pass" if docker_info.get("smoke_exit_code") == 0 else "environment-blocked"
+        )
+        if docker_info["status"] == "environment-blocked":
+            docker_info["reason"] = "Docker CLI exists but daemon smoke failed"
+    checks.append({"name": "docker-daemon-smoke", **docker_info})
+    checks.append(
+        {
+            "name": "browser-automation",
+            "status": "not-run",
+            "reason": "requires the in-app browser runner and a managed web-server lifecycle",
+        }
+    )
+    payload = {
+        "schema_version": 1,
+        "repository": {"path": str(repo_root), "branch": branch, "sha": sha},
+        "checks": checks,
+        "commands": commands,
+        "prohibition_check": {
+            "holdout": "not-run",
+            "external_services": "not-used",
+            "real_data": "not-used",
+        },
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    if args.json_path:
+        args.json_path.parent.mkdir(parents=True, exist_ok=True)
+        args.json_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

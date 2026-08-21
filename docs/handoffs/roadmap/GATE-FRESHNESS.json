@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "path": "/private/tmp/umcp-roadmap-verification",
+    "branch": "roadmap/luna-verification",
+    "sha": "325faf32544e17c896ace07b8c712508c3ed7cce"
+  },
+  "gates": [
+    {"name": "gate-fast", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "not-run", "result": "not-run", "artifact": "-", "reason": "V0 controls were not yet installed at baseline capture"},
+    {"name": "unit-contract", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "baseline evidence predates Verification-owned paths"},
+    {"name": "postgres-migrations", "sha": "1bd460e", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "must be repeated on the integrated candidate"},
+    {"name": "mcp-stdio-conformance", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "not-run", "result": "not-run", "artifact": "-", "reason": "candidate implementation handoff is not present"},
+    {"name": "browser-e2e", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "environment-blocked", "result": "blocked", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "prior loopback/process-lifetime and local-file navigation smoke failed; managed runner preflight pending"},
+    {"name": "secret-pii", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "not-run", "result": "not-run", "artifact": "-", "reason": "Verification scan will run after owned fixtures are added"}
+  ]
+}
