@@ -31,14 +31,15 @@
 
 ## Final V0/V1 checkpoint
 
-- **Tested executable SHA:** `03263d1eafbba494757506aa7e1af7864d2dfbd4`.
-- **Current:** gate-fast 73 passed; PostgreSQL/migrations 19 passed on
+- **Tested executable SHA:** `2c305ed1d339bec1252a087df60d38e2741235c7`.
+- **Current:** lint/mypy and 71 gate-fast tests passed; PostgreSQL/migrations 19 passed on
   PostgreSQL 16.15 + pgvector 0.8.6; SDK 2 passed; web check/test/build
   passed; dependency audit, secret/PII, SBOM and local links/claims passed.
 - **Fixture-only current:** cross-client acceptance and 40 development eval
   cases (20 English + 20 Portuguese) passed. This is not Core evidence.
 - **Environment-blocked:** managed browser runtime has no connected backend;
-  no browser E2E pass is claimed.
+  no browser E2E pass is claimed. The sandbox also disallows loopback socket
+  binding, so two HTTP MCP contract tests remain unverified.
 - **Synchronization blocker:** no `M1-INTEGRATED.md` was present on
   `roadmap/integration`; the Core/Experience candidate acceptance remains
   not-run.

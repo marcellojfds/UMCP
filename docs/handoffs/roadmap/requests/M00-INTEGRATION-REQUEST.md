@@ -5,7 +5,7 @@ Status: `waiting-for-integration-owner`
 The Verification lane has published:
 
 - `roadmap/luna-verification:docs/handoffs/roadmap/M00-VERIFICATION-DONE.md`
-- tested executable SHA `03263d1eafbba494757506aa7e1af7864d2dfbd4`
+- tested executable SHA `2c305ed1d339bec1252a087df60d38e2741235c7`
 - evidence and checksums under `docs/handoffs/roadmap/evidence/`
 
 The Core and Experience refs expose their M00 handoffs:
