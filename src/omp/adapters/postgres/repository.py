@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import bindparam, delete, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -55,6 +55,7 @@ from omp.domain import (
 )
 
 from .schema import (
+    deletion_tombstones,
     idempotency_operations,
     memories,
     memory_embeddings,
@@ -528,11 +529,31 @@ class PostgresMemoryRepository:
         return candidates
 
     async def forget(self, *, owner_id: str, memory_id: UUID) -> bool:
-        statement = delete(memories).where(
-            memories.c.owner_id == owner_id, memories.c.id == memory_id
+        statement = (
+            delete(memories)
+            .where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
+            .returning(memories.c.id)
         )
         result = await self._session.execute(statement)
-        return bool(result.rowcount)
+        deleted_id = result.scalar_one_or_none()
+        if deleted_id is None:
+            return False
+        tenant_id = current_tenant_or_none()
+        if tenant_id is not None:
+            # Keep only the tenant binding, memory reference and reason.  A
+            # restore workflow can reapply this ledger without retaining the
+            # deleted memory's plaintext, provenance, or caller-owned ID.
+            await self._session.execute(
+                insert(deletion_tombstones).values(
+                    id=uuid4(),
+                    tenant_id=tenant_id,
+                    memory_id=deleted_id,
+                    subject_id=None,
+                    deleted_at=datetime.now(UTC),
+                    reason="memory.forget",
+                )
+            )
+        return True
 
     async def add_relation(self, *, relation: Relation) -> Relation:
         source = await self.get(owner_id=relation.owner_id, memory_id=relation.source_id)

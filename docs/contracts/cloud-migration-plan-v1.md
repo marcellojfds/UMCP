@@ -26,3 +26,13 @@ Alembic downgrade.
 Restore into isolation, validate revision/inventory, apply all durable
 tombstones newer than the backup point, validate RLS/encryption/key access, and
 only then allow traffic. A restore that cannot reapply deletions is unusable.
+
+## Current local implementation boundary
+
+In the local Cloud PostgreSQL composition, a successful `memory.forget` writes
+a tenant-scoped, content-free `deletion_tombstones` record in the same
+transaction as the deletion. The record contains only the tenant, memory
+reference, timestamp and `memory.forget` reason; it does not retain content,
+provenance or the caller-owned identifier. The integration suite verifies this
+alongside encrypted storage and key rewrap. Backup transport and a production
+restore worker remain external-authorization work.

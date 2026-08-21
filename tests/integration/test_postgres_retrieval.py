@@ -655,6 +655,29 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
             id=created.memory.id,
         )
         assert history_key_version == 2
+        with tenant_scope(tenant):
+            forgotten = await app.forget(
+                ForgetMemoryCommand(
+                    owner_id=f"cloud:{tenant}:subject",
+                    memory_id=created.memory.id,
+                    idempotency_key="encrypted-forget",
+                )
+            )
+        assert forgotten.forgotten is True
+        async with engine_object.connect() as connection:
+            tombstone = (
+                await connection.execute(
+                    text(
+                        "SELECT tenant_id, memory_id, subject_id, reason "
+                        "FROM deletion_tombstones WHERE memory_id = :id"
+                    ),
+                    {"id": created.memory.id},
+                )
+            ).one()._mapping
+        assert tombstone["tenant_id"] == tenant
+        assert tombstone["memory_id"] == created.memory.id
+        assert tombstone["subject_id"] is None
+        assert tombstone["reason"] == "memory.forget"
     finally:
         await engine_object.dispose()
 

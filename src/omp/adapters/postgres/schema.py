@@ -192,6 +192,20 @@ idempotency_operations = Table(
     CheckConstraint("length(fingerprint) = 64", name="ck_idempotency_fingerprint_sha256"),
 )
 
+# Cloud deletion evidence deliberately has no content, provenance or owner
+# identifier.  It survives a logical restore so a worker can reapply the
+# deletion before restored data becomes readable.
+deletion_tombstones = Table(
+    "deletion_tombstones",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("tenant_id", UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False),
+    Column("memory_id", UUID(as_uuid=True), nullable=True),
+    Column("subject_id", UUID(as_uuid=True), nullable=True),
+    Column("deleted_at", DateTime(timezone=True), nullable=False),
+    Column("reason", String(128), nullable=False),
+)
+
 Index("ix_memories_owner_state", memories.c.owner_id, memories.c.state)
 Index("ix_memories_owner_space", memories.c.owner_id, memories.c.space)
 Index("ix_memories_owner_type", memories.c.owner_id, memories.c.memory_type)
