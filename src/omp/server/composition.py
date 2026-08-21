@@ -14,6 +14,8 @@ from omp.adapters.mcp.application_gateway import MemoryApplicationGateway
 from omp.adapters.mcp.local import PersistentLocalMemoryService
 from omp.adapters.postgres.repository import create_postgres_uow_factory
 from omp.application.services import MemoryApplicationService
+from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
+from omp.cloud.security import LocalDevelopmentKMS, TenantEnvelopeEncryptor
 from omp.config import OMPSettings, get_settings
 from omp.domain import utc_now
 
@@ -118,3 +120,19 @@ def create_runtime(
 
 def create_demo_runtime(settings: OMPSettings | None = None) -> ServerRuntime:
     return create_runtime(settings, demo_backend=True)
+
+
+def create_cloud_demo_runtime(
+    settings: OMPSettings | None = None, *, kms_master_key: bytes
+) -> ServerRuntime:
+    """Create the local encrypted Cloud adapter used by HTTP/Admin contracts."""
+    selected = settings or get_settings()
+    service = EncryptedCloudMemoryService(
+        TenantEnvelopeEncryptor(LocalDevelopmentKMS(kms_master_key))
+    )
+    return ServerRuntime(
+        settings=selected,
+        adapter=MCPAdapter(service, local_mode=True, transport="http"),
+        backend="cloud-demo",
+        service=service,
+    )

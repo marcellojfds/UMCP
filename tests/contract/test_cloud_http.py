@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from omp.cloud import LocalDevelopmentTokenVerifier, Scope
 from omp.config import OMPSettings
-from omp.server.composition import create_demo_runtime
+from omp.server.composition import create_cloud_demo_runtime, create_demo_runtime
 from omp.server.official import create_cloud_http_app, create_cloud_server
 
 
@@ -40,7 +40,9 @@ def test_cloud_tools_reject_owner_id_and_have_security_annotations(tmp_path) -> 
 
 
 def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
-    runtime = create_demo_runtime(OMPSettings(demo_data_file=str(tmp_path / "cloud.json")))
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+    )
     local = verifier()
     app = create_cloud_http_app(runtime, local)
     with TestClient(app, base_url="https://local.umcp.invalid") as client:
