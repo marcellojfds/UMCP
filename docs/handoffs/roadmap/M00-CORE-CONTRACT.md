@@ -18,6 +18,12 @@ production or release claim.
 ./scripts/demo-local-integration
 ```
 
+The same entrypoint accepts an integration context after the controlled merge:
+
+```sh
+./scripts/demo-local-integration roadmap/integration /private/tmp/umcp-roadmap-integration
+```
+
 The command must exit zero, verify its branch/worktree/SHA, use disposable
 synthetic tenant data, complete write → search → update → forget, verify the
 forgotten item is absent, and reject a forged owner/tenant access attempt. It

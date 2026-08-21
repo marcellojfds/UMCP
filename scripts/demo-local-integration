@@ -4,8 +4,13 @@ set -euo pipefail
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
 
-expected_branch='roadmap/luna-core'
-"$repo_root/scripts/assert-worktree-context" "$expected_branch" "$repo_root"
+if [[ "$#" -gt 2 ]]; then
+  echo "usage: $0 [EXPECTED_BRANCH] [EXPECTED_WORKTREE]" >&2
+  exit 2
+fi
+expected_branch="${1:-roadmap/luna-core}"
+expected_worktree="${2:-$repo_root}"
+"$repo_root/scripts/assert-worktree-context" "$expected_branch" "$expected_worktree"
 actual_branch=$(git branch --show-current)
 actual_sha=$(git rev-parse HEAD)
 
