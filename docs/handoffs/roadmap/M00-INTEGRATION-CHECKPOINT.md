@@ -6,6 +6,7 @@
 **Pre-merge baseline:** `325faf32544e17c896ace07b8c712508c3ed7cce`
 **Merged lane:** `roadmap/luna-core` through Core implementation `7d798cb` and
 handoff `2b22671`
+**Current integration SHA:** `e768fa10b4132cbd363e72ea40a46339ddad76b9`
 
 ## Current state
 
@@ -13,6 +14,16 @@ The Core G00 capability, demo, current gates and handoff were merged with
 `--no-ff` to preserve history. The integration branch is clean after this
 checkpoint. This is not `M00-INTEGRATED` and does not permit the next
 milestone.
+
+The reusable demo was exercised in this partial integration context:
+
+```sh
+./scripts/demo-local-integration roadmap/integration /private/tmp/umcp-roadmap-integration
+```
+
+Result: 4 MCP contract tests and 2 HTTP/auth tests passed. This is partial
+evidence only; it is not the final integrated gate until the other applicable
+handoffs are merged and all current gates are rerun on the resulting SHA.
 
 ## Missing applicable handoffs
 
