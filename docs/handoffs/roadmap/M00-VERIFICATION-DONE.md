@@ -78,6 +78,9 @@ were not changed or evaluated by this harness.
   connected backend; browser E2E remains environment-blocked.
 - [`M0-ENV-002.md`](findings/M0-ENV-002.md): sandbox loopback socket binding
   is unavailable; HTTP MCP contract tests remain environment-blocked.
+- [`M00-INTEGRATION-001.md`](findings/M00-INTEGRATION-001.md): the integration
+  checkpoint is stale relative to the current Core/Experience/Verification
+  refs; `M00-INTEGRATED.md` is still absent.
 - The integration checkpoint reports that this exact `M00-VERIFICATION-DONE.md`
   was previously missing; it is now published on the Verification branch.
 - No implementation finding is asserted against Core or Experience because no

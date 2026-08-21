@@ -1,0 +1,12 @@
+worktree=/private/tmp/umcp-roadmap-verification
+repo_root=/private/tmp/umcp-roadmap-verification
+branch=roadmap/luna-verification
+head=4d22842fd3392e4bace4e430bdb6245722086e19
+status=## roadmap/luna-verification
+worktree context passed
+handoff=roadmap/luna-core:docs/handoffs/roadmap/M00-CORE-DONE.md status=present
+handoff=roadmap/luna-experience:docs/handoffs/roadmap/M00-EXPERIENCE-DONE.md status=present
+handoff=roadmap/luna-verification:docs/handoffs/roadmap/M00-VERIFICATION-DONE.md status=present
+handoff=roadmap/integration:docs/handoffs/roadmap/M00-INTEGRATED.md status=missing
+m00-handoffs=WAITING
+missing=roadmap/integration:docs/handoffs/roadmap/M00-INTEGRATED.md
