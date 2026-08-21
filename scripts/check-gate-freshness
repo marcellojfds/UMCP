@@ -13,6 +13,7 @@ ALLOWED_FRESHNESS = {"current", "historical", "not-run", "environment-blocked"}
 ALLOWED_RESULTS = {"pass", "fail", "not-run", "blocked"}
 GATE_PATH_SCOPES: dict[str, tuple[str, ...]] = {
     "gate-fast": ("src/", "tests/", "scripts/", "pyproject.toml"),
+    "root-pytest": ("src/", "tests/", "evals/", "scripts/", "pyproject.toml"),
     "postgres-migrations": (
         "migrations/",
         "src/omp/adapters/postgres/",
