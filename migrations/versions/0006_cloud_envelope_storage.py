@@ -23,11 +23,13 @@ def upgrade() -> None:
     op.execute("ALTER TABLE memories DROP CONSTRAINT ck_memories_content_nonempty")
     op.execute(
         "ALTER TABLE memories ADD CONSTRAINT ck_memories_content_or_ciphertext "
-        "CHECK ((content IS NOT NULL AND length(trim(content)) > 0) OR content_ciphertext IS NOT NULL)"
+        "CHECK ((content IS NOT NULL AND length(trim(content)) > 0) "
+        "OR content_ciphertext IS NOT NULL)"
     )
     op.execute(
         "ALTER TABLE memory_versions ADD CONSTRAINT ck_memory_versions_content_or_ciphertext "
-        "CHECK ((content IS NOT NULL AND length(trim(content)) > 0) OR content_ciphertext IS NOT NULL)"
+        "CHECK ((content IS NOT NULL AND length(trim(content)) > 0) "
+        "OR content_ciphertext IS NOT NULL)"
     )
 
 
@@ -35,7 +37,9 @@ def downgrade() -> None:
     # Safe only for disposable validation databases; Cloud ciphertext needs a
     # verified decrypt-and-backfill workflow before any production rollback.
     op.execute("ALTER TABLE memories DROP CONSTRAINT ck_memories_content_or_ciphertext")
-    op.execute("ALTER TABLE memory_versions DROP CONSTRAINT ck_memory_versions_content_or_ciphertext")
+    op.execute(
+        "ALTER TABLE memory_versions DROP CONSTRAINT ck_memory_versions_content_or_ciphertext"
+    )
     for table in ("memories", "memory_versions"):
         op.execute(f"ALTER TABLE {table} DROP COLUMN provenance_ciphertext")
         op.execute(f"ALTER TABLE {table} DROP COLUMN content_ciphertext")

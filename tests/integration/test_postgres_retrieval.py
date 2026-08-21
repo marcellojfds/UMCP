@@ -34,6 +34,7 @@ from omp.application.models import (
 )
 from omp.application.ports import EmbeddingProfile
 from omp.application.services import MemoryApplicationService
+from omp.cloud import LocalDevelopmentKMS, TenantEnvelopeEncryptor
 from omp.cloud.tenant import TenantContextError, tenant_scope
 from omp.config import OMPSettings
 from omp.domain import (
@@ -255,7 +256,10 @@ async def test_cloud_postgres_uow_fails_closed_without_bound_tenant(runtime: Run
         environment="cloud",
         migration_head="0005_cloud_multitenancy_rls",
     )
-    factory, engine = create_postgres_uow_factory(settings)
+    factory, engine = create_postgres_uow_factory(
+        settings,
+        encryptor=TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)),
+    )
     try:
         with pytest.raises(TenantContextError):
             async with factory():
@@ -278,7 +282,10 @@ async def test_cloud_postgres_write_persists_bound_tenant_id(runtime: Runtime) -
         environment="cloud",
         migration_head="0005_cloud_multitenancy_rls",
     )
-    factory, engine = create_postgres_uow_factory(settings)
+    factory, engine = create_postgres_uow_factory(
+        settings,
+        encryptor=TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)),
+    )
     app = MemoryApplicationService(uow_factory=factory, embedding_provider=HashEmbeddingProvider())
     try:
         with tenant_scope(tenant):
@@ -321,7 +328,8 @@ async def test_cloud_postgres_blocks_cross_tenant_forged_owner_operations(runtim
     factory, engine = create_postgres_uow_factory(
         OMPSettings(
             database_url=cloud_url.render_as_string(hide_password=False), environment="cloud"
-        )
+        ),
+        encryptor=TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)),
     )
     app = MemoryApplicationService(uow_factory=factory, embedding_provider=HashEmbeddingProvider())
     try:
@@ -588,6 +596,49 @@ async def test_semantic_profile_coexists_cutover_and_forget_cascades(runtime: Ru
             )
             == 0
         )
+    finally:
+        await engine_object.dispose()
+
+
+@pytest.mark.asyncio
+async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str) -> None:
+    tenant = uuid4()
+    settings = OMPSettings(
+        database_url=postgres_url,
+        environment="cloud",
+        migration_head="0006_cloud_envelope_storage",
+    )
+    factory, engine_object = create_postgres_uow_factory(
+        settings,
+        encryptor=TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)),
+    )
+    assert isinstance(engine_object, AsyncEngine)
+    app = MemoryApplicationService(uow_factory=factory, embedding_provider=HashEmbeddingProvider())
+    try:
+        async with engine_object.begin() as connection:
+            await connection.execute(
+                text("INSERT INTO tenants (id, name) VALUES (:id, 'encrypted')"), {"id": tenant}
+            )
+        with tenant_scope(tenant):
+            created = await app.write(write_command(f"cloud:{tenant}:subject", "postgres canary"))
+            async with factory() as uow:
+                found = await uow.memories.get(
+                    owner_id=f"cloud:{tenant}:subject", memory_id=created.memory.id
+                )
+        assert found is not None and found.id == created.memory.id
+        async with engine_object.connect() as connection:
+            row = (
+                await connection.execute(
+                    text(
+                        "SELECT content, provenance, content_ciphertext, provenance_ciphertext "
+                        "FROM memories WHERE id = :id"
+                    ),
+                    {"id": created.memory.id},
+                )
+            ).one()._mapping
+        assert row["content"] is None and row["provenance"] is None
+        assert "postgres canary" not in row["content_ciphertext"]
+        assert "postgres canary" not in row["provenance_ciphertext"]
     finally:
         await engine_object.dispose()
 

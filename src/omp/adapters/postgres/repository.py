@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -27,7 +28,13 @@ from omp.application.ports import (
     IdempotencyOperationType,
     MemorySearchCandidate,
 )
-from omp.cloud.tenant import current_tenant, current_tenant_or_none, set_tenant_context
+from omp.cloud.security import EnvelopeCiphertext, TenantEnvelopeEncryptor
+from omp.cloud.tenant import (
+    TenantContextError,
+    current_tenant,
+    current_tenant_or_none,
+    set_tenant_context,
+)
 from omp.config import OMPSettings
 from omp.domain import (
     EmbeddingDescriptor,
@@ -78,12 +85,11 @@ def _provenance_from_json(payload: dict[str, object]) -> Provenance:
     )
 
 
-def _memory_from_row(row: Any) -> Memory:
-    mapping = row._mapping
+def _memory_from_row_values(mapping: Any, *, content: str, provenance: dict[str, object]) -> Memory:
     return Memory(
         id=mapping["id"],
         owner_id=mapping["owner_id"],
-        content=mapping["content"],
+        content=content,
         memory_type=MemoryType(mapping["memory_type"]),
         importance=mapping["importance"],
         confidence=mapping["confidence"],
@@ -93,7 +99,7 @@ def _memory_from_row(row: Any) -> Memory:
         updated_at=mapping["updated_at"],
         occurred_at=mapping["occurred_at"],
         space=mapping["space"],
-        provenance=_provenance_from_json(mapping["provenance"]),
+        provenance=_provenance_from_json(provenance),
         embedding=EmbeddingDescriptor(
             profile_id=mapping["embedding_profile_id"],
             profile_version=mapping["embedding_profile_version"],
@@ -210,14 +216,67 @@ class PostgresIdempotencyRepository:
 
 
 class PostgresMemoryRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self, session: AsyncSession, *, encryptor: TenantEnvelopeEncryptor | None = None
+    ) -> None:
         self._session = session
+        self._encryptor = encryptor
+
+    def _cloud_fields(
+        self, *, record_id: UUID, content: str, provenance: Provenance
+    ) -> dict[str, object]:
+        tenant_id = current_tenant_or_none()
+        if tenant_id is None:
+            return {
+                "content": content,
+                "content_ciphertext": None,
+                "provenance": _provenance_to_json(provenance),
+                "provenance_ciphertext": None,
+            }
+        if self._encryptor is None:
+            raise TenantContextError("Cloud PostgreSQL storage requires envelope encryption")
+        return {
+            "content": None,
+            "content_ciphertext": self._encryptor.encrypt(
+                tenant_id=tenant_id,
+                record_id=record_id,
+                field="content",
+                plaintext=content,
+                key_version=1,
+            ).encode(),
+            "provenance": None,
+            "provenance_ciphertext": self._encryptor.encrypt(
+                tenant_id=tenant_id,
+                record_id=record_id,
+                field="provenance",
+                plaintext=json.dumps(_provenance_to_json(provenance), sort_keys=True),
+                key_version=1,
+            ).encode(),
+        }
+
+    def _memory_from_row(self, row: Any) -> Memory:
+        mapping = row._mapping
+        content = mapping["content"]
+        provenance = mapping["provenance"]
+        if mapping.get("content_ciphertext") is not None:
+            tenant_id = mapping["tenant_id"]
+            if self._encryptor is None or tenant_id is None:
+                raise TenantContextError("Cloud ciphertext cannot be read without an encryptor")
+            content = self._encryptor.decrypt(
+                tenant_id=tenant_id, record_id=mapping["id"], field="content",
+                value=EnvelopeCiphertext.decode(mapping["content_ciphertext"]),
+            )
+            provenance = json.loads(self._encryptor.decrypt(
+                tenant_id=tenant_id, record_id=mapping["id"], field="provenance",
+                value=EnvelopeCiphertext.decode(mapping["provenance_ciphertext"]),
+            ))
+        return _memory_from_row_values(mapping, content=content, provenance=provenance)
 
     async def get(self, *, owner_id: str, memory_id: UUID) -> Memory | None:
         stmt = select(memories).where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
         result = await self._session.execute(stmt)
         row = result.first()
-        return _memory_from_row(row) if row is not None else None
+        return self._memory_from_row(row) if row is not None else None
 
     async def get_version(self, *, owner_id: str, memory_id: UUID, version: int) -> Memory | None:
         current = await self.get(owner_id=owner_id, memory_id=memory_id)
@@ -264,7 +323,7 @@ class PostgresMemoryRepository:
         row = result.first()
         if row is None:
             return None
-        memory = _memory_from_row(row)
+        memory = self._memory_from_row(row)
         fingerprint = row._mapping["idempotency_fingerprint"]
         return IdempotencyLookup(memory=memory, fingerprint=fingerprint)
 
@@ -407,7 +466,7 @@ class PostgresMemoryRepository:
         for row in result:
             candidates.append(
                 MemorySearchCandidate(
-                    memory=_memory_from_row(row),
+                    memory=self._memory_from_row(row),
                     similarity=float(row._mapping["similarity"]),
                     profile=profile,
                 )
@@ -473,7 +532,7 @@ class PostgresMemoryRepository:
             conditions.append(memories.c.id > after_memory_id)
         statement = select(memories).where(*conditions).order_by(memories.c.id.asc()).limit(limit)
         result = await self._session.execute(statement)
-        return tuple(_memory_from_row(row) for row in result)
+        return tuple(self._memory_from_row(row) for row in result)
 
     async def upsert_embedding_profile(
         self,
@@ -554,17 +613,15 @@ class PostgresMemoryRepository:
         )
         return int(result.rowcount or 0)
 
-    @staticmethod
-    def _memory_values(memory: Memory, *, fingerprint: str | None) -> dict[str, object]:
+    def _memory_values(self, memory: Memory, *, fingerprint: str | None) -> dict[str, object]:
         if memory.embedding is None:
             raise ValueError("memory must have an embedding descriptor for storage")
-        return {
+        values: dict[str, object] = {
             "id": memory.id,
             "owner_id": memory.owner_id,
             "tenant_id": current_tenant_or_none(),
             "space": memory.space,
             "memory_type": memory.memory_type.value,
-            "content": memory.content,
             "importance": memory.importance,
             "confidence": memory.confidence,
             "state": memory.state.value,
@@ -572,7 +629,6 @@ class PostgresMemoryRepository:
             "created_at": memory.created_at,
             "updated_at": memory.updated_at,
             "occurred_at": memory.occurred_at,
-            "provenance": _provenance_to_json(memory.provenance),
             "embedding_profile_id": memory.embedding.profile_id,
             "embedding_profile_version": memory.embedding.profile_version,
             "embedding_dimension": memory.embedding.dimension,
@@ -580,6 +636,10 @@ class PostgresMemoryRepository:
             "idempotency_key": memory.idempotency_key,
             "idempotency_fingerprint": fingerprint,
         }
+        values.update(self._cloud_fields(
+            record_id=memory.id, content=memory.content, provenance=memory.provenance
+        ))
+        return values
 
     @staticmethod
     def _embedding_values(
@@ -612,23 +672,24 @@ class PostgresMemoryRepository:
             return memory_embeddings_semantic
         raise ValueError(f"unsupported embedding dimension: {dimension}")
 
-    @staticmethod
-    def _version_values(version: MemoryVersion) -> dict[str, object]:
-        return {
+    def _version_values(self, version: MemoryVersion) -> dict[str, object]:
+        values: dict[str, object] = {
             "memory_id": version.memory_id,
             "tenant_id": current_tenant_or_none(),
             "version": version.version,
             "memory_type": version.memory_type.value,
-            "content": version.content,
             "importance": version.importance,
             "confidence": version.confidence,
             "state": version.state.value,
             "space": version.space,
             "occurred_at": version.occurred_at,
-            "provenance": _provenance_to_json(version.provenance),
             "changed_at": version.changed_at,
             "change_reason": version.change_reason,
         }
+        values.update(self._cloud_fields(
+            record_id=version.memory_id, content=version.content, provenance=version.provenance
+        ))
+        return values
 
     @staticmethod
     def _relation_from_row(row: Any) -> Relation:
@@ -641,29 +702,44 @@ class PostgresMemoryRepository:
             created_at=mapping["created_at"],
         )
 
-    @staticmethod
-    def _version_from_row(row: Any) -> MemoryVersion:
+    def _version_from_row(self, row: Any) -> MemoryVersion:
         mapping = row._mapping
+        content = mapping["content"]
+        provenance = mapping["provenance"]
+        if mapping.get("content_ciphertext") is not None:
+            tenant_id = mapping["tenant_id"]
+            if self._encryptor is None or tenant_id is None:
+                raise TenantContextError("Cloud ciphertext cannot be read without an encryptor")
+            content = self._encryptor.decrypt(
+                tenant_id=tenant_id, record_id=mapping["memory_id"], field="content",
+                value=EnvelopeCiphertext.decode(mapping["content_ciphertext"]),
+            )
+            provenance = json.loads(self._encryptor.decrypt(
+                tenant_id=tenant_id, record_id=mapping["memory_id"], field="provenance",
+                value=EnvelopeCiphertext.decode(mapping["provenance_ciphertext"]),
+            ))
         return MemoryVersion(
             memory_id=mapping["memory_id"],
             version=mapping["version"],
             memory_type=MemoryType(mapping["memory_type"]),
-            content=mapping["content"],
+            content=content,
             importance=mapping["importance"],
             confidence=mapping["confidence"],
             state=MemoryState(mapping["state"]),
             space=mapping["space"],
             occurred_at=mapping["occurred_at"],
-            provenance=_provenance_from_json(mapping["provenance"]),
+            provenance=_provenance_from_json(provenance),
             changed_at=mapping["changed_at"],
             change_reason=mapping["change_reason"],
         )
 
 
 class PostgresMemoryAdminRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self, session: AsyncSession, *, encryptor: TenantEnvelopeEncryptor | None = None
+    ) -> None:
         self._session = session
-        self._memories = PostgresMemoryRepository(session)
+        self._memories = PostgresMemoryRepository(session, encryptor=encryptor)
 
     async def export_memories(
         self, *, owner_id: str, include_embeddings: bool
@@ -693,7 +769,7 @@ class PostgresMemoryAdminRepository:
         row = result.first()
         if row is None:
             return None
-        memory = _memory_from_row(row)
+        memory = self._memories._memory_from_row(row)
         vector: tuple[float, ...] | None = None
         if include_embeddings:
             if memory.embedding is None:
@@ -723,7 +799,7 @@ class PostgresMemoryAdminRepository:
             statement = (
                 pg_insert(memories)
                 .values(
-                    PostgresMemoryRepository._memory_values(
+                    self._memories._memory_values(
                         record.memory, fingerprint=record.write_fingerprint
                     )
                 )
@@ -757,7 +833,7 @@ class PostgresMemoryAdminRepository:
                 await self._session.execute(
                     insert(memory_versions).values(
                         [
-                            PostgresMemoryRepository._version_values(snapshot)
+                            self._memories._version_values(snapshot)
                             for snapshot in record.history
                         ]
                     )
@@ -803,10 +879,12 @@ class PostgresMemoryAdminRepository:
 
 class PostgresUnitOfWork:
     def __init__(
-        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool
+        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool,
+        encryptor: TenantEnvelopeEncryptor | None = None
     ) -> None:
         self._session_factory = session_factory
         self._community_mode = community_mode
+        self._encryptor = encryptor
         self._session: AsyncSession | None = None
         self.memories: PostgresMemoryRepository
         self.idempotency: PostgresIdempotencyRepository
@@ -819,9 +897,9 @@ class PostgresUnitOfWork:
             await self._session.execute(text("SELECT set_config('app.community_mode', '1', true)"))
         else:
             await set_tenant_context(self._session, current_tenant())
-        self.memories = PostgresMemoryRepository(self._session)
+        self.memories = PostgresMemoryRepository(self._session, encryptor=self._encryptor)
         self.idempotency = PostgresIdempotencyRepository(self._session)
-        self.admin = PostgresMemoryAdminRepository(self._session)
+        self.admin = PostgresMemoryAdminRepository(self._session, encryptor=self._encryptor)
         return self
 
     async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> None:
@@ -838,20 +916,26 @@ class PostgresUnitOfWork:
 
 class PostgresUnitOfWorkFactory:
     def __init__(
-        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool
+        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool,
+        encryptor: TenantEnvelopeEncryptor | None = None
     ) -> None:
         self._session_factory = session_factory
         self._community_mode = community_mode
+        self._encryptor = encryptor
 
     def __call__(self) -> PostgresUnitOfWork:
-        return PostgresUnitOfWork(self._session_factory, community_mode=self._community_mode)
+        return PostgresUnitOfWork(
+            self._session_factory, community_mode=self._community_mode, encryptor=self._encryptor
+        )
 
 
-def create_postgres_uow_factory(settings: OMPSettings) -> tuple[PostgresUnitOfWorkFactory, object]:
+def create_postgres_uow_factory(
+    settings: OMPSettings, *, encryptor: TenantEnvelopeEncryptor | None = None
+) -> tuple[PostgresUnitOfWorkFactory, object]:
     """Build a factory and engine; callers own engine disposal."""
 
     engine = create_async_engine(settings.database_url.get_secret_value(), pool_pre_ping=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     return PostgresUnitOfWorkFactory(
-        session_factory, community_mode=settings.environment != "cloud"
+        session_factory, community_mode=settings.environment != "cloud", encryptor=encryptor
     ), engine
