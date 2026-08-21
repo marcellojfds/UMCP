@@ -6,4 +6,6 @@ if ! command -v pip-audit >/dev/null 2>&1; then
   exit 2
 fi
 
-pip-audit --strict
+# Audit the dependency graph declared by this project.  Auditing the ambient
+# interpreter can report unrelated tools from a developer machine instead.
+pip-audit --strict .
