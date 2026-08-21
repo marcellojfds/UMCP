@@ -19,6 +19,16 @@ def current_context() -> tuple[str, str]:
     return sha, branch
 
 
+def docs_only_since(test_sha: str, delivered_sha: str) -> bool:
+    try:
+        changed = subprocess.check_output(
+            ["git", "diff", "--name-only", f"{test_sha}..{delivered_sha}"], text=True
+        ).splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return bool(changed) and all(path.startswith("docs/") for path in changed)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
@@ -63,8 +73,10 @@ def main() -> int:
             errors.append(f"{prefix}: invalid freshness={freshness!r}")
         if result not in ALLOWED_RESULTS:
             errors.append(f"{prefix}: invalid result={result!r}")
-        if freshness == "current" and gate_sha != sha:
-            errors.append(f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha}")
+        if freshness == "current" and gate_sha != sha and not docs_only_since(gate_sha, sha):
+            errors.append(
+                f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha} and non-doc paths changed"
+            )
         if freshness in {"not-run", "environment-blocked"} and not reason:
             errors.append(f"{prefix}: {freshness} gates require a reason")
         rows.append((str(name), str(gate_sha), str(freshness), str(result), str(artifact)))
