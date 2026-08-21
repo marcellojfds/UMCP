@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_root"
+
+expected_branch='roadmap/luna-core'
+actual_branch=$(git branch --show-current)
+actual_sha=$(git rev-parse HEAD)
+if [[ "$actual_branch" != "$expected_branch" ]]; then
+  echo "FAIL branch context: expected $expected_branch, got $actual_branch" >&2
+  exit 1
+fi
+
+echo "UMCP local integration demo"
+echo "branch=$actual_branch"
+echo "sha=$actual_sha"
+echo "data=synthetic-only"
+
+python -m pytest -q \
+  tests/contract/test_mcp_contract.py \
+  -k 'shared_application_service_gateway_round_trip or zero_results_conflict_forget_and_cross_owner_isolation or error_messages_and_logs_do_not_leak_canary or rate_limit_and_hosted_owner_boundary'
+
+python -m pytest -q \
+  tests/contract/test_cloud_http.py \
+  -k 'cloud_tools_reject_owner_id_and_have_security_annotations or cloud_http_is_fail_closed_and_health_is_separate'
+
+echo 'journey=write-search-update-forget: PASS'
+echo 'cross-owner-isolation: PASS'
+echo 'auth-fail-closed-and-owner-boundary: PASS'
+echo 'gate-freshness: see docs/handoffs/roadmap/M00-CORE-DONE.md'
+echo 'release-go=NOT-ISSUED'
