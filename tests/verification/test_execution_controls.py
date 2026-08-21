@@ -59,3 +59,8 @@ def test_capability_report_records_prohibitions_and_environment_classification()
     }
     names = {check["name"]: check["status"] for check in payload["checks"]}
     assert names["browser-automation"] == "not-run"
+
+
+def test_local_links_and_claim_guardrails_pass() -> None:
+    completed = run_script("assert-doc-links-claims")
+    assert completed.returncode == 0, completed.stderr

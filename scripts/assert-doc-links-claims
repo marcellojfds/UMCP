@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Check local Markdown links and require the public claim guardrails."""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+LINK_RE = re.compile(r"\]\((?:<([^>]+)>|([^)#][^)]*))\)")
+REQUIRED_GUARDRAILS = {
+    "README.md": ("not E2EE", "not", "holdout has not been"),
+    "docs/privacy.md": ("não oferece E2EE", "não protegido", "embeddings são dados sensíveis"),
+    "docs/site/claims.md": ("Prohibited", "Conditional", "server-decryptable"),
+}
+
+
+def main() -> int:
+    root = Path.cwd().resolve()
+    files = [
+        Path(item)
+        for item in subprocess.check_output(["git", "ls-files", "*.md"], text=True).splitlines()
+    ]
+    missing: list[str] = []
+    for markdown in files:
+        source = root / markdown
+        for match in LINK_RE.finditer(source.read_text(encoding="utf-8")):
+            target = match.group(1) or match.group(2)
+            if target.startswith(("http://", "https://", "mailto:")):
+                continue
+            target_path = target.split("?", 1)[0].split("#", 1)[0]
+            if not target_path:
+                continue
+            resolved = (source.parent / target_path).resolve()
+            if not resolved.exists():
+                missing.append(f"{markdown}: {target}")
+    guardrail_errors: list[str] = []
+    for relative, phrases in REQUIRED_GUARDRAILS.items():
+        contents = (root / relative).read_text(encoding="utf-8")
+        for phrase in phrases:
+            if phrase not in contents:
+                guardrail_errors.append(f"{relative}: missing guardrail phrase {phrase!r}")
+    print(f"local markdown links checked: {len(files)} files; external URLs not probed")
+    if missing:
+        print("broken local links:", file=sys.stderr)
+        print("\n".join(missing), file=sys.stderr)
+    if guardrail_errors:
+        print("claim guardrails missing:", file=sys.stderr)
+        print("\n".join(guardrail_errors), file=sys.stderr)
+    if missing or guardrail_errors:
+        return 1
+    print("claim guardrails present: hosted/E2EE/universal claims remain bounded")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
