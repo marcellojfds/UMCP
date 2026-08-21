@@ -65,7 +65,7 @@ falha, reinício, retry bem-sucedido e assinatura alterada.
 
 | Verificação | Resultado registrado |
 | --- | --- |
-| `./scripts/gate-fast` no commit `19fc215` | passou: lint, mypy e 72 testes Python |
+| `./scripts/gate-fast` no commit `0d4fdba` | passou: lint, mypy e 73 testes Python |
 | Teste focado de segurança Cloud | 10 passaram antes da porta completa |
 | PostgreSQL descartável (`scripts/gate-postgres`) | 18 testes passaram no HEAD `1bd460e`; migrations zero→head concluídas em PostgreSQL 16.15 com pgvector 0.8.6 |
 | SDK TypeScript | 2 testes passaram em execução anterior |
@@ -87,9 +87,11 @@ release.
 - IdP/OIDC/JWKS real, KMS/HSM, e-mail, fila/worker durável, backups/restore,
   TLS/storage e deploy requerem infraestrutura e autorização externas.
 - Não há evidência de browser E2E visual em desktop, 390px, teclado ou reduced
-  motion. Houve tentativa de iniciar servidor local para isso, mas ela não
-  chegou a uma sessão de browser válida; portanto não deve ser contada como
-  teste realizado.
+  motion. A inspeção do landing foi feita, mas três alternativas seguras para
+  E2E falharam por limitação do ambiente: processos loopback são encerrados
+  após o comando de teste, inclusive em segundo plano; navegação a arquivo
+  local é bloqueada pela política do navegador. Portanto isso não deve ser
+  contado como teste realizado.
 - Não há afirmação de E2EE, zero knowledge, compatibilidade universal de
   clientes ou readiness de produção.
 

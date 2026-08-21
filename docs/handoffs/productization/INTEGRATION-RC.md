@@ -1,7 +1,7 @@
 # UMCP local integration RC
 
 **Branch:** `product/integration`
-**Implementation base:** `19fc215`
+**Implementation base:** `0d4fdba`
 **Scope:** locally integrated Terra data-plane and Luna experience work.
 
 ## Included histories
@@ -15,14 +15,16 @@
 
 | Check | Result |
 | --- | --- |
-| Python fast gate | 72 passed (HEAD `19fc215`) |
+| Python fast gate | 73 passed (HEAD `0d4fdba`) |
 | PostgreSQL integration/e2e gate | 18 passed (HEAD `1bd460e`; migrations zero→head `0007_tenant_fks`) |
 | TypeScript SDK | 2 passed |
 | Web tests / check / build | 3 passed / passed / passed |
 | MCP conformance lifecycle | passed against local authenticated `/mcp` |
 | Dependency audit / CI safety scan | passed |
 
-The local browser inspection covered the landing structure only. Browser E2E at
+The local browser inspection covered the landing structure only. A browser E2E
+attempt could not retain a loopback web server in this execution environment;
+direct local-file navigation is blocked by browser policy. Browser E2E at
 desktop/390px, keyboard and visual-snapshot coverage remain unverified.
 
 ## Current architecture and migrations
@@ -39,6 +41,9 @@ desktop/390px, keyboard and visual-snapshot coverage remain unverified.
   content-free tombstones, and revokes local sessions, connections and PATs.
 - The local worker can snapshot and restore signed retryable jobs after a
   restart; this is still not a durable production queue.
+- Local re-embedding uses a signed tenant-bound reference and a conditional
+  source-version write: update or forget racing with the job yields `stale`
+  and cannot leave a searchable stale vector.
 
 ## Deliberate local-only adapters and risks
 
