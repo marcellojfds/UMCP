@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$#" -gt 1 ]]; then
+  echo "usage: $0 [INTEGRATION_WORKTREE]" >&2
+  exit 2
+fi
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+integration_worktree=$(CDPATH= cd -- "${1:-/private/tmp/umcp-roadmap-integration}" 2>/dev/null && pwd -P) || {
+  echo "integration worktree does not exist: ${1:-/private/tmp/umcp-roadmap-integration}" >&2
+  exit 1
+}
+
+"$repo_root/scripts/assert-worktree-context" roadmap/integration "$integration_worktree"
+
+handoffs=(
+  'roadmap/luna-core:docs/handoffs/roadmap/M00-CORE-DONE.md'
+  'roadmap/luna-experience:docs/handoffs/roadmap/M00-EXPERIENCE-DONE.md'
+  'roadmap/luna-verification:docs/handoffs/roadmap/M00-VERIFICATION-DONE.md'
+)
+missing=0
+for entry in "${handoffs[@]}"; do
+  branch=${entry%%:*}
+  file=${entry#*:}
+  if git -C "$integration_worktree" show "$branch:$file" >/dev/null 2>&1; then
+    sha=$(git -C "$integration_worktree" rev-parse "$branch")
+    echo "handoff=present branch=$branch sha=$sha file=$file"
+  else
+    echo "handoff=missing branch=$branch file=$file"
+    missing=1
+  fi
+done
+
+if [[ "$missing" != "0" ]]; then
+  echo 'm00-handoffs=WAITING'
+  exit 2
+fi
+
+echo 'm00-handoffs=READY'
