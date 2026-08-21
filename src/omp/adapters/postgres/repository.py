@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import bindparam, delete, insert, select, update
+from sqlalchemy import bindparam, delete, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -50,6 +50,7 @@ from .schema import (
     idempotency_operations,
     memories,
     memory_embeddings,
+    memory_embeddings_semantic,
     memory_relations,
     memory_versions,
 )
@@ -295,8 +296,11 @@ class PostgresMemoryRepository:
                     "idempotency_key was already used for another memory"
                 )
             return CreateMemoryResult(memory=prior.memory, created=False)
+        embedding_table = self._embedding_table(
+            memory.embedding.dimension if memory.embedding else 0
+        )
         await self._session.execute(
-            insert(memory_embeddings).values(self._embedding_values(memory, embedding))
+            insert(embedding_table).values(self._embedding_values(memory, embedding))
         )
         await self._session.execute(
             insert(memory_versions).values(
@@ -340,9 +344,12 @@ class PostgresMemoryRepository:
         await self._session.execute(
             insert(memory_versions).values(self._version_values(version_snapshot))
         )
+        embedding_table = self._embedding_table(
+            memory.embedding.dimension if memory.embedding else 0
+        )
         await self._session.execute(
-            update(memory_embeddings)
-            .where(memory_embeddings.c.memory_id == memory.id)
+            update(embedding_table)
+            .where(embedding_table.c.memory_id == memory.id)
             .values(self._embedding_values(memory, embedding, include_memory_id=False))
         )
         return memory
@@ -356,20 +363,24 @@ class PostgresMemoryRepository:
         filters: SearchFilters,
         limit: int,
     ) -> Sequence[MemorySearchCandidate]:
-        if profile.dimension != 64:
-            return ()
+        embedding_table = self._embedding_table(profile.dimension)
         query_vector = bindparam(
             "query_embedding",
-            type_=memory_embeddings.c.vector.type,
+            type_=embedding_table.c.vector.type,
         )
-        similarity = (1 - memory_embeddings.c.vector.cosine_distance(query_vector)).label(
+        similarity = (1 - embedding_table.c.vector.cosine_distance(query_vector)).label(
             "similarity"
         )
         conditions = [
             memories.c.owner_id == owner_id,
-            memories.c.embedding_profile_id == profile.id,
-            memories.c.embedding_profile_version == profile.version,
-            memories.c.embedding_dimension == profile.dimension,
+            embedding_table.c.profile_id == profile.id,
+            embedding_table.c.profile_version == profile.version,
+            (
+                embedding_table.c.source_version == memories.c.version
+                if profile.dimension == 384
+                else True
+            ),
+            embedding_table.c.dimension == profile.dimension,
             memories.c.state.in_([state.value for state in filters.states]),
         ]
         if filters.memory_types:
@@ -384,7 +395,7 @@ class PostgresMemoryRepository:
             conditions.append(memories.c.confidence >= filters.min_confidence)
         statement = (
             select(memories, similarity)
-            .join(memory_embeddings, memory_embeddings.c.memory_id == memories.c.id)
+            .join(embedding_table, embedding_table.c.memory_id == memories.c.id)
             .where(*conditions)
             .order_by(similarity.desc(), memories.c.id.asc())
             .limit(limit)
@@ -451,6 +462,94 @@ class PostgresMemoryRepository:
         result = await self._session.execute(statement)
         return tuple(self._version_from_row(row) for row in result)
 
+    async def list_for_reembedding(
+        self, *, owner_id: str, after_memory_id: UUID | None, limit: int
+    ) -> Sequence[Memory]:
+        conditions = [memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64]
+        if after_memory_id is not None:
+            conditions.append(memories.c.id > after_memory_id)
+        statement = select(memories).where(*conditions).order_by(memories.c.id.asc()).limit(limit)
+        result = await self._session.execute(statement)
+        return tuple(_memory_from_row(row) for row in result)
+
+    async def upsert_embedding_profile(
+        self,
+        *,
+        memory_id: UUID,
+        expected_version: int,
+        profile: EmbeddingProfile,
+        embedding: Sequence[float],
+    ) -> bool:
+        if profile.dimension != 384:
+            raise ValueError("re-embedding requires the semantic 384d profile")
+        current_version = await self._session.scalar(
+            select(memories.c.version).where(
+                memories.c.id == memory_id, memories.c.version == expected_version
+            )
+        )
+        if current_version is None:
+            return False
+        table = self._embedding_table(profile.dimension)
+        statement = pg_insert(table).values(
+            {
+                "memory_id": memory_id,
+                "profile_id": profile.id,
+                "profile_version": profile.version,
+                "source_version": expected_version,
+                "dimension": profile.dimension,
+                "metric": profile.metric,
+                "vector": list(embedding),
+            }
+        )
+        statement = statement.on_conflict_do_update(
+            index_elements=[table.c.memory_id, table.c.profile_id, table.c.profile_version],
+            set_={
+                "source_version": expected_version,
+                "dimension": profile.dimension,
+                "metric": profile.metric,
+                "vector": list(embedding),
+            },
+        )
+        await self._session.execute(statement)
+        return True
+
+    async def semantic_coverage(
+        self, *, owner_id: str, profile: EmbeddingProfile
+    ) -> tuple[int, int]:
+        eligible = await self._session.scalar(
+            select(func.count())
+            .select_from(memories)
+            .where(memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64)
+        )
+        covered = await self._session.scalar(
+            select(func.count())
+            .select_from(memories.join(memory_embeddings_semantic))
+            .where(
+                memories.c.owner_id == owner_id,
+                memories.c.embedding_dimension == 64,
+                memory_embeddings_semantic.c.profile_id == profile.id,
+                memory_embeddings_semantic.c.profile_version == profile.version,
+                memory_embeddings_semantic.c.source_version == memories.c.version,
+            )
+        )
+        return int(eligible or 0), int(covered or 0)
+
+    async def cutover_embedding_profile(self, *, owner_id: str, profile: EmbeddingProfile) -> int:
+        eligible, covered = await self.semantic_coverage(owner_id=owner_id, profile=profile)
+        if eligible != covered:
+            raise RuntimeError("semantic embedding coverage is incomplete")
+        result = await self._session.execute(
+            update(memories)
+            .where(memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64)
+            .values(
+                embedding_profile_id=profile.id,
+                embedding_profile_version=profile.version,
+                embedding_dimension=profile.dimension,
+                embedding_metric=profile.metric,
+            )
+        )
+        return int(result.rowcount or 0)
+
     @staticmethod
     def _memory_values(memory: Memory, *, fingerprint: str | None) -> dict[str, object]:
         if memory.embedding is None:
@@ -490,9 +589,22 @@ class PostgresMemoryRepository:
             "metric": memory.embedding.metric,
             "vector": list(embedding),
         }
+        # The parallel semantic table ties a vector to the exact aggregate
+        # version it represents. Hash/v1 stays in its original 64d table and
+        # intentionally receives no additional column or value.
+        if memory.embedding.dimension == 384:
+            values["source_version"] = memory.version
         if include_memory_id:
             values["memory_id"] = memory.id
         return values
+
+    @staticmethod
+    def _embedding_table(dimension: int) -> Any:
+        if dimension == 64:
+            return memory_embeddings
+        if dimension == 384:
+            return memory_embeddings_semantic
+        raise ValueError(f"unsupported embedding dimension: {dimension}")
 
     @staticmethod
     def _version_values(version: MemoryVersion) -> dict[str, object]:
@@ -577,8 +689,11 @@ class PostgresMemoryAdminRepository:
         memory = _memory_from_row(row)
         vector: tuple[float, ...] | None = None
         if include_embeddings:
+            if memory.embedding is None:
+                raise ValueError("memory must have an embedding descriptor")
+            embedding_table = PostgresMemoryRepository._embedding_table(memory.embedding.dimension)
             embedding_result = await self._session.execute(
-                select(memory_embeddings.c.vector).where(memory_embeddings.c.memory_id == memory_id)
+                select(embedding_table.c.vector).where(embedding_table.c.memory_id == memory_id)
             )
             embedding_row = embedding_result.first()
             if embedding_row is not None:
@@ -624,8 +739,11 @@ class PostgresMemoryAdminRepository:
             if record.embedding is None:
                 raise ImportConflictError("import embedding is missing")
             try:
+                embedding_table = PostgresMemoryRepository._embedding_table(
+                    record.memory.embedding.dimension if record.memory.embedding else 0
+                )
                 await self._session.execute(
-                    insert(memory_embeddings).values(
+                    insert(embedding_table).values(
                         PostgresMemoryRepository._embedding_values(record.memory, record.embedding)
                     )
                 )

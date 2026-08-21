@@ -32,6 +32,7 @@ from omp.application.models import (
     UpdateMemoryCommand,
     WriteMemoryCommand,
 )
+from omp.application.ports import EmbeddingProfile
 from omp.application.services import MemoryApplicationService
 from omp.config import OMPSettings
 from omp.domain import (
@@ -129,7 +130,7 @@ class Runtime:
 
 @pytest.fixture
 async def runtime(postgres_url: str) -> Iterator[Runtime]:
-    settings = OMPSettings(database_url=postgres_url, migration_head="0002_idempotency_operations")
+    settings = OMPSettings(database_url=postgres_url, migration_head="0004_semantic_source_version")
     factory, engine_object = create_postgres_uow_factory(settings)
     assert isinstance(engine_object, AsyncEngine)
     runtime = Runtime(
@@ -145,7 +146,8 @@ async def runtime(postgres_url: str) -> Iterator[Runtime]:
             await connection.execute(
                 text(
                     "TRUNCATE TABLE idempotency_operations, memory_relations, "
-                    "memory_embeddings, memory_versions, memories CASCADE"
+                    "memory_embeddings, memory_embeddings_semantic, memory_versions, "
+                    "memories CASCADE"
                 )
             )
         yield runtime
@@ -177,6 +179,39 @@ async def scalar(engine: AsyncEngine, query: str, **params: object) -> Any:
         return (await connection.execute(text(query), params)).scalar_one()
 
 
+SEMANTIC_PROFILE = EmbeddingProfile("semantic", "e5-small-v2-s09", 384)
+SEMANTIC_VECTOR = (1.0,) + (0.0,) * 383
+
+
+class StaticSemanticProvider:
+    @property
+    def profile(self) -> EmbeddingProfile:
+        return SEMANTIC_PROFILE
+
+    async def embed(self, text: str, *, query: bool = False) -> tuple[float, ...]:
+        return SEMANTIC_VECTOR
+
+
+def semantic_application(
+    runtime: Runtime,
+) -> tuple[MemoryApplicationService, Any, AsyncEngine]:
+    factory, engine_object = create_postgres_uow_factory(
+        OMPSettings(
+            database_url=runtime.database_url,
+            migration_head="0004_semantic_source_version",
+        )
+    )
+    assert isinstance(engine_object, AsyncEngine)
+    return (
+        MemoryApplicationService(
+            uow_factory=factory,
+            embedding_provider=StaticSemanticProvider(),
+        ),
+        factory,
+        engine_object,
+    )
+
+
 @pytest.mark.asyncio
 async def test_migration_head_and_pgvector_are_real(runtime: Runtime) -> None:
     assert (
@@ -188,10 +223,11 @@ async def test_migration_head_and_pgvector_are_real(runtime: Runtime) -> None:
             runtime.engine,
             "SELECT count(*) FROM information_schema.tables "
             "WHERE table_schema = 'public' AND table_name IN "
-            "('memories', 'memory_versions', 'memory_embeddings', 'memory_relations', "
+            "('memories', 'memory_versions', 'memory_embeddings', 'memory_embeddings_semantic', "
+            "'memory_relations', "
             "'idempotency_operations')",
         )
-        == 5
+        == 6
     )
     assert (
         await scalar(
@@ -292,7 +328,10 @@ async def test_search_filters_threshold_active_and_profile(runtime: Runtime) -> 
     ).items == ()
 
     other_factory, other_engine_object = create_postgres_uow_factory(
-        OMPSettings(database_url=runtime.database_url, migration_head="0002_idempotency_operations")
+        OMPSettings(
+            database_url=runtime.database_url,
+            migration_head="0004_semantic_source_version",
+        )
     )
     assert isinstance(other_engine_object, AsyncEngine)
     try:
@@ -305,6 +344,179 @@ async def test_search_filters_threshold_active_and_profile(runtime: Runtime) -> 
         assert all(item.profile_version == "v1" for item in v1.items)
     finally:
         await other_engine_object.dispose()
+
+
+@pytest.mark.asyncio
+async def test_semantic_profile_coexists_cutover_and_forget_cascades(runtime: Runtime) -> None:
+    created = await runtime.app.write(write_command("owner-a", "semantic parallel profile"))
+    profile = EmbeddingProfile("semantic", "e5-small-v2-s09", 384)
+    vector = (1.0,) + (0.0,) * 383
+    factory, engine_object = create_postgres_uow_factory(
+        OMPSettings(
+            database_url=runtime.database_url,
+            migration_head="0004_semantic_source_version",
+        )
+    )
+
+    class StaticSemanticProvider:
+        @property
+        def profile(self) -> EmbeddingProfile:
+            return profile
+
+        async def embed(self, text: str, *, query: bool = False) -> tuple[float, ...]:
+            return vector
+
+    try:
+        async with factory() as uow:
+            assert await uow.memories.upsert_embedding_profile(
+                memory_id=created.memory.id,
+                expected_version=created.memory.version,
+                profile=profile,
+                embedding=vector,
+            )
+        semantic_app = MemoryApplicationService(
+            uow_factory=factory, embedding_provider=StaticSemanticProvider()
+        )
+        before_cutover = await semantic_app.search(
+            SearchMemoryCommand(owner_id="owner-a", query="semantic query")
+        )
+        assert [item.memory.id for item in before_cutover.items] == [created.memory.id]
+        async with factory() as uow:
+            assert (
+                await uow.memories.cutover_embedding_profile(owner_id="owner-a", profile=profile)
+                == 1
+            )
+        after_cutover = await semantic_app.search(
+            SearchMemoryCommand(owner_id="owner-a", query="semantic query")
+        )
+        assert [item.memory.id for item in after_cutover.items] == [created.memory.id]
+        await semantic_app.forget(
+            ForgetMemoryCommand(owner_id="owner-a", memory_id=created.memory.id)
+        )
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT count(*) FROM memory_embeddings_semantic WHERE memory_id = :id",
+                id=created.memory.id,
+            )
+            == 0
+        )
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT count(*) FROM memory_embeddings WHERE memory_id = :id",
+                id=created.memory.id,
+            )
+            == 0
+        )
+    finally:
+        await engine_object.dispose()
+
+
+@pytest.mark.asyncio
+async def test_semantic_source_version_is_written_updated_imported_and_stale_safe(
+    runtime: Runtime,
+) -> None:
+    semantic_app, factory, engine_object = semantic_application(runtime)
+    try:
+        created = await semantic_app.write(write_command("owner-semantic", "semantic source"))
+        assert created.memory.version == 1
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT source_version FROM memory_embeddings_semantic WHERE memory_id = :id",
+                id=created.memory.id,
+            )
+            == 1
+        )
+
+        updated = await semantic_app.update(
+            UpdateMemoryCommand(
+                owner_id="owner-semantic",
+                memory_id=created.memory.id,
+                expected_version=1,
+                content="semantic source v2",
+            )
+        )
+        assert updated.version == 2
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT source_version FROM memory_embeddings_semantic WHERE memory_id = :id",
+                id=created.memory.id,
+            )
+            == 2
+        )
+
+        exported = await semantic_app.export_memories(
+            owner_id="owner-semantic",
+            include_embeddings=True,
+        )
+        assert exported[0].embedding is not None
+        async with runtime.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "TRUNCATE TABLE idempotency_operations, memory_relations, "
+                    "memory_embeddings, memory_embeddings_semantic, memory_versions, "
+                    "memories CASCADE"
+                )
+            )
+        imported = await semantic_app.import_memories(owner_id="owner-semantic", records=exported)
+        assert imported.imported == 1
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT source_version FROM memory_embeddings_semantic WHERE memory_id = :id",
+                id=created.memory.id,
+            )
+            == 2
+        )
+
+        hash_memory = await runtime.app.write(write_command("owner-stale", "hash source"))
+        async with factory() as uow:
+            assert await uow.memories.upsert_embedding_profile(
+                memory_id=hash_memory.memory.id,
+                expected_version=1,
+                profile=SEMANTIC_PROFILE,
+                embedding=SEMANTIC_VECTOR,
+            )
+        await runtime.app.update(
+            UpdateMemoryCommand(
+                owner_id="owner-stale",
+                memory_id=hash_memory.memory.id,
+                expected_version=1,
+                content="hash source v2",
+            )
+        )
+        async with factory() as uow:
+            assert not await uow.memories.upsert_embedding_profile(
+                memory_id=hash_memory.memory.id,
+                expected_version=1,
+                profile=SEMANTIC_PROFILE,
+                embedding=SEMANTIC_VECTOR,
+            )
+        stale_search = await semantic_app.search(
+            SearchMemoryCommand(owner_id="owner-stale", query="hash source")
+        )
+        assert stale_search.items == ()
+        assert await scalar(runtime.engine, "SELECT count(*) FROM memory_embeddings") == 1
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT count(*) FROM information_schema.columns "
+                "WHERE table_name = 'memory_embeddings' AND column_name = 'source_version'",
+            )
+            == 0
+        )
+        assert (
+            await scalar(
+                runtime.engine,
+                "SELECT count(*) FROM memory_embeddings_semantic WHERE source_version < 1",
+            )
+            == 0
+        )
+    finally:
+        await engine_object.dispose()
 
 
 @pytest.mark.asyncio
@@ -399,14 +611,17 @@ async def test_failed_update_rolls_back_ledger_and_memory(runtime: Runtime) -> N
     class ToggleProvider(HashEmbeddingProvider):
         bad = False
 
-        async def embed(self, text: str) -> tuple[float, ...]:
+        async def embed(self, text: str, *, query: bool = False) -> tuple[float, ...]:
             if self.bad:
                 return (0.0, 1.0, 0.0)
             return tuple(await super().embed(text))
 
     provider = ToggleProvider()
     factory, engine_object = create_postgres_uow_factory(
-        OMPSettings(database_url=runtime.database_url, migration_head="0002_idempotency_operations")
+        OMPSettings(
+            database_url=runtime.database_url,
+            migration_head="0004_semantic_source_version",
+        )
     )
     assert isinstance(engine_object, AsyncEngine)
     app = MemoryApplicationService(uow_factory=factory, embedding_provider=provider)
@@ -566,7 +781,10 @@ async def test_postgres_import_uses_supplied_embeddings_and_profile_policy(
         )
 
     factory, engine_object = create_postgres_uow_factory(
-        OMPSettings(database_url=runtime.database_url, migration_head="0002_idempotency_operations")
+        OMPSettings(
+            database_url=runtime.database_url,
+            migration_head="0004_semantic_source_version",
+        )
     )
     assert isinstance(engine_object, AsyncEngine)
     try:

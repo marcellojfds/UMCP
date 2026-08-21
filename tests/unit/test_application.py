@@ -242,7 +242,7 @@ class WrongDimensionProvider(HashEmbeddingProvider):
         super().__init__()
         self.bad = False
 
-    async def embed(self, text: str) -> tuple[float, ...]:
+    async def embed(self, text: str, *, query: bool = False) -> tuple[float, ...]:
         if self.bad:
             return (0.0, 1.0, 0.0)
         return tuple(await super().embed(text))

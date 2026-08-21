@@ -98,6 +98,25 @@ memory_embeddings = Table(
     ),
 )
 
+memory_embeddings_semantic = Table(
+    "memory_embeddings_semantic",
+    metadata,
+    Column(
+        "memory_id",
+        UUID(as_uuid=True),
+        ForeignKey("memories.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("profile_id", String(128), nullable=False),
+    Column("profile_version", String(128), nullable=False),
+    Column("source_version", Integer, nullable=False),
+    Column("dimension", Integer, nullable=False),
+    Column("metric", String(32), nullable=False),
+    Column("vector", Vector(384), nullable=False),
+    PrimaryKeyConstraint("memory_id", "profile_id", "profile_version"),
+    CheckConstraint("dimension = 384", name="ck_semantic_embedding_dimension"),
+)
+
 memory_relations = Table(
     "memory_relations",
     metadata,
@@ -164,4 +183,11 @@ Index(
     "ix_idempotency_operations_owner_type",
     idempotency_operations.c.owner_id,
     idempotency_operations.c.operation_type,
+)
+Index(
+    "ix_memory_embeddings_semantic_vector_cosine",
+    memory_embeddings_semantic.c.vector,
+    postgresql_using="ivfflat",
+    postgresql_ops={"vector": "vector_cosine_ops"},
+    postgresql_with={"lists": 10},
 )

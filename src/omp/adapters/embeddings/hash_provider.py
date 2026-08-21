@@ -32,7 +32,7 @@ class HashEmbeddingProvider:
     def profile(self) -> EmbeddingProfile:
         return self._profile
 
-    async def embed(self, text: str) -> Sequence[float]:
+    async def embed(self, text: str, *, query: bool = False) -> Sequence[float]:
         tokens = re.findall(r"[\wÀ-ÿ]+", text.casefold())
         vector = [0.0] * self._profile.dimension
         for token in tokens:

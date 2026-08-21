@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from sqlalchemy import text
 
-from omp.adapters.embeddings.hash_provider import HashEmbeddingProvider
+from omp.adapters.embeddings import HashEmbeddingProvider, LocalTransformerEmbeddingProvider
 from omp.adapters.mcp.adapter import MCPAdapter
 from omp.adapters.mcp.application_gateway import MemoryApplicationGateway
 from omp.adapters.mcp.local import PersistentLocalMemoryService
@@ -25,15 +25,21 @@ class ServerRuntime:
     backend: str
     engine: Any | None = None
     service: Any | None = None
+    embedding_provider: Any | None = None
     _closed: bool = False
 
     async def startup(self) -> None:
+        if self.embedding_provider is not None and hasattr(self.embedding_provider, "startup"):
+            await self.embedding_provider.startup()
         if self.backend == "postgres" and not await self.readiness():
             raise RuntimeError("postgres readiness check failed")
 
     async def readiness(self) -> bool:
         if self.backend == "demo":
             return True
+        if self.embedding_provider is not None and hasattr(self.embedding_provider, "ready"):
+            if not bool(self.embedding_provider.ready):
+                return False
         if self.engine is None:
             return False
         try:
@@ -74,11 +80,26 @@ def create_runtime(
         )
 
     uow_factory, engine = create_postgres_uow_factory(selected)
-    embedding_provider = HashEmbeddingProvider(
-        dimension=selected.embedding_dimension,
-        profile_id=selected.embedding_profile_id,
-        version=selected.embedding_profile_version,
-    )
+    if selected.embedding_provider == "e5":
+        if selected.embedding_dimension != 384:
+            raise ValueError("OMP_EMBEDDING_DIMENSION must be 384 when E5 is selected")
+        embedding_provider: Any = LocalTransformerEmbeddingProvider(
+            model_root=selected.semantic_model_root,
+            model_id=selected.semantic_model_id,
+            model_revision=selected.semantic_model_revision,
+            profile_id=selected.embedding_profile_id,
+            profile_version=selected.embedding_profile_version,
+            dimension=selected.embedding_dimension,
+            query_prefix=selected.semantic_query_prefix,
+            passage_prefix=selected.semantic_passage_prefix,
+            max_length=selected.semantic_max_length,
+        )
+    else:
+        embedding_provider = HashEmbeddingProvider(
+            dimension=selected.embedding_dimension,
+            profile_id=selected.embedding_profile_id,
+            version=selected.embedding_profile_version,
+        )
     service = MemoryApplicationService(
         uow_factory=cast(Callable[[], Any], uow_factory),
         embedding_provider=embedding_provider,
@@ -91,6 +112,7 @@ def create_runtime(
         backend="postgres",
         engine=engine,
         service=service,
+        embedding_provider=embedding_provider,
     )
 
 

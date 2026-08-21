@@ -257,6 +257,10 @@ class MemoryApplicationService:
                 kwargs["state"] = MemoryState.CONTRADICTED
                 kwargs["related_memory_id"] = command.contradicts_memory_id
             kwargs["change_reason"] = command.change_reason
+            # The selected runtime profile owns the new vector.  The storage
+            # adapter keeps the previous profile in its parallel table, so a
+            # controlled cutover or rollback never mixes dimensions in one row.
+            kwargs["embedding"] = self._embedding_provider.profile.descriptor()
             updated = current.evolve(**kwargs)  # type: ignore[arg-type]
             vector = (
                 await self._embedding_provider.embed(updated.content)
@@ -309,7 +313,7 @@ class MemoryApplicationService:
             raise ValidationError("candidate_limit must be between 1 and 500")
         if not 0 <= command.threshold <= 1:
             raise ValidationError("threshold must be between 0 and 1")
-        query_vector = await self._embedding_provider.embed(command.query)
+        query_vector = await self._embedding_provider.embed(command.query, query=True)
         self._validate_vector(query_vector)
         profile = self._embedding_provider.profile
         async with self._uow_factory() as uow:

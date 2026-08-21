@@ -111,6 +111,23 @@ def test_readiness_fails_closed_and_default_runtime_never_selects_demo() -> None
     asyncio.run(runtime.close())
 
 
+def test_semantic_readiness_fails_closed_without_pinned_local_model(tmp_path: Path) -> None:
+    runtime = create_runtime(
+        OMPSettings(
+            database_url="postgresql+asyncpg://127.0.0.1:1/omp",
+            embedding_provider="e5",
+            embedding_profile_id="semantic",
+            embedding_profile_version="e5-small-v2-s09",
+            embedding_dimension=384,
+            semantic_model_root=str(tmp_path / "missing-model"),
+        )
+    )
+    assert asyncio.run(runtime.readiness()) is False
+    with pytest.raises(RuntimeError, match="pinned local semantic model"):
+        asyncio.run(runtime.startup())
+    asyncio.run(runtime.close())
+
+
 def test_liveness_is_independent_but_readiness_hides_dependency_details() -> None:
     from fastapi.testclient import TestClient
 

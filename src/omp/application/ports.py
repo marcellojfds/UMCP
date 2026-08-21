@@ -65,7 +65,7 @@ class EmbeddingProvider(Protocol):
     @property
     def profile(self) -> EmbeddingProfile: ...
 
-    async def embed(self, text: str) -> Sequence[float]: ...
+    async def embed(self, text: str, *, query: bool = False) -> Sequence[float]: ...
 
 
 class MemoryRepository(Protocol):
@@ -113,6 +113,27 @@ class MemoryRepository(Protocol):
     async def list_relations(self, *, owner_id: str, memory_id: UUID) -> Sequence[Relation]: ...
 
     async def history(self, *, owner_id: str, memory_id: UUID) -> Sequence[MemoryVersion]: ...
+
+    async def list_for_reembedding(
+        self, *, owner_id: str, after_memory_id: UUID | None, limit: int
+    ) -> Sequence[Memory]: ...
+
+    async def upsert_embedding_profile(
+        self,
+        *,
+        memory_id: UUID,
+        expected_version: int,
+        profile: EmbeddingProfile,
+        embedding: Sequence[float],
+    ) -> bool: ...
+
+    async def semantic_coverage(
+        self, *, owner_id: str, profile: EmbeddingProfile
+    ) -> tuple[int, int]: ...
+
+    async def cutover_embedding_profile(
+        self, *, owner_id: str, profile: EmbeddingProfile
+    ) -> int: ...
 
 
 class IdempotencyRepository(Protocol):
