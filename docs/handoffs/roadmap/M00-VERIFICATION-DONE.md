@@ -52,6 +52,7 @@ was refreshed on `2c305ed` after scoping gate freshness by affected paths.
 | Gate | SHA | Freshness | Result | Artifact |
 | --- | --- | --- | --- | --- |
 | gate-fast | `2c305ed1d339bec1252a087df60d38e2741235c7` | environment-blocked | lint/mypy + 71 tests pass; 2 HTTP MCP tests cannot bind loopback | `evidence/gate-fast.log` |
+| root-pytest | `d9ad3958edc382adbd6d93a803c1f376e6ab6f10` | current | fail, 95 passed / 4 failed / 19 skipped; E5 and HTTP findings | `evidence/full-pytest.log` |
 | PostgreSQL/migrations | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 19 tests | `evidence/postgres-migrations.md` |
 | MCP stdio/fixture conformance | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/conformance-and-evals.log` |
 | SDK | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 2 tests | `evidence/sdk-web.log` |
@@ -81,6 +82,8 @@ were not changed or evaluated by this harness.
 - [`M00-INTEGRATION-001.md`](findings/M00-INTEGRATION-001.md): the integration
   checkpoint is stale relative to the current Core/Experience/Verification
   refs; `M00-INTEGRATED.md` is still absent.
+- [`M1-EVAL-001.md`](findings/M1-EVAL-001.md): frozen E5 prefix assertions do
+  not match the loaded trailing-space values.
 - The integration checkpoint reports that this exact `M00-VERIFICATION-DONE.md`
   was previously missing; it is now published on the Verification branch.
 - No implementation finding is asserted against Core or Experience because no
