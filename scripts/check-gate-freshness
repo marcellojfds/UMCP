@@ -11,6 +11,40 @@ from pathlib import Path
 
 ALLOWED_FRESHNESS = {"current", "historical", "not-run", "environment-blocked"}
 ALLOWED_RESULTS = {"pass", "fail", "not-run", "blocked"}
+GATE_PATH_SCOPES: dict[str, tuple[str, ...]] = {
+    "gate-fast": ("src/", "tests/", "scripts/", "pyproject.toml"),
+    "postgres-migrations": (
+        "migrations/",
+        "src/omp/adapters/postgres/",
+        "tests/integration/",
+        "tests/e2e/",
+        "ops/postgres/",
+        "scripts/gate-postgres",
+    ),
+    "mcp-stdio-conformance": (
+        "src/omp/adapters/mcp/",
+        "src/omp/application/",
+        "tests/contract/",
+        "tests/e2e/",
+    ),
+    "auth-negative": ("src/omp/cloud/", "src/omp/server/", "tests/contract/"),
+    "rls-cross-tenant": (
+        "src/omp/cloud/",
+        "src/omp/adapters/postgres/",
+        "migrations/",
+        "tests/integration/",
+    ),
+    "encryption-rotation": ("src/omp/cloud/", "tests/unit/test_cloud_security.py", "tests/integration/"),
+    "backup-restore-tombstones": ("src/omp/cloud/", "scripts/backup-postgres", "scripts/restore-postgres", "tests/"),
+    "worker-retry-restart": ("src/omp/cloud/worker.py", "tests/unit/test_cloud_security.py"),
+    "sdk": ("packages/sdk-typescript/",),
+    "web": ("apps/web/",),
+    "browser-e2e": ("apps/web/", "tests/e2e/", "tests/browser/"),
+    "secret-pii": ("src/", "scripts/", "tests/", "apps/", "packages/", "pyproject.toml"),
+    "dependency-vulnerability": ("pyproject.toml", "packages/", "apps/", "package.json", "package-lock.json"),
+    "sbom": ("pyproject.toml", "packages/", "apps/", "package.json", "package-lock.json"),
+    "links-claims": ("docs/", "README.md", "SECURITY.md", "CHANGELOG.md"),
+}
 
 
 def current_context() -> tuple[str, str]:
@@ -19,14 +53,20 @@ def current_context() -> tuple[str, str]:
     return sha, branch
 
 
-def docs_only_since(test_sha: str, delivered_sha: str) -> bool:
+def changed_paths_since(test_sha: str, delivered_sha: str) -> list[str] | None:
     try:
-        changed = subprocess.check_output(
+        return subprocess.check_output(
             ["git", "diff", "--name-only", f"{test_sha}..{delivered_sha}"], text=True
         ).splitlines()
     except (OSError, subprocess.CalledProcessError):
-        return False
-    return bool(changed) and all(path.startswith("docs/") for path in changed)
+        return None
+
+
+def gate_scope_affected(name: str, changed: list[str] | None) -> bool:
+    scopes = GATE_PATH_SCOPES.get(name)
+    if changed is None or scopes is None:
+        return True
+    return any(path == scope or path.startswith(scope) for path in changed for scope in scopes)
 
 
 def main() -> int:
@@ -59,6 +99,8 @@ def main() -> int:
         return 1
     errors: list[str] = []
     rows: list[tuple[str, str, str, str, str]] = []
+    changed_cache: list[str] | None = None
+    changed_loaded = False
     for index, gate in enumerate(payload["gates"]):
         prefix = f"gates[{index}]"
         name = gate.get("name")
@@ -73,11 +115,15 @@ def main() -> int:
             errors.append(f"{prefix}: invalid freshness={freshness!r}")
         if result not in ALLOWED_RESULTS:
             errors.append(f"{prefix}: invalid result={result!r}")
-        if freshness == "current" and gate_sha != sha and not docs_only_since(gate_sha, sha):
-            errors.append(
-                f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha} "
-                "and non-doc paths changed"
-            )
+        if freshness == "current" and gate_sha != sha:
+            if not changed_loaded:
+                changed_cache = changed_paths_since(gate_sha, sha)
+                changed_loaded = True
+            if gate_scope_affected(str(name), changed_cache):
+                errors.append(
+                    f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha} "
+                    "and its scoped paths changed"
+                )
         if freshness in {"not-run", "environment-blocked"} and not reason:
             errors.append(f"{prefix}: {freshness} gates require a reason")
         rows.append((str(name), str(gate_sha), str(freshness), str(result), str(artifact)))
