@@ -1,7 +1,7 @@
 # UMCP local integration RC
 
 **Branch:** `product/integration`
-**Implementation base:** `e753829`
+**Implementation base:** `19fc215`
 **Scope:** locally integrated Terra data-plane and Luna experience work.
 
 ## Included histories
@@ -15,7 +15,7 @@
 
 | Check | Result |
 | --- | --- |
-| Python fast gate | 71 passed |
+| Python fast gate | 72 passed (HEAD `19fc215`) |
 | PostgreSQL integration/e2e gate | 18 passed |
 | TypeScript SDK | 2 passed |
 | Web tests / check / build | 3 passed / passed / passed |
@@ -37,6 +37,8 @@ desktop/390px, keyboard and visual-snapshot coverage remain unverified.
   child bound to another tenant.
 - Local account deletion removes the owner’s encrypted memories, leaves
   content-free tombstones, and revokes local sessions, connections and PATs.
+- The local worker can snapshot and restore signed retryable jobs after a
+  restart; this is still not a durable production queue.
 
 ## Deliberate local-only adapters and risks
 
@@ -53,3 +55,6 @@ This is a local integration candidate, not a production readiness statement.
 It does not claim E2EE, zero knowledge, universal client compatibility,
 encrypted backups, staging TLS/storage verification, or a public release.
 Those steps require external authorization and provisioned services.
+
+See `SESSION-POSTMORTEM-2026-08-21.md` for the complete session record,
+validation freshness and known execution shortcomings.
