@@ -60,6 +60,16 @@ not a green acceptance. Exit 1 means the handoff exists but is structurally
 incomplete. Only exit 0 permits the Verification lane to synchronize and rerun
 the next candidate.
 
+For the full M00 coordination audit across refs:
+
+```sh
+scripts/assert-m00-branch-handoffs
+```
+
+This command reads Git refs without checking out another worktree. It reports
+which Core, Experience, Verification and Integration handoffs exist; missing
+integration is `WAITING`/exit 2.
+
 ## Ownership and claims
 
 Do not edit `src/omp`, migrations, `apps/web`, SDK implementation, auth/crypto/RLS

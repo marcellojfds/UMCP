@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Audit M00 handoff presence across lane refs without checking out another tree."""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+REQUIRED = {
+    "roadmap/luna-core": "docs/handoffs/roadmap/M00-CORE-DONE.md",
+    "roadmap/luna-experience": "docs/handoffs/roadmap/M00-EXPERIENCE-DONE.md",
+    "roadmap/luna-verification": "docs/handoffs/roadmap/M00-VERIFICATION-DONE.md",
+    "roadmap/integration": "docs/handoffs/roadmap/M00-INTEGRATED.md",
+}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--integration-ref", default="roadmap/integration")
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parents[1]
+    context = subprocess.run(
+        [str(root / "scripts/assert-worktree-context"), "--require-clean"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if context.returncode != 0:
+        print("m00-handoffs=CONTEXT-FAIL", file=sys.stderr)
+        return 1
+    missing: list[str] = []
+    refs = [(ref, path) for ref, path in REQUIRED.items() if ref != args.integration_ref]
+    refs.append((args.integration_ref, REQUIRED["roadmap/integration"]))
+    for ref, path in refs:
+        result = subprocess.run(
+            ["git", "show", f"{ref}:{path}"], cwd=root, capture_output=True, text=True, check=False
+        )
+        status = "present" if result.returncode == 0 else "missing"
+        print(f"handoff={ref}:{path} status={status}")
+        if status == "missing":
+            missing.append(f"{ref}:{path}")
+    if missing:
+        print("m00-handoffs=WAITING")
+        print("missing=" + ";".join(missing))
+        return 2
+    print("m00-handoffs=READY")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
