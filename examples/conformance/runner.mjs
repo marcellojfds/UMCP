@@ -13,7 +13,7 @@ const tools = await transport.listTools();
 const names = new Set(tools.map((tool) => tool.name));
 for (const name of expected) if (!names.has(name)) throw new Error(`Missing tool: ${name}`);
 const runId = `conformance-${Date.now()}`;
-const created = await transport.callTool("memory.write", { content: "Synthetic conformance memory", type: "preference", provenance: { source_type: "test", captured_at: "2026-08-21T00:00:00Z" } }, { idempotencyKey: `${runId}-write` });
+const created = await transport.callTool("memory.write", { content: "Synthetic conformance memory", type: "preference", provenance: { source_type: "user", captured_at: "2026-08-21T00:00:00Z" } }, { idempotencyKey: `${runId}-write` });
 const memoryId = created.memory_id ?? created.id;
 if (!memoryId) throw new Error("write did not return a memory identifier");
 const searched = await transport.callTool("memory.search", { query: "Synthetic conformance memory", limit: 5 });

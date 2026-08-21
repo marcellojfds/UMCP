@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import os
 import socket
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -201,6 +204,55 @@ async def test_cloud_http_calls_tools_with_verified_tenant_principal(tmp_path) -
                         },
                     )
                     assert denied.isError is True
+    finally:
+        server.should_exit = True
+        await task
+
+
+@pytest.mark.asyncio
+async def test_conformance_runner_executes_against_local_mcp_gateway(tmp_path) -> None:
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "conformance.json")), kms_master_key=b"k" * 32
+    )
+    local = verifier()
+    access_token = token(local, {Scope.MEMORY_READ, Scope.MEMORY_WRITE, Scope.MEMORY_DELETE})
+    with socket.socket() as reserved:
+        reserved.bind(("127.0.0.1", 0))
+        port = reserved.getsockname()[1]
+    app = create_cloud_http_app(runtime, local, allowed_hosts=[f"127.0.0.1:{port}"])
+    AppStatus.should_exit_event = None
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    task = asyncio.create_task(server.serve())
+    base_url = f"http://127.0.0.1:{port}"
+    root = Path(__file__).parents[2]
+    try:
+        for _ in range(50):
+            try:
+                async with httpx.AsyncClient() as health_client:
+                    if (await health_client.get(f"{base_url}/healthz")).status_code == 200:
+                        break
+            except httpx.ConnectError:
+                await asyncio.sleep(0.02)
+        else:
+            pytest.fail("local MCP server did not become ready")
+        process = await asyncio.create_subprocess_exec(
+            "node",
+            "examples/conformance/runner.mjs",
+            "./examples/conformance/mcp-http-adapter.mjs",
+            cwd=root,
+            env={
+                **os.environ,
+                "UMCP_MCP_URL": f"{base_url}/mcp",
+                "UMCP_ACCESS_TOKEN": access_token,
+            },
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        assert process.returncode == 0, stderr.decode()
+        result = json.loads(stdout)
+        assert result["status"] == "pass"
+        assert "Synthetic conformance memory" not in stdout.decode()
     finally:
         server.should_exit = True
         await task

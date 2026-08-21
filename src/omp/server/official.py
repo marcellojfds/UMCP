@@ -93,7 +93,9 @@ def create_official_server(runtime: ServerRuntime) -> FastMCP:
     return server
 
 
-def create_cloud_server(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> FastMCP:
+def create_cloud_server(
+    runtime: ServerRuntime, verifier: OIDCTokenVerifier, *, allowed_hosts: list[str] | None = None
+) -> FastMCP:
     """Create the authenticated Streamable HTTP MCP composition.
 
     Unlike the Community stdio server, no hosted tool has an ``owner_id``
@@ -112,7 +114,9 @@ def create_cloud_server(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> 
         streamable_http_path="/mcp",
         stateless_http=True,
         max_request_body_size=64 * 1024,
-        transport_security=TransportSecuritySettings(allowed_hosts=["local.umcp.invalid"]),
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=allowed_hosts or ["local.umcp.invalid"]
+        ),
     )
 
     @server.tool(
@@ -170,12 +174,14 @@ def create_cloud_server(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> 
     return server
 
 
-def create_cloud_http_app(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> object:
+def create_cloud_http_app(
+    runtime: ServerRuntime, verifier: OIDCTokenVerifier, *, allowed_hosts: list[str] | None = None
+) -> object:
     """Mount authenticated `/mcp` alongside redacted health/readiness routes."""
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
 
-    server = create_cloud_server(runtime, verifier)
+    server = create_cloud_server(runtime, verifier, allowed_hosts=allowed_hosts)
 
     @asynccontextmanager
     async def lifespan(_: object) -> AsyncIterator[None]:
