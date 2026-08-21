@@ -66,7 +66,10 @@ class ServerRuntime:
 
 
 def create_runtime(
-    settings: OMPSettings | None = None, *, demo_backend: bool = False
+    settings: OMPSettings | None = None,
+    *,
+    demo_backend: bool = False,
+    encryptor: TenantEnvelopeEncryptor | None = None,
 ) -> ServerRuntime:
     """Create an unconnected runtime; connections happen in ``startup``."""
 
@@ -81,7 +84,7 @@ def create_runtime(
             service=service,
         )
 
-    uow_factory, engine = create_postgres_uow_factory(selected)
+    uow_factory, engine = create_postgres_uow_factory(selected, encryptor=encryptor)
     if selected.embedding_provider == "e5":
         if selected.embedding_dimension != 384:
             raise ValueError("OMP_EMBEDDING_DIMENSION must be 384 when E5 is selected")
@@ -140,4 +143,21 @@ def create_cloud_demo_runtime(
         ),
         backend="cloud-demo",
         service=service,
+    )
+
+
+def create_cloud_postgres_runtime(
+    settings: OMPSettings | None = None, *, kms_master_key: bytes
+) -> ServerRuntime:
+    """Build the local Cloud PostgreSQL composition with envelope encryption.
+
+    The caller must supply development key material explicitly. Production
+    composition should provide a configured KMS implementation instead.
+    """
+    selected = settings or get_settings()
+    if selected.environment != "cloud":
+        selected = selected.model_copy(update={"environment": "cloud"})
+    return create_runtime(
+        selected,
+        encryptor=TenantEnvelopeEncryptor(LocalDevelopmentKMS(kms_master_key)),
     )
