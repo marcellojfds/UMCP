@@ -23,6 +23,21 @@ class MagicLinkRequest(_Request):
     redirect: str = "/"
 
 
+class MemoryWriteRequest(_Request):
+    content: str = Field(min_length=1, max_length=16_384)
+    type: str
+    provenance: dict[str, object]
+    idempotency_key: str = Field(min_length=1, max_length=128)
+    importance: float = Field(default=0.5, ge=0, le=1)
+    confidence: float = Field(default=0.5, ge=0, le=1)
+
+
+class MemoryUpdateRequest(_Request):
+    expected_version: int = Field(ge=1)
+    patch: dict[str, object]
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
 @dataclass(slots=True)
 class _MagicLink:
     digest: str
@@ -83,7 +98,7 @@ class LocalMailboxAuth:
             self._csrf.pop(digest, None)
 
 
-def create_admin_app(auth: LocalMailboxAuth) -> FastAPI:
+def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> FastAPI:
     app = FastAPI(title="UMCP Admin API", docs_url=None, redoc_url=None)
 
     def principal(request: Request) -> Principal:
@@ -100,6 +115,22 @@ def create_admin_app(auth: LocalMailboxAuth) -> FastAPI:
         ):
             raise HTTPException(status_code=403, detail="request rejected")
         return value
+
+    def owner(value: Principal) -> str:
+        return f"cloud:{value.tenant_id}:{value.subject_id}"
+
+    async def call(value: Principal, name: str, payload: dict[str, object]) -> dict[str, object]:
+        if runtime is None or not hasattr(runtime, "adapter"):
+            raise HTTPException(status_code=503, detail="service unavailable")
+        payload["owner_id"] = owner(value)
+        result = await runtime.adapter.call_tool(name, payload)
+        if not result.get("ok"):
+            code = result["error"]["code"]
+            status = 404 if code == "not_found" else 409 if code == "version_conflict" else 400
+            raise HTTPException(status_code=status, detail="request could not be completed")
+        data = result["data"]
+        _redact_owner(data)
+        return data
 
     @app.get("/api/capabilities")
     async def capabilities() -> dict[str, object]:
@@ -147,4 +178,58 @@ def create_admin_app(auth: LocalMailboxAuth) -> FastAPI:
         response.delete_cookie("umcp_session", path="/")
         return {"status": "logged_out"}
 
+    @app.get("/api/memories")
+    async def list_memories(
+        request: Request, query: str = "memory", limit: int = 20
+    ) -> dict[str, object]:
+        value = principal(request)
+        value.requires(Scope.MEMORY_READ)
+        return await call(value, "memory.search", {"query": query, "limit": min(max(limit, 1), 50)})
+
+    @app.post("/api/memories")
+    async def create_memory(request: Request, payload: MemoryWriteRequest) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.MEMORY_WRITE)
+        return await call(value, "memory.write", payload.model_dump())
+
+    @app.get("/api/memories/{memory_id}")
+    async def get_memory(request: Request, memory_id: str) -> dict[str, object]:
+        result = await list_memories(request, query="memory", limit=50)
+        for item in result.get("memories", []):
+            if item.get("memory", {}).get("id") == memory_id:
+                return item["memory"]
+        raise HTTPException(status_code=404, detail="not found")
+
+    @app.patch("/api/memories/{memory_id}")
+    async def update_memory(
+        request: Request, memory_id: str, payload: MemoryUpdateRequest
+    ) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.MEMORY_WRITE)
+        return await call(
+            value,
+            "memory.update",
+            {"id": memory_id, **payload.model_dump()},
+        )
+
+    @app.delete("/api/memories/{memory_id}")
+    async def forget_memory(
+        request: Request, memory_id: str, idempotency_key: str
+    ) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.MEMORY_DELETE)
+        return await call(
+            value, "memory.forget", {"id": memory_id, "idempotency_key": idempotency_key}
+        )
+
     return app
+
+
+def _redact_owner(value: object) -> None:
+    if isinstance(value, dict):
+        value.pop("owner_id", None)
+        for child in value.values():
+            _redact_owner(child)
+    elif isinstance(value, list):
+        for child in value:
+            _redact_owner(child)
