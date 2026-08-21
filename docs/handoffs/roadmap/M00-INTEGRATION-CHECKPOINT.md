@@ -4,9 +4,9 @@
 **Branch:** `roadmap/integration`
 **Worktree:** `/private/tmp/umcp-roadmap-integration`
 **Pre-merge baseline:** `325faf32544e17c896ace07b8c712508c3ed7cce`
-**Merged lane:** `roadmap/luna-core` through Core implementation `7d798cb` and
-handoff `2b22671`
-**Partial demo SHA:** `e768fa10b4132cbd363e72ea40a46339ddad76b9`
+**Merged lane:** `roadmap/luna-core` through Core implementation `1eb157f` and
+handoff `c0418df`
+**Partial demo SHA:** `61705c92215db0547e90e3d668c6fc971574612d`
 **Checkpoint commit:** recorded after the partial demo
 
 ## Current state
@@ -26,8 +26,8 @@ Result: 4 MCP contract tests and 2 HTTP/auth tests passed. This is partial
 evidence only; it is not the final integrated gate until the other applicable
 handoffs are merged and all current gates are rerun on the resulting SHA.
 
-Additional partial gates executed on `e768fa10b4132cbd363e72ea40a46339ddad76b9`
-(the clean integration SHA before this documentation-only checkpoint):
+Additional partial gates executed on `26d02135d47af5536c12528a6db1638d3083e724`
+(the clean integration SHA before the demo-context-only revision):
 
 - `./scripts/gate-fast`: 73 passed, 1 deprecation warning;
 - `./scripts/gate-postgres`: 19 passed, PostgreSQL 16.15 + pgvector 0.8.6,
