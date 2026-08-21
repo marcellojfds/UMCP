@@ -1,18 +1,61 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -lt 2 || "$#" -gt 3 ]]; then
+usage() {
   echo "usage: $0 EXPECTED_BRANCH EXPECTED_WORKTREE [EXPECTED_SHA]" >&2
+  echo "       $0 [--expected-head SHA] [--expected-branch BRANCH] [--expected-path PATH] [--require-clean]" >&2
   exit 2
+}
+
+expected_branch=""
+expected_worktree=""
+expected_sha=""
+require_clean=0
+
+if [[ "$#" -gt 0 && "$1" == --* ]]; then
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --expected-head)
+        [[ "$#" -ge 2 ]] || usage
+        expected_sha="$2"
+        shift 2
+        ;;
+      --expected-branch)
+        [[ "$#" -ge 2 ]] || usage
+        expected_branch="$2"
+        shift 2
+        ;;
+      --expected-path)
+        [[ "$#" -ge 2 ]] || usage
+        expected_worktree="$2"
+        shift 2
+        ;;
+      --require-clean)
+        require_clean=1
+        shift
+        ;;
+      -h|--help)
+        usage
+        ;;
+      *)
+        usage
+        ;;
+    esac
+  done
+  actual_worktree=$(pwd -P)
+  expected_worktree="${expected_worktree:-$actual_worktree}"
+  expected_branch="${expected_branch:-$(git branch --show-current)}"
+else
+  [[ "$#" -ge 2 && "$#" -le 3 ]] || usage
+  expected_branch="$1"
+  expected_worktree="$2"
+  expected_sha="${3:-}"
 fi
 
-expected_branch="$1"
-expected_worktree=$(cd -- "$2" 2>/dev/null && pwd -P) || {
-  echo "worktree does not exist: $2" >&2
+expected_worktree=$(CDPATH= cd -- "$expected_worktree" 2>/dev/null && pwd -P) || {
+  echo "worktree does not exist: $expected_worktree" >&2
   exit 1
 }
-expected_sha="${3:-}"
-
 actual_worktree_root=$(git -C "$expected_worktree" rev-parse --show-toplevel 2>/dev/null) || {
   echo "not a git worktree: $expected_worktree" >&2
   exit 1
@@ -20,34 +63,40 @@ actual_worktree_root=$(git -C "$expected_worktree" rev-parse --show-toplevel 2>/
 actual_worktree=$(CDPATH= cd -- "$actual_worktree_root" && pwd -P)
 actual_branch=$(git -C "$expected_worktree" branch --show-current)
 actual_sha=$(git -C "$expected_worktree" rev-parse HEAD)
+dirty=$(git -C "$expected_worktree" status --porcelain)
+
 if [[ -n "$expected_sha" ]]; then
   expected_sha=$(git -C "$expected_worktree" rev-parse --verify "${expected_sha}^{commit}" 2>/dev/null) || {
-    echo "invalid expected SHA: $3" >&2
+    echo "invalid expected SHA" >&2
     exit 1
   }
 fi
-dirty=$(git -C "$expected_worktree" status --porcelain)
 
+failed=0
 if [[ "$actual_worktree" != "$expected_worktree" ]]; then
   echo "worktree mismatch: expected=$expected_worktree actual=$actual_worktree" >&2
-  exit 1
+  failed=1
 fi
 if [[ "$actual_branch" != "$expected_branch" ]]; then
   echo "branch mismatch: expected=$expected_branch actual=$actual_branch" >&2
-  exit 1
+  failed=1
 fi
 if [[ -n "$expected_sha" && "$actual_sha" != "$expected_sha" ]]; then
   echo "SHA mismatch: expected=$expected_sha actual=$actual_sha" >&2
-  exit 1
+  failed=1
 fi
-if [[ -n "$dirty" ]]; then
+if [[ "$require_clean" == "1" && -n "$dirty" ]]; then
   echo "worktree is dirty: $expected_worktree" >&2
   printf '%s\n' "$dirty" >&2
-  exit 1
+  failed=1
 fi
 
-echo "worktree-context=PASS"
-echo "branch=$actual_branch"
+printf 'worktree=%s\nrepo_root=%s\nbranch=%s\nhead=%s\nstatus=%s\n' \
+  "$actual_worktree" "$actual_worktree" "$actual_branch" "$actual_sha" "${dirty:-clean}"
+if [[ "$failed" != "0" ]]; then
+  exit 1
+fi
+echo 'worktree-context=PASS'
 echo "sha=$actual_sha"
 echo "path=$actual_worktree"
-echo "clean=true"
+echo 'clean=true'

@@ -1,0 +1,58 @@
+All checks passed!
+Success: no issues found in 53 source files
+..................................................FF.................... [ 98%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_cloud_http_calls_tools_with_verified_tenant_principal __________
+
+tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-281/test_cloud_http_calls_tools_wi0')
+
+    @pytest.mark.asyncio
+    async def test_cloud_http_calls_tools_with_verified_tenant_principal(tmp_path) -> None:
+        """Exercise discovery and a complete hosted memory lifecycle over `/mcp`."""
+        runtime = create_cloud_demo_runtime(
+            OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+        )
+        local = verifier()
+        access_token = token(local, {Scope.MEMORY_READ, Scope.MEMORY_WRITE, Scope.MEMORY_DELETE})
+        headers = {
+            "authorization": f"Bearer {access_token}",
+            "accept": "application/json, text/event-stream",
+            "host": "local.umcp.invalid",
+        }
+
+        app = create_cloud_http_app(runtime, local)
+        # TestClient in the preceding contract owns an event loop. sse-starlette
+        # keeps this event process-global, so make the loopback server bind it anew.
+        AppStatus.should_exit_event = None
+        with socket.socket() as reserved:
+>           reserved.bind(("127.0.0.1", 0))
+E           PermissionError: [Errno 1] Operation not permitted
+
+tests/contract/test_cloud_http.py:252: PermissionError
+__________ test_conformance_runner_executes_against_local_mcp_gateway __________
+
+tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-281/test_conformance_runner_execut0')
+
+    @pytest.mark.asyncio
+    async def test_conformance_runner_executes_against_local_mcp_gateway(tmp_path) -> None:
+        runtime = create_cloud_demo_runtime(
+            OMPSettings(demo_data_file=str(tmp_path / "conformance.json")), kms_master_key=b"k" * 32
+        )
+        local = verifier()
+        access_token = token(local, {Scope.MEMORY_READ, Scope.MEMORY_WRITE, Scope.MEMORY_DELETE})
+        with socket.socket() as reserved:
+>           reserved.bind(("127.0.0.1", 0))
+E           PermissionError: [Errno 1] Operation not permitted
+
+tests/contract/test_cloud_http.py:355: PermissionError
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /opt/anaconda3/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/contract/test_cloud_http.py::test_cloud_http_calls_tools_with_verified_tenant_principal
+FAILED tests/contract/test_cloud_http.py::test_conformance_runner_executes_against_local_mcp_gateway
+2 failed, 71 passed, 1 warning in 11.97s

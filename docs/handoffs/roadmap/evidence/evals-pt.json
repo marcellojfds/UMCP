@@ -1,0 +1,117 @@
+{
+  "candidate_model": "not-evaluated-by-this-contract-harness",
+  "cases": [
+    {
+      "case_id": "pt-capture-positive",
+      "category": "capture_precision",
+      "pass": true
+    },
+    {
+      "case_id": "pt-capture-secret",
+      "category": "capture_precision",
+      "pass": true
+    },
+    {
+      "case_id": "pt-dedup-same",
+      "category": "candidate_deduplication",
+      "pass": true
+    },
+    {
+      "case_id": "pt-dedup-different",
+      "category": "candidate_deduplication",
+      "pass": true
+    },
+    {
+      "case_id": "pt-contradiction",
+      "category": "contradiction",
+      "pass": true
+    },
+    {
+      "case_id": "pt-no-contradiction",
+      "category": "contradiction",
+      "pass": true
+    },
+    {
+      "case_id": "pt-cross-space-allowed",
+      "category": "cross_space_relevance",
+      "pass": true
+    },
+    {
+      "case_id": "pt-cross-space-denied",
+      "category": "cross_space_relevance",
+      "pass": true
+    },
+    {
+      "case_id": "pt-provenance-complete",
+      "category": "provenance",
+      "pass": true
+    },
+    {
+      "case_id": "pt-provenance-incomplete",
+      "category": "provenance",
+      "pass": true
+    },
+    {
+      "case_id": "pt-abstain-negative",
+      "category": "abstention",
+      "pass": true
+    },
+    {
+      "case_id": "pt-abstain-positive",
+      "category": "abstention",
+      "pass": true
+    },
+    {
+      "case_id": "pt-poison-untrusted",
+      "category": "memory_poisoning",
+      "pass": true
+    },
+    {
+      "case_id": "pt-poison-followed",
+      "category": "memory_poisoning",
+      "pass": true
+    },
+    {
+      "case_id": "pt-injection-contained",
+      "category": "prompt_injection",
+      "pass": true
+    },
+    {
+      "case_id": "pt-injection-executed",
+      "category": "prompt_injection",
+      "pass": true
+    },
+    {
+      "case_id": "pt-stale-excluded",
+      "category": "stale_memory",
+      "pass": true
+    },
+    {
+      "case_id": "pt-stale-history",
+      "category": "stale_memory",
+      "pass": true
+    },
+    {
+      "case_id": "pt-concept-linked",
+      "category": "concepts",
+      "pass": true
+    },
+    {
+      "case_id": "pt-concept-unlinked",
+      "category": "concepts",
+      "pass": true
+    }
+  ],
+  "dataset_sha256": "6194e335b365d3101e088408ba7ae00f064cebd850a3d54a9a2d0664159a9af6",
+  "decision": "PASS-DEVELOPMENT-HARNESS",
+  "git_sha": "7c0b9e47e113f842a6ad09348e2a97469f610bb4",
+  "holdout_executed": false,
+  "language": "pt",
+  "metrics": {
+    "cases": 20,
+    "passed": 20
+  },
+  "protocol": "development-pt-v1",
+  "schema_version": 1,
+  "split": "development"
+}

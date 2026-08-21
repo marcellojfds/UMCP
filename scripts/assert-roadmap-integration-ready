@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Fail closed until roadmap/integration publishes a complete milestone handoff."""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+REQUIRED_SECTIONS = (
+    "status",
+    "sha",
+    "acceptance",
+    "demo",
+    "current",
+    "historical",
+    "findings",
+    "environment",
+    "artifact",
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--milestone", default="M00")
+    parser.add_argument("--integration-ref", default="roadmap/integration")
+    args = parser.parse_args()
+    repo_root = Path(__file__).resolve().parents[1]
+    context = subprocess.run(
+        [str(repo_root / "scripts/assert-worktree-context"), "--require-clean"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if context.returncode != 0:
+        print("sync=CONTEXT-FAIL", file=sys.stderr)
+        print(context.stderr.strip(), file=sys.stderr)
+        return 1
+    handoff_path = f"docs/handoffs/roadmap/{args.milestone}-INTEGRATED.md"
+    result = subprocess.run(
+        ["git", "show", f"{args.integration_ref}:{handoff_path}"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"sync=WAITING milestone={args.milestone} ref={args.integration_ref}")
+        print(f"missing={handoff_path}")
+        return 2
+    content = result.stdout.lower()
+    missing = [section for section in REQUIRED_SECTIONS if section not in content]
+    if missing:
+        print(f"sync=INVALID milestone={args.milestone} ref={args.integration_ref}")
+        print("missing-sections=" + ",".join(missing))
+        return 1
+    print(f"sync=READY milestone={args.milestone} ref={args.integration_ref}")
+    print(f"handoff={handoff_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

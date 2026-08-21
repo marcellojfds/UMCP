@@ -1,0 +1,103 @@
+{
+  "checks": [
+    {
+      "name": "writable-disposable-path",
+      "path": "/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/umcp-verification-llonhc1e",
+      "status": "pass"
+    },
+    {
+      "exit_code": 0,
+      "name": "child-process-lifecycle",
+      "status": "pass"
+    },
+    {
+      "name": "docker",
+      "path": "/usr/local/bin/docker",
+      "reason": "version smoke returned non-zero",
+      "smoke_exit_code": 1,
+      "status": "environment-blocked",
+      "version": "Client:"
+    },
+    {
+      "name": "browser-automation",
+      "reason": "requires the in-app browser runner and a managed web-server lifecycle",
+      "status": "not-run"
+    }
+  ],
+  "commands": [
+    {
+      "name": "python3",
+      "path": "/opt/homebrew/bin/python3",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "Python 3.13.2"
+    },
+    {
+      "name": "pytest",
+      "path": "/opt/anaconda3/bin/pytest",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "pytest 8.3.5"
+    },
+    {
+      "name": "ruff",
+      "path": "/opt/anaconda3/bin/ruff",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "ruff 0.11.4"
+    },
+    {
+      "name": "mypy",
+      "path": "/opt/anaconda3/bin/mypy",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "mypy 1.20.2 (compiled: yes)"
+    },
+    {
+      "name": "node",
+      "path": "/usr/local/bin/node",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "v20.12.2"
+    },
+    {
+      "name": "npm",
+      "path": "/usr/local/bin/npm",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "10.5.0"
+    },
+    {
+      "name": "docker",
+      "path": "/usr/local/bin/docker",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "Docker version 27.4.0, build bde2b89"
+    },
+    {
+      "name": "psql",
+      "path": "/opt/homebrew/bin/psql",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "psql (PostgreSQL) 14.15 (Homebrew)"
+    },
+    {
+      "name": "pg_isready",
+      "path": "/opt/homebrew/bin/pg_isready",
+      "smoke_exit_code": 0,
+      "status": "available",
+      "version": "pg_isready (PostgreSQL) 14.15 (Homebrew)"
+    }
+  ],
+  "prohibition_check": {
+    "external_services": "not-used",
+    "holdout": "not-run",
+    "real_data": "not-used"
+  },
+  "repository": {
+    "branch": "roadmap/luna-verification",
+    "path": "/private/tmp/umcp-roadmap-verification",
+    "sha": "325faf32544e17c896ace07b8c712508c3ed7cce"
+  },
+  "schema_version": 1
+}

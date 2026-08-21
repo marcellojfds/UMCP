@@ -1,0 +1,8 @@
+worktree=/private/tmp/umcp-roadmap-verification
+repo_root=/private/tmp/umcp-roadmap-verification
+branch=roadmap/luna-verification
+head=51f09433a71b4114332c9732fc72830b01fe6e26
+status=## roadmap/luna-verification
+worktree context passed
+sync=WAITING milestone=M00 ref=roadmap/integration
+missing=docs/handoffs/roadmap/M00-INTEGRATED.md

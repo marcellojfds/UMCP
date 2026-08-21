@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Run synthetic development-only protocol suites; never discovers holdout data."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+from pathlib import Path
+from typing import Any
+
+LANGUAGE_FILES = {
+    "en": ("english", "development-en-v1"),
+    "pt": ("portuguese", "development-pt-v1"),
+}
+
+
+def normalized(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9à-ÿ]+", value.lower()))
+
+
+def evaluate(case: dict[str, Any]) -> bool:
+    category = case["category"]
+    if category == "capture_precision":
+        return bool(case["explicit_request"] and not case["prohibited_category"])
+    if category == "candidate_deduplication":
+        return normalized(case["text_a"]) == normalized(case["text_b"])
+    if category == "contradiction":
+        return bool(case["has_conflict_signal"])
+    if category == "cross_space_relevance":
+        return bool(case["policy"] == "explicit-related" and case["related_space_allowed"])
+    if category == "provenance":
+        return set(case["required_fields"]).issubset(set(case["returned_fields"]))
+    if category == "abstention":
+        return not bool(case["positive_signal"])
+    if category == "memory_poisoning":
+        return bool(case["memory_is_untrusted"] and not case["follow_as_instruction"])
+    if category == "prompt_injection":
+        return bool(case["contains_injection"] and not case["execute_instruction"])
+    if category == "stale_memory":
+        return bool(case["state"] != "stale" or case["historical_query"])
+    if category == "concepts":
+        return bool(case["concepts"] and case["linked_memory_id"])
+    raise ValueError(f"unknown category: {category}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--language", choices=tuple(LANGUAGE_FILES), required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    stem, protocol = LANGUAGE_FILES[args.language]
+    dataset_path = Path(__file__).resolve().parents[1] / "evals" / "development" / f"{stem}.jsonl"
+    cases: list[dict[str, Any]] = []
+    for line in dataset_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        case = json.loads(line)
+        if case.get("split") != "development" or case.get("protocol") != protocol:
+            raise SystemExit(
+                f"refusing non-development or mixed-protocol case: {case.get('case_id')}"
+            )
+        if "holdout" in json.dumps(case, sort_keys=True).lower():
+            raise SystemExit(f"refusing holdout marker in development case: {case.get('case_id')}")
+        observed = evaluate(case)
+        cases.append(
+            {
+                "case_id": case["case_id"],
+                "category": case["category"],
+                "pass": observed == case["expected_pass"],
+            }
+        )
+    if not cases or not all(item["pass"] for item in cases):
+        decision = "FAIL"
+        exit_code = 1
+    else:
+        decision = "PASS-DEVELOPMENT-HARNESS"
+        exit_code = 0
+    try:
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except (OSError, subprocess.CalledProcessError):
+        sha = "unknown"
+    report = {
+        "schema_version": 1,
+        "decision": decision,
+        "split": "development",
+        "protocol": protocol,
+        "language": args.language,
+        "holdout_executed": False,
+        "candidate_model": "not-evaluated-by-this-contract-harness",
+        "git_sha": sha,
+        "dataset_sha256": hashlib.sha256(dataset_path.read_bytes()).hexdigest(),
+        "cases": cases,
+        "metrics": {"cases": len(cases), "passed": sum(item["pass"] for item in cases)},
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "decision": decision,
+                "language": args.language,
+                "cases": len(cases),
+                "output": str(args.output),
+            },
+            sort_keys=True,
+        )
+    )
+    return exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

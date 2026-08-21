@@ -47,8 +47,9 @@ def test_semantic_configs_are_versioned_and_development_threshold_is_frozen() ->
         ROOT / "evals/configs/semantic-e5-small-v2.yaml",
         Path("/private/tmp"),
     )
-    assert e5.query_prefix == "query:"
-    assert e5.passage_prefix == "passage:"
+    # ADR 0008 freezes the provider boundary with a trailing separator space.
+    assert e5.query_prefix == "query: "
+    assert e5.passage_prefix == "passage: "
 
     bge = load_candidate(
         ROOT / "evals/configs/semantic-bge-small-en-v1.5.yaml",
@@ -69,8 +70,8 @@ def test_e5_promotion_configuration_is_frozen_by_adr_0008() -> None:
     assert promotion.model_revision == "ffb93f3bd4047442299a41ebb6fa998a38507c52"
     assert promotion.profile_version == "e5-small-v2-s09"
     assert promotion.pooling == "mean"
-    assert promotion.query_prefix == "query:"
-    assert promotion.passage_prefix == "passage:"
+    assert promotion.query_prefix == "query: "
+    assert promotion.passage_prefix == "passage: "
     assert promotion.dimension == 384
     assert promotion.threshold == 0.76
     assert promotion.candidate_limit == 50

@@ -105,8 +105,14 @@ if [[ "$container_started" == "1" ]]; then
   # cleanup remains valid whether the suite leaves the database at head or
   # base.
   OMP_DATABASE_URL="$database_url" python -m alembic upgrade head
-  docker compose -f "$compose_file" exec -T postgres psql -U omp_test -d omp_test -c \
-    "TRUNCATE TABLE idempotency_operations, memory_relations, memory_embeddings, memory_embeddings_semantic, memory_versions, memories CASCADE"
+  tables_present="$(docker compose -f "$compose_file" exec -T postgres psql -U omp_test -d omp_test -Atc \
+    "SELECT to_regclass('public.memories') IS NOT NULL")"
+  if [[ "$tables_present" == "t" ]]; then
+    docker compose -f "$compose_file" exec -T postgres psql -U omp_test -d omp_test -c \
+      "TRUNCATE TABLE idempotency_operations, memory_relations, memory_embeddings, memory_embeddings_semantic, memory_versions, memories CASCADE"
+  else
+    echo "migration cleanup: tables already absent after integration tests; continuing to downgrade/upgrade"
+  fi
 fi
 
 OMP_DATABASE_URL="$database_url" python -m alembic downgrade base
