@@ -3,14 +3,14 @@
   "repository": {
     "path": "/private/tmp/umcp-roadmap-integration",
     "branch": "roadmap/integration",
-    "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288"
+    "sha": "9c61c58"
   },
   "gates": [
     {"name": "gate-fast", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "Ruff, mypy and 73 tests passed; loopback MCP tests passed with local gate permissions"},
     {"name": "unit-contract", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "baseline evidence predates Verification-owned paths"},
     {"name": "postgres-migrations", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-postgres", "reason": "PostgreSQL 16.15/pgvector 0.8.6; 19 tests and zero-to-head/downgrade/re-upgrade passed"},
     {"name": "mcp-stdio-conformance", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "tests/conformance", "reason": "14 focused conformance/verification/development tests passed; M1 harness remains fixture-only"},
-    {"name": "mcp-http", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "HTTP MCP contract tests passed under the current local gate environment"},
+    {"name": "mcp-http", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "historical", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "HTTP MCP contract tests passed at the tested code HEAD; post-gate changes are documentation-only"},
     {"name": "browser-e2e", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "environment-blocked", "result": "blocked", "artifact": "not-run", "reason": "no connected browser backend; no browser pass inferred"},
     {"name": "auth-negative", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "fail-closed auth and owner-boundary tests passed"},
     {"name": "rls-cross-tenant", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-postgres", "reason": "PostgreSQL RLS and forged cross-tenant owner tests passed"},
@@ -23,9 +23,9 @@
     {"name": "dependency-vulnerability", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "environment-blocked", "result": "blocked", "artifact": "./scripts/audit-dependencies", "reason": "pip-audit could not bootstrap pip/wheel/setuptools in the restricted network environment"},
     {"name": "sbom", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "/private/tmp/umcp-roadmap-integration-sbom-22f866a.json", "reason": "local SBOM generated and verified non-empty"},
     {"name": "links-claims", "sha": "2c305ed1d339bec1252a087df60d38e2741235c7", "freshness": "historical", "result": "pass", "artifact": "evidence/links-claims.log", "reason": "local Markdown files checked before later handoff-document changes; rerun on the integrated candidate"},
-    {"name": "verification-focused", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "tests/conformance tests/verification tests/evals/test_development_suites.py", "reason": "14 tests passed"},
-    {"name": "e5-semantic-prefix", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "tests/evals/test_semantic_harness.py", "reason": "5 tests passed; ADR 0008 trailing separator spaces preserved"},
-    {"name": "integration-readiness", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "not-run", "result": "not-run", "artifact": "./scripts/assert-roadmap-integration-ready", "reason": "checker intentionally waited before M00-INTEGRATED.md was committed"},
+    {"name": "verification-focused", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "historical", "result": "pass", "artifact": "tests/conformance tests/verification tests/evals/test_development_suites.py", "reason": "14 tests passed at the tested code HEAD; post-gate changes are documentation-only"},
+    {"name": "e5-semantic-prefix", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "historical", "result": "pass", "artifact": "tests/evals/test_semantic_harness.py", "reason": "5 tests passed at the tested code HEAD; ADR 0008 trailing separator spaces preserved"},
+    {"name": "integration-readiness", "sha": "9c61c58", "freshness": "current", "result": "pass", "artifact": "./scripts/assert-roadmap-integration-ready --milestone M00", "reason": "checker returned READY after M00-INTEGRATED.md was committed"},
     {"name": "git-diff-check", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "historical", "result": "pass", "artifact": "git diff --check", "reason": "passed at the tested code HEAD before documentation-only handoff changes"},
     {"name": "root-pytest", "sha": "9bb60cbe6dfdfc18e21cefa49687c748dafc0b34", "freshness": "historical", "result": "fail", "artifact": "evidence/full-pytest.log", "reason": "frozen Verification-lane evidence; focused current suites pass and full suite was not used to infer M1"}
   ]
