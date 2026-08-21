@@ -15,6 +15,52 @@ workstreams:
 
 # UMCP — roadmap de entregas pelo Codex
 
+## Checkpoint operacional — encerramento de 2026-08-21
+
+O estado canônico local ao encerrar o dia é `roadmap/integration` no commit que
+contém este checkpoint. O M00 foi integrado e demonstrado, mas **M01 continua
+fechado**. A auditoria independente em
+`roadmap/luna-verification:docs/handoffs/roadmap/M00-POST-INTEGRATION-VERIFICATION.md`
+registrou `M01_NOT_READY` porque:
+
+- duas assertions de sincronização ainda descrevem o estado pré-integração;
+- o commit do primeiro protótipo de coordenação foi criado depois do SHA
+  auditado e ainda não foi testado no mesmo candidato;
+- browser E2E e dependency audit continuam corretamente classificados como
+  `environment-blocked`.
+
+O diário completo, incluindo SHAs, gates, tentativas de coordenação e o estado
+seguro para retomada, está em `docs/work-journal/2026-08-21.md`.
+
+### Ordem obrigatória na próxima retomada
+
+1. Reproduzir e corrigir apenas as duas assertions obsoletas, preservando o
+   comportamento fail-closed.
+2. Testar correção e infraestrutura de coordenação em um único SHA limpo.
+3. Executar uma nova verificação independente do readiness M00.
+4. Integrar o candidato e a evidência somente se a recomendação for `READY`.
+5. Criar `M00-READY.md` na lane de integração.
+6. Somente então congelar `M01-CORE-CONTRACT.md` e abrir M01.
+
+### Coordenador autônomo — status e redesenho obrigatório
+
+O protótipo `UMCP Agent Coordinator` está **pausado**. Não deve ser reativado
+antes de revisar seu desenho. Os experimentos provaram que:
+
+- tasks `/goal` mantidas em terminais podem continuar registradas como
+  `active writer` mesmo após exibirem achieved, stalled ou blocked;
+- `send_message_to_thread` não é um mecanismo confiável para reativar essas
+  sessões interativas;
+- criar uma task Codex nova funciona, mas a worktree gerenciada começa em
+  detached HEAD e precisa de reconciliação explícita entre task, commit e ref;
+- a decisão de transição precisa ler o handoff independente mais recente antes
+  de inferir que o próximo milestone está aberto.
+
+O desenho v3 deve usar uma máquina de estados explícita e tasks novas, curtas e
+idempotentes por fase. Cada transição precisa registrar `CLAIMED`, task/branch,
+SHA final, handoff validado e `DONE`/`BLOCKED`. O mural Markdown permanece útil
+como interface humana, mas nunca substitui Git, gates ou handoffs.
+
 ## 1. Objetivo
 
 Este roadmap transforma a visão de memória portátil em pacotes executáveis pelo
