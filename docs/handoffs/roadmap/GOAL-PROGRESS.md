@@ -27,7 +27,7 @@
 | Contract frozen | This file at the baseline SHA | current | Add controls and fixture harness |
 | Capability preflight | `evidence/capability-preflight.json` | current | Browser backend remains environment-blocked |
 | Cross-client fixture | `scripts/demo-cross-client-memory` + 12 focused tests | current | Preserve assertions while waiting for Core candidate |
-| Core integration | No `M1-INTEGRATED.md` observed | not-run | Wait for integration handoff; continue independent checks |
+| Core integration | No `M00-INTEGRATED.md` observed | not-run | Wait for integration handoff; continue independent checks |
 
 ## Final V0/V1 checkpoint
 
@@ -40,7 +40,7 @@
 - **Environment-blocked:** managed browser runtime has no connected backend;
   no browser E2E pass is claimed. The sandbox also disallows loopback socket
   binding, so two HTTP MCP contract tests remain unverified.
-- **Synchronization blocker:** no `M1-INTEGRATED.md` was present on
+- **Synchronization blocker:** no `M00-INTEGRATED.md` was present on
   `roadmap/integration`; the Core/Experience candidate acceptance remains
   not-run.
 - **M00 synchronization:** `roadmap/integration` has now published the

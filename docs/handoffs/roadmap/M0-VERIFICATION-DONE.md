@@ -59,10 +59,10 @@ See [`evidence/`](evidence/) and `evidence/checksums.sha256`.
 ## Technical recommendation
 
 Keep this verification harness and gates as the independent baseline. Wait for
-the integration lane to publish `M1-INTEGRATED.md`, then rerun affected gates
+the integration lane to publish `M00-INTEGRATED.md`, then rerun affected gates
 against that candidate. Do not issue a release GO.
 
 ## Synchronization
 
-- Required integration handoff: `docs/handoffs/roadmap/M1-INTEGRATED.md`
+- Required integration handoff: `docs/handoffs/roadmap/M00-INTEGRATED.md`
 - Next candidate SHA: not available; handoff not present.
