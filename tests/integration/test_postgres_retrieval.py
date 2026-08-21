@@ -15,12 +15,12 @@ import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import make_url, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from omp.adapters.embeddings import HashEmbeddingProvider
 from omp.adapters.postgres import create_postgres_uow_factory
@@ -177,6 +177,74 @@ def write_command(
 async def scalar(engine: AsyncEngine, query: str, **params: object) -> Any:
     async with engine.connect() as connection:
         return (await connection.execute(text(query), params)).scalar_one()
+
+
+@pytest.mark.asyncio
+async def test_cloud_rls_denies_missing_and_cross_tenant_context(runtime: Runtime) -> None:
+    """Exercise FORCE RLS through a role that cannot bypass it."""
+    role, password = "omp_cloud_rls_test", "omp_cloud_rls_test"
+    async with runtime.engine.begin() as connection:
+        await connection.execute(
+            text(
+                "DO $$ BEGIN "
+                "CREATE ROLE omp_cloud_rls_test LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD "
+                "'omp_cloud_rls_test'; "
+                "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            )
+        )
+        await connection.execute(text(f"GRANT USAGE ON SCHEMA public TO {role}"))
+        await connection.execute(text(f"GRANT SELECT, INSERT, UPDATE, DELETE ON tenants TO {role}"))
+        await connection.execute(
+            text(f"GRANT SELECT, INSERT, UPDATE, DELETE ON connections TO {role}")
+        )
+
+    cloud_url = make_url(runtime.database_url).set(username=role, password=password)
+    cloud_engine = create_async_engine(cloud_url.render_as_string(hide_password=False))
+    tenant_a, tenant_b, connection_id = uuid4(), uuid4(), uuid4()
+    try:
+        async with cloud_engine.begin() as connection:
+            await connection.execute(
+                text("INSERT INTO tenants (id, name) VALUES (:a, 'tenant a'), (:b, 'tenant b')"),
+                {"a": tenant_a, "b": tenant_b},
+            )
+            await connection.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": str(tenant_a)},
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO connections (id, tenant_id, client_id, scopes) "
+                    "VALUES (:id, :tenant_id, 'client-a', ARRAY['memory:read'])"
+                ),
+                {"id": connection_id, "tenant_id": tenant_a},
+            )
+
+        async with cloud_engine.connect() as connection:
+            missing_context = await connection.scalar(text("SELECT count(*) FROM connections"))
+            assert missing_context == 0
+
+        async with cloud_engine.begin() as connection:
+            await connection.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": str(tenant_b)},
+            )
+            assert await connection.scalar(text("SELECT count(*) FROM connections")) == 0
+            deleted = await connection.execute(
+                text("DELETE FROM connections WHERE id = :id"), {"id": connection_id}
+            )
+            assert deleted.rowcount == 0
+
+        async with cloud_engine.begin() as connection:
+            await connection.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": str(tenant_a)},
+            )
+            assert await connection.scalar(text("SELECT count(*) FROM connections")) == 1
+    finally:
+        await cloud_engine.dispose()
+        async with runtime.engine.begin() as connection:
+            await connection.execute(text(f"DROP OWNED BY {role}"))
+            await connection.execute(text(f"DROP ROLE {role}"))
 
 
 SEMANTIC_PROFILE = EmbeddingProfile("semantic", "e5-small-v2-s09", 384)
