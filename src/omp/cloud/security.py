@@ -206,6 +206,22 @@ class EnvelopeCiphertext:
         }
         return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
+    @classmethod
+    def decode(cls, value: str) -> EnvelopeCiphertext:
+        """Parse the compact envelope persisted by Cloud repositories."""
+        try:
+            payload = json.loads(value)
+            if payload["v"] != 1 or not isinstance(payload["k"], int):
+                raise ValueError("unsupported envelope")
+            return cls(
+                key_version=payload["k"],
+                wrapped_dek=base64.urlsafe_b64decode(str(payload["w"])),
+                nonce=base64.urlsafe_b64decode(str(payload["n"])),
+                ciphertext=base64.urlsafe_b64decode(str(payload["c"])),
+            )
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise PermissionError("ciphertext envelope is invalid") from exc
+
 
 class TenantEnvelopeEncryptor:
     def __init__(self, kms: KeyManagementService) -> None:

@@ -45,6 +45,15 @@ def test_envelope_ciphertext_is_tenant_and_record_bound() -> None:
         )
 
 
+def test_envelope_ciphertext_storage_round_trip_rejects_malformed_value() -> None:
+    from omp.cloud.security import EnvelopeCiphertext
+
+    value = EnvelopeCiphertext(1, b"wrapped", b"nonce", b"ciphertext")
+    assert EnvelopeCiphertext.decode(value.encode()) == value
+    with pytest.raises(PermissionError):
+        EnvelopeCiphertext.decode('{"v":1}')
+
+
 def test_worker_envelope_fails_closed_for_tamper_and_expiry() -> None:
     secret = b"s" * 32
     envelope = WorkerEnvelope.sign(
