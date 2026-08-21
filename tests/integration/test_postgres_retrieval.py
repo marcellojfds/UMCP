@@ -34,6 +34,7 @@ from omp.application.models import (
 )
 from omp.application.ports import EmbeddingProfile
 from omp.application.services import MemoryApplicationService
+from omp.cloud.tenant import TenantContextError
 from omp.config import OMPSettings
 from omp.domain import (
     EmbeddingProfileMismatchError,
@@ -245,6 +246,22 @@ async def test_cloud_rls_denies_missing_and_cross_tenant_context(runtime: Runtim
         async with runtime.engine.begin() as connection:
             await connection.execute(text(f"DROP OWNED BY {role}"))
             await connection.execute(text(f"DROP ROLE {role}"))
+
+
+@pytest.mark.asyncio
+async def test_cloud_postgres_uow_fails_closed_without_bound_tenant(runtime: Runtime) -> None:
+    settings = OMPSettings(
+        database_url=runtime.database_url,
+        environment="cloud",
+        migration_head="0005_cloud_multitenancy_rls",
+    )
+    factory, engine = create_postgres_uow_factory(settings)
+    try:
+        with pytest.raises(TenantContextError):
+            async with factory():
+                pass
+    finally:
+        await engine.dispose()
 
 
 SEMANTIC_PROFILE = EmbeddingProfile("semantic", "e5-small-v2-s09", 384)

@@ -26,6 +26,7 @@ from omp.adapters.mcp.schemas import (
     Provenance,
 )
 from omp.cloud import OIDCTokenVerifier, Scope, principal_from_access_token
+from omp.cloud.tenant import tenant_scope
 
 from .composition import ServerRuntime
 
@@ -253,7 +254,8 @@ async def _call_cloud(
     # Transitional compatibility mapping; it is derived only from verified
     # claims and cannot be selected by the hosted MCP caller.
     arguments["owner_id"] = f"cloud:{principal.tenant_id}:{principal.subject_id}"
-    envelope = await runtime.adapter.call_tool(name, arguments)
+    with tenant_scope(principal.tenant_id):
+        envelope = await runtime.adapter.call_tool(name, arguments)
     _redact_hosted_owner(envelope)
     return json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 

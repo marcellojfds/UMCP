@@ -27,6 +27,7 @@ from omp.application.ports import (
     IdempotencyOperationType,
     MemorySearchCandidate,
 )
+from omp.cloud.tenant import current_tenant, set_tenant_context
 from omp.config import OMPSettings
 from omp.domain import (
     EmbeddingDescriptor,
@@ -809,6 +810,8 @@ class PostgresUnitOfWork:
         await self._session.begin()
         if self._community_mode:
             await self._session.execute(text("SELECT set_config('app.community_mode', '1', true)"))
+        else:
+            await set_tenant_context(self._session, current_tenant())
         self.memories = PostgresMemoryRepository(self._session)
         self.idempotency = PostgresIdempotencyRepository(self._session)
         self.admin = PostgresMemoryAdminRepository(self._session)

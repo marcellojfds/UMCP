@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from omp.cloud.security import Principal, Scope
+from omp.cloud.tenant import tenant_scope
 
 
 class _Request(BaseModel):
@@ -177,7 +178,8 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
         if runtime is None or not hasattr(runtime, "adapter"):
             raise HTTPException(status_code=503, detail="service unavailable")
         payload["owner_id"] = owner(value)
-        result = await runtime.adapter.call_tool(name, payload)
+        with tenant_scope(value.tenant_id):
+            result = await runtime.adapter.call_tool(name, payload)
         if not result.get("ok"):
             code = result["error"]["code"]
             status = 404 if code == "not_found" else 409 if code == "version_conflict" else 400

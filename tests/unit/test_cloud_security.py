@@ -11,6 +11,17 @@ from omp.cloud import (
     WorkerEnvelope,
 )
 from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
+from omp.cloud.tenant import TenantContextError, current_tenant, tenant_scope
+
+
+def test_tenant_scope_is_request_local_and_fails_closed_when_absent() -> None:
+    tenant = uuid4()
+    with pytest.raises(TenantContextError):
+        current_tenant()
+    with tenant_scope(tenant):
+        assert current_tenant() == tenant
+    with pytest.raises(TenantContextError):
+        current_tenant()
 
 
 def test_envelope_ciphertext_is_tenant_and_record_bound() -> None:
