@@ -15,7 +15,9 @@ def test_local_magic_link_is_captured_single_use_and_csrf_protected() -> None:
         callback = client.get("/api/auth/callback", params={"token": token})
         assert callback.status_code == 200
         csrf = callback.json()["csrf"]
-        assert client.get("/api/session").status_code == 200
+        session = client.get("/api/session")
+        assert session.status_code == 200
+        assert session.json()["subject_id"]
         assert client.get("/api/auth/callback", params={"token": token}).status_code == 400
         assert client.post("/api/logout").status_code == 403
         assert client.post("/api/logout", headers={"x-umcp-csrf": csrf}).json() == {
@@ -64,6 +66,37 @@ def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
             headers={"x-umcp-csrf": csrf},
         )
         assert forgotten.json()["status"] == "forgotten"
+
+
+def test_memory_list_has_bounded_pagination(tmp_path) -> None:
+    auth = LocalMailboxAuth()
+    runtime = create_demo_runtime(OMPSettings(demo_data_file=str(tmp_path / "admin-pages.json")))
+    with TestClient(create_admin_app(auth, runtime)) as client:
+        client.post("/api/auth/magic-link", json={"email": "person@example.test"})
+        callback = client.get("/api/auth/callback", params={"token": auth.outbox[-1]["token"]})
+        csrf = callback.json()["csrf"]
+        for index in range(2):
+            assert client.post(
+                "/api/memories",
+                headers={"x-umcp-csrf": csrf},
+                json={
+                    "content": f"paged memory {index}",
+                    "type": "fact",
+                    "provenance": {
+                        "source_type": "user",
+                        "captured_at": "2026-01-01T00:00:00Z",
+                    },
+                    "idempotency_key": f"page-{index}",
+                },
+            ).status_code == 200
+        first = client.get("/api/memories", params={"query": "paged", "limit": 1}).json()
+        assert first["count"] == 1
+        assert first["next_cursor"] == 1
+        second = client.get(
+            "/api/memories", params={"query": "paged", "limit": 1, "cursor": 1}
+        ).json()
+        assert second["count"] == 1
+        assert second["next_cursor"] is None
 
 
 def test_admin_control_plane_uses_scoped_session_and_safe_receipts() -> None:

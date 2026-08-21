@@ -225,6 +225,7 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
     async def session(request: Request) -> dict[str, object]:
         value = principal(request)
         return {
+            "subject_id": str(value.subject_id),
             "tenant_id": str(value.tenant_id),
             "scopes": sorted(scope.value for scope in value.scopes),
         }
@@ -238,11 +239,23 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
 
     @app.get("/api/memories")
     async def list_memories(
-        request: Request, query: str = "memory", limit: int = 20
+        request: Request, query: str = "memory", limit: int = 20, cursor: int = 0
     ) -> dict[str, object]:
         value = principal(request)
         value.requires(Scope.MEMORY_READ)
-        return await call(value, "memory.search", {"query": query, "limit": min(max(limit, 1), 50)})
+        if cursor < 0:
+            raise HTTPException(status_code=400, detail="invalid request")
+        page_size = min(max(limit, 1), 50)
+        result = await call(value, "memory.search", {"query": query, "limit": 50})
+        memories = result.get("memories")
+        if not isinstance(memories, list):
+            raise HTTPException(status_code=500, detail="service response invalid")
+        page = memories[cursor : cursor + page_size]
+        return {
+            "memories": page,
+            "count": len(page),
+            "next_cursor": cursor + len(page) if cursor + len(page) < len(memories) else None,
+        }
 
     @app.post("/api/memories")
     async def create_memory(request: Request, payload: MemoryWriteRequest) -> dict[str, object]:
