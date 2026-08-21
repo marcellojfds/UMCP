@@ -31,6 +31,10 @@ class EncryptedCloudMemoryService:
         self._write_keys: dict[tuple[str, str], str] = {}
         self._forget_keys: set[tuple[str, str]] = set()
         self._tombstones: dict[tuple[str, str], str] = {}
+        # Vectors remain outside the encrypted payload so retrieval can use a
+        # vector index. They retain the owner/version binding required to avoid
+        # a stale worker making a replaced memory searchable again.
+        self._embeddings: dict[str, dict[str, object]] = {}
 
     @staticmethod
     def _tenant(owner_id: str) -> UUID:
@@ -174,7 +178,46 @@ class EncryptedCloudMemoryService:
                 stored[key] = patch[key]
         stored["version"] += 1
         stored["updated_at"] = _now()
+        self._embeddings.pop(str(stored["id"]), None)
         return {"memory": self._read(stored), "status": "updated"}
+
+    def store_embedding(
+        self,
+        *,
+        owner_id: str,
+        memory_id: str,
+        source_version: int,
+        values: tuple[float, ...],
+    ) -> bool:
+        """Store a vector only if the owner and source version still match.
+
+        The conditional check is the local equivalent of a version predicate in
+        the Cloud vector write transaction. It prevents a re-embedding job
+        completed after an update or forget from reviving stale retrieval data.
+        """
+        self._tenant(owner_id)
+        stored = self._records.get(memory_id)
+        if (
+            stored is None
+            or stored["owner_id"] != owner_id
+            or stored["state"] != "active"
+            or stored["version"] != source_version
+        ):
+            return False
+        self._embeddings[memory_id] = {
+            "owner_id": owner_id,
+            "source_version": source_version,
+            "values": tuple(float(value) for value in values),
+        }
+        return True
+
+    def embedding(self, *, owner_id: str, memory_id: str) -> dict[str, object] | None:
+        """Return local vector metadata only to its bound owner."""
+        self._tenant(owner_id)
+        entry = self._embeddings.get(memory_id)
+        if entry is None or entry["owner_id"] != owner_id:
+            return None
+        return deepcopy(entry)
 
     def forget(self, payload: dict[str, Any]) -> dict[str, Any]:
         key = (str(payload["owner_id"]), str(payload["id"]))
@@ -188,6 +231,7 @@ class EncryptedCloudMemoryService:
         # replay. A restored record is removed before it can become readable.
         self._tombstones[key] = _now()
         del self._records[key[1]]
+        self._embeddings.pop(key[1], None)
         return {"status": "forgotten"}
 
     def delete_owner(self, owner_id: str) -> int:
@@ -207,6 +251,7 @@ class EncryptedCloudMemoryService:
             self._forget_keys.add((owner_id, memory_id))
             self._tombstones[(owner_id, memory_id)] = _now()
             del self._records[memory_id]
+            self._embeddings.pop(memory_id, None)
         self._write_keys = {
             key: memory_id
             for key, memory_id in self._write_keys.items()
@@ -252,6 +297,13 @@ class EncryptedCloudMemoryService:
             if isinstance(candidate, dict) and candidate.get("owner_id") == owner:
                 restored.pop(memory_id, None)
         self._records = restored
+        self._embeddings = {
+            memory_id: embedding
+            for memory_id, embedding in self._embeddings.items()
+            if memory_id in self._records
+            and embedding.get("owner_id") == self._records[memory_id].get("owner_id")
+            and embedding.get("source_version") == self._records[memory_id].get("version")
+        }
         replayed_keys: dict[tuple[str, str], str] = {}
         for (owner, key), memory_id in self._write_keys.items():
             record = self._records.get(memory_id)

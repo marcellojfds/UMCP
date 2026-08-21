@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Protocol
 from uuid import UUID
 
 from .security import WorkerEnvelope
@@ -27,6 +28,19 @@ class LocalJob:
     state: JobState = JobState.PENDING
     attempts: int = 0
     error: str | None = None
+
+
+class ReembeddingStore(Protocol):
+    def get(self, *, owner_id: str, memory_id: str) -> dict[str, object] | None: ...
+
+    def store_embedding(
+        self,
+        *,
+        owner_id: str,
+        memory_id: str,
+        source_version: int,
+        values: tuple[float, ...],
+    ) -> bool: ...
 
 
 class LocalTenantWorker:
@@ -131,3 +145,39 @@ class LocalTenantWorker:
             raise PermissionError("worker snapshot rejected") from exc
         self._jobs, self._dedupe = restored, dedupe
         return len(restored)
+
+
+async def reembed_memory(
+    job: LocalJob,
+    *,
+    store: ReembeddingStore,
+    embed: Callable[[str], Awaitable[tuple[float, ...]]],
+) -> JobState:
+    """Embed one version-bound reference, treating changed/deleted records as stale.
+
+    ``payload_ref`` is deliberately only ``memory_id:source_version``. The
+    tenant and principal come from the signed envelope, and plaintext exists
+    only while the supplied embedding function runs.
+    """
+    try:
+        memory_id, raw_version = job.payload_ref.rsplit(":", 1)
+        source_version = int(raw_version)
+        if not memory_id or source_version < 1:
+            raise ValueError
+    except ValueError:
+        return JobState.STALE
+    owner_id = f"cloud:{job.envelope.tenant_id}:{job.envelope.principal_id}"
+    record = store.get(owner_id=owner_id, memory_id=memory_id)
+    if record is None or record.get("version") != source_version:
+        return JobState.STALE
+    values = await embed(str(record["content"]))
+    return (
+        JobState.READY
+        if store.store_embedding(
+            owner_id=owner_id,
+            memory_id=memory_id,
+            source_version=source_version,
+            values=values,
+        )
+        else JobState.STALE
+    )

@@ -9,6 +9,7 @@ from omp.cloud import (
     LocalTenantWorker,
     TenantEnvelopeEncryptor,
     WorkerEnvelope,
+    reembed_memory,
 )
 from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
 from omp.cloud.tenant import TenantContextError, current_tenant, tenant_scope
@@ -230,3 +231,71 @@ async def test_worker_restart_restores_signed_retryable_job_without_payload() ->
     tampered = [dict(snapshot[0], signature="bad")]
     with pytest.raises(PermissionError):
         LocalTenantWorker(signing_secret=secret).restore(tuple(tampered))
+
+
+@pytest.mark.asyncio
+async def test_reembedding_is_tenant_bound_resumable_and_never_writes_stale_vectors() -> None:
+    secret, tenant, principal = b"s" * 32, uuid4(), uuid4()
+    owner = f"cloud:{tenant}:{principal}"
+    service = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    created = service.write(
+        {
+            "owner_id": owner,
+            "content": "reembedding canary",
+            "type": "fact",
+            "provenance": {"source_type": "user"},
+            "idempotency_key": "reembed-write",
+        }
+    )["memory"]
+
+    def job() -> WorkerEnvelope:
+        return WorkerEnvelope.sign(
+            job_id=uuid4(),
+            tenant_id=tenant,
+            principal_id=principal,
+            expires_at=datetime.now(UTC) + timedelta(minutes=1),
+            nonce=str(uuid4()),
+            secret=secret,
+        )
+
+    async def embed(content: str) -> tuple[float, ...]:
+        assert content == "reembedding canary"
+        return (0.25, 0.75)
+
+    async def run_reembedding(work: object) -> JobState:
+        assert hasattr(work, "payload_ref")
+        return await reembed_memory(work, store=service, embed=embed)  # type: ignore[arg-type]
+
+    ready = LocalTenantWorker(signing_secret=secret)
+    ready_envelope = job()
+    ready.enqueue(ready_envelope, dedupe_key="reembed:ready", payload_ref=f"{created['id']}:1")
+    assert (await ready.run_one(ready_envelope.job_id, run_reembedding)).state == JobState.READY
+    assert service.embedding(owner_id=owner, memory_id=created["id"]) == {
+        "owner_id": owner,
+        "source_version": 1,
+        "values": (0.25, 0.75),
+    }
+
+    stale = LocalTenantWorker(signing_secret=secret)
+    stale_envelope = job()
+    stale.enqueue(stale_envelope, dedupe_key="reembed:stale", payload_ref=f"{created['id']}:1")
+    service.update(
+        {
+            "owner_id": owner,
+            "id": created["id"],
+            "expected_version": 1,
+            "patch": {"content": "changed"},
+        }
+    )
+    assert (await stale.run_one(stale_envelope.job_id, run_reembedding)).state == JobState.STALE
+    assert service.embedding(owner_id=owner, memory_id=created["id"]) is None
+
+    deleted = LocalTenantWorker(signing_secret=secret)
+    deleted_envelope = job()
+    deleted.enqueue(
+        deleted_envelope,
+        dedupe_key="reembed:deleted",
+        payload_ref=f"{created['id']}:2",
+    )
+    service.forget({"owner_id": owner, "id": created["id"], "idempotency_key": "reembed-forget"})
+    assert (await deleted.run_one(deleted_envelope.job_id, run_reembedding)).state == JobState.STALE
