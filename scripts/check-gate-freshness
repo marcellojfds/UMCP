@@ -35,7 +35,12 @@ GATE_PATH_SCOPES: dict[str, tuple[str, ...]] = {
         "tests/integration/",
     ),
     "encryption-rotation": ("src/omp/cloud/", "tests/unit/test_cloud_security.py", "tests/integration/"),
-    "backup-restore-tombstones": ("src/omp/cloud/", "scripts/backup-postgres", "scripts/restore-postgres", "tests/"),
+    "backup-restore-tombstones": (
+        "src/omp/cloud/",
+        "scripts/backup-postgres",
+        "scripts/restore-postgres",
+        "tests/unit/test_cloud_security.py",
+    ),
     "worker-retry-restart": ("src/omp/cloud/worker.py", "tests/unit/test_cloud_security.py"),
     "sdk": ("packages/sdk-typescript/",),
     "web": ("apps/web/",),
@@ -44,6 +49,10 @@ GATE_PATH_SCOPES: dict[str, tuple[str, ...]] = {
     "dependency-vulnerability": ("pyproject.toml", "packages/", "apps/", "package.json", "package-lock.json"),
     "sbom": ("pyproject.toml", "packages/", "apps/", "package.json", "package-lock.json"),
     "links-claims": ("docs/", "README.md", "SECURITY.md", "CHANGELOG.md"),
+    "integration-readiness": (
+        "scripts/assert-roadmap-integration-ready",
+        "scripts/assert-worktree-context",
+    ),
 }
 
 
@@ -99,8 +108,7 @@ def main() -> int:
         return 1
     errors: list[str] = []
     rows: list[tuple[str, str, str, str, str]] = []
-    changed_cache: list[str] | None = None
-    changed_loaded = False
+    changed_cache: dict[str, list[str] | None] = {}
     for index, gate in enumerate(payload["gates"]):
         prefix = f"gates[{index}]"
         name = gate.get("name")
@@ -116,10 +124,9 @@ def main() -> int:
         if result not in ALLOWED_RESULTS:
             errors.append(f"{prefix}: invalid result={result!r}")
         if freshness == "current" and gate_sha != sha:
-            if not changed_loaded:
-                changed_cache = changed_paths_since(gate_sha, sha)
-                changed_loaded = True
-            if gate_scope_affected(str(name), changed_cache):
+            if gate_sha not in changed_cache:
+                changed_cache[gate_sha] = changed_paths_since(gate_sha, sha)
+            if gate_scope_affected(str(name), changed_cache[gate_sha]):
                 errors.append(
                     f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha} "
                     "and its scoped paths changed"
