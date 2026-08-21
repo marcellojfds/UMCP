@@ -1,0 +1,21 @@
+# Exact direct dependency pins verified in the 2026-08-20 local macOS arm64
+# environment.  This file is a reproducibility constraint set, not a hosted
+# artifact and does not contain credentials or corpus data.
+alembic==1.13.1
+asyncpg==0.31.0
+fastapi==0.141.1
+hypothesis==6.165.10
+mcp==1.29.0
+mypy==1.20.2
+pgvector==0.5.0
+pydantic==2.13.4
+pydantic-settings==2.8.1
+pytest==8.3.5
+pytest-asyncio==0.26.0
+ruff==0.11.4
+safetensors==0.4.3
+sqlalchemy==2.0.38
+testcontainers==4.15.0
+torch==2.3.0
+transformers==4.40.1
+typer==0.15.2

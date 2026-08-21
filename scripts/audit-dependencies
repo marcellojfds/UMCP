@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v pip-audit >/dev/null 2>&1; then
+  echo "pip-audit is required for the dependency gate; install it in the isolated audit environment" >&2
+  exit 2
+fi
+
+pip-audit --strict

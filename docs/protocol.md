@@ -53,7 +53,7 @@ sem expor a URL de conexão.
 ## Execução
 
 Postgres exige `OMP_DATABASE_URL`, extensão pgvector e migration head aplicado
-(`0002_idempotency_operations` no Alpha atual).
+(`0004_semantic_source_version` no estado experimental atual).
 Execute migrations separadamente antes de iniciar o servidor:
 
 ```bash

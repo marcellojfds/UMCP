@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$#" != "1" ]]; then
+  echo "usage: $0 OUTPUT.json" >&2
+  exit 2
+fi
+
+output_path="$1"
+python - "$output_path" <<'PY'
+import json
+import sys
+from importlib import metadata
+from pathlib import Path
+
+components = []
+for distribution in sorted(metadata.distributions(), key=lambda item: item.metadata["Name"] or ""):
+    name = distribution.metadata.get("Name")
+    if not name:
+        continue
+    components.append(
+        {
+            "type": "library",
+            "name": name,
+            "version": distribution.version,
+            "licenses": ([{"license": {"name": distribution.metadata["License"]}}]
+                         if distribution.metadata.get("License") else []),
+        }
+    )
+
+payload = {
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.5",
+    "version": 1,
+    "components": components,
+}
+Path(sys.argv[1]).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY

@@ -4,7 +4,7 @@
 
 - Python 3.11;
 - PostgreSQL 16 with the `vector` extension for the supported backend;
-- `alembic` migrations applied to `0002_idempotency_operations`; and
+- `omp-migrate` migrations applied to `0004_semantic_source_version`; and
 - Docker for the disposable local PostgreSQL gate.
 
 ## Install from a checkout
@@ -17,8 +17,8 @@ python -m pip install -e '.[dev]'
 ```
 
 The package is named `open-memory-protocol` and the planned RC version is
-`0.1.0a1`. Dependency ranges are declared in `pyproject.toml`; a complete
-lock/constraints file is still a release-engineering follow-up.
+`0.1.0a1`. For the verified Python 3.11/macOS arm64 environment, install with
+`constraints/py311-macos-arm64.txt`; other platforms remain unverified.
 
 ## Start disposable PostgreSQL
 
@@ -44,6 +44,21 @@ OMP_DATABASE_URL="$OMP_DATABASE_URL" PYTHONPATH=src python examples/e2e_two_clie
 
 The full database gate is `./scripts/gate-postgres`; it checks PostgreSQL 16,
 pgvector, migration head, integration tests, E2E, and downgrade/upgrade.
+
+The optional semantic runtime is deliberately separate and offline-only:
+
+```bash
+python -m pip install -e '.[semantic]'
+export OMP_EMBEDDING_PROVIDER=e5
+export OMP_EMBEDDING_PROFILE_ID=semantic
+export OMP_EMBEDDING_PROFILE_VERSION=e5-small-v2-s09
+export OMP_EMBEDDING_DIMENSION=384
+export OMP_SEMANTIC_MODEL_ROOT=/secure/operator/cache/e5-small-v2
+```
+
+The model directory must already contain the exact pinned revision configured
+by `OMP_SEMANTIC_MODEL_REVISION`; the runtime never downloads or falls back to
+another provider.
 
 ## Explicit demo mode
 
