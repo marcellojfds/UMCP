@@ -307,6 +307,29 @@ class PostgresMemoryRepository:
                 )
             )
             migrated += 1
+        versions = await self._session.execute(
+            select(memory_versions).where(memory_versions.c.tenant_id == tenant_id)
+        )
+        for row in versions:
+            mapping = row._mapping
+            if mapping["content_ciphertext"] is None:
+                continue
+            version = self._version_from_row(row)
+            await self._session.execute(
+                update(memory_versions)
+                .where(
+                    memory_versions.c.memory_id == version.memory_id,
+                    memory_versions.c.version == version.version,
+                )
+                .values(
+                    self._cloud_fields(
+                        record_id=version.memory_id,
+                        content=version.content,
+                        provenance=version.provenance,
+                        key_version=key_version,
+                    )
+                )
+            )
         return migrated
 
     async def get_version(self, *, owner_id: str, memory_id: UUID, version: int) -> Memory | None:

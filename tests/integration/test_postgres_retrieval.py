@@ -648,6 +648,13 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
         assert "postgres canary" not in row["content_ciphertext"]
         assert "postgres canary" not in row["provenance_ciphertext"]
         assert json.loads(row["content_ciphertext"])["k"] == 2
+        history_key_version = await scalar(
+            engine_object,
+            "SELECT (content_ciphertext::jsonb ->> 'k')::int FROM memory_versions "
+            "WHERE memory_id = :id AND version = 1",
+            id=created.memory.id,
+        )
+        assert history_key_version == 2
     finally:
         await engine_object.dispose()
 
