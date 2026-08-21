@@ -123,6 +123,10 @@ def test_admin_control_plane_uses_scoped_session_and_safe_receipts() -> None:
         ).json()
         assert credential["token"].startswith("umcp_pat_")
         assert "token_digest" not in credential["credential"]
+        listed_credentials = client.get("/api/agent-credentials").json()
+        assert listed_credentials["count"] == 1
+        assert listed_credentials["credentials"][0]["id"] == credential["credential"]["id"]
+        assert "_token_digest" not in listed_credentials["credentials"][0]
         assert client.post(
             f"/api/agent-credentials/{credential['credential']['id']}/revoke", headers=headers
         ).status_code == 200

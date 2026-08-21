@@ -423,6 +423,17 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
         }
         return {"credential": public_credential, "token": raw}
 
+    @app.get("/api/agent-credentials")
+    async def list_agent_credentials(request: Request) -> dict[str, object]:
+        value = principal(request)
+        value.requires(Scope.CONNECTIONS_MANAGE)
+        credentials = [
+            {key: item for key, item in credential.items() if not key.startswith("_")}
+            for credential in auth._agent_credentials.values()
+            if credential["tenant_id"] == str(value.tenant_id)
+        ]
+        return {"credentials": credentials, "count": len(credentials)}
+
     @app.post("/api/agent-credentials/{credential_id}/revoke")
     async def revoke_agent_credential(request: Request, credential_id: str) -> dict[str, object]:
         value = require_csrf(request)
