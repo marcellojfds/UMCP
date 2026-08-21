@@ -6,11 +6,14 @@ import asyncio
 import inspect
 import logging
 import uuid
+from collections import deque
 from collections.abc import Callable, Mapping
 from time import monotonic
 from typing import Any, Protocol, cast
 
 from pydantic import ValidationError
+
+from omp.cloud.tenant import current_tenant_or_none
 
 from .errors import PublicError, PublicErrorCode, map_service_error
 from .observability import StructuredLogger, duration_bucket
@@ -45,7 +48,7 @@ class MemoryApplicationPort(Protocol):
 
 
 class RateLimiter(Protocol):
-    def allow(self, tool: str) -> bool: ...
+    def allow(self, tool: str, *, tenant_key: str | None = None) -> bool: ...
 
 
 class FixedRateLimiter:
@@ -53,12 +56,48 @@ class FixedRateLimiter:
         self.maximum = maximum
         self._calls = 0
 
-    def allow(self, tool: str) -> bool:
-        del tool
+    def allow(self, tool: str, *, tenant_key: str | None = None) -> bool:
+        del tool, tenant_key
         if self.maximum is None:
             return True
         self._calls += 1
         return self._calls <= self.maximum
+
+
+class TenantWindowRateLimiter:
+    """In-process fixed-window quota keyed by verified tenant and tool.
+
+    It is intentionally useful only for local/demo composition. Hosted
+    deployments should implement the same ``RateLimiter`` port with a shared,
+    durable counter. Calls without tenant context are not limited here so the
+    Community stdio transport does not accidentally inherit Cloud policy.
+    """
+
+    def __init__(
+        self,
+        maximum: int,
+        *,
+        window_seconds: float = 60,
+        clock: Callable[[], float] = monotonic,
+    ) -> None:
+        if maximum < 1 or window_seconds <= 0:
+            raise ValueError("rate limit maximum and window must be positive")
+        self.maximum = maximum
+        self.window_seconds = window_seconds
+        self._clock = clock
+        self._calls: dict[tuple[str, str], deque[float]] = {}
+
+    def allow(self, tool: str, *, tenant_key: str | None = None) -> bool:
+        if tenant_key is None:
+            return True
+        now = self._clock()
+        calls = self._calls.setdefault((tenant_key, tool), deque())
+        while calls and calls[0] <= now - self.window_seconds:
+            calls.popleft()
+        if len(calls) >= self.maximum:
+            return False
+        calls.append(now)
+        return True
 
 
 class MCPAdapter:
@@ -124,7 +163,8 @@ class MCPAdapter:
             result = self._error(rid, PublicError(PublicErrorCode.VALIDATION, "unknown tool"))
             self._log(rid, name, result, started)
             return result
-        if not self.rate_limiter.allow(name):
+        tenant_id = current_tenant_or_none()
+        if not self.rate_limiter.allow(name, tenant_key=str(tenant_id) if tenant_id else None):
             result = self._error(
                 rid,
                 PublicError(PublicErrorCode.RATE_LIMITED, "rate limit exceeded", retryable=True),

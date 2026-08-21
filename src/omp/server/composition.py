@@ -9,7 +9,7 @@ from typing import Any, cast
 from sqlalchemy import text
 
 from omp.adapters.embeddings import HashEmbeddingProvider, LocalTransformerEmbeddingProvider
-from omp.adapters.mcp.adapter import MCPAdapter
+from omp.adapters.mcp.adapter import MCPAdapter, TenantWindowRateLimiter
 from omp.adapters.mcp.application_gateway import MemoryApplicationGateway
 from omp.adapters.mcp.local import PersistentLocalMemoryService
 from omp.adapters.postgres.repository import create_postgres_uow_factory
@@ -132,7 +132,12 @@ def create_cloud_demo_runtime(
     )
     return ServerRuntime(
         settings=selected,
-        adapter=MCPAdapter(service, local_mode=True, transport="http"),
+        adapter=MCPAdapter(
+            service,
+            local_mode=True,
+            transport="http",
+            rate_limiter=TenantWindowRateLimiter(maximum=300, window_seconds=60),
+        ),
         backend="cloud-demo",
         service=service,
     )

@@ -6,14 +6,16 @@ import logging
 from io import StringIO
 from pathlib import Path
 from typing import Any, cast
+from uuid import uuid4
 
 import pytest
 
-from omp.adapters.mcp.adapter import FixedRateLimiter, MCPAdapter
+from omp.adapters.mcp.adapter import FixedRateLimiter, MCPAdapter, TenantWindowRateLimiter
 from omp.adapters.mcp.errors import PublicErrorCode
 from omp.adapters.mcp.fakes import InMemoryMemoryService
 from omp.adapters.mcp.schemas import PROTOCOL_VERSION, WriteRequest
 from omp.adapters.mcp.transport import MCPJSONRPCServer
+from omp.cloud.tenant import tenant_scope
 from omp.sdk.client import (
     InProcessTransport,
     MemoryClient,
@@ -217,6 +219,25 @@ def test_rate_limit_and_hosted_owner_boundary() -> None:
     hosted = MCPAdapter(InMemoryMemoryService(), local_mode=False)
     result = asyncio.run(hosted.call_tool("memory.search", {"query": "x", "owner_id": "a"}))
     assert result["error"]["code"] == "forbidden"
+
+
+def test_cloud_rate_limit_isolated_per_verified_tenant() -> None:
+    tenant_a, tenant_b = uuid4(), uuid4()
+    adapter = MCPAdapter(
+        InMemoryMemoryService(), rate_limiter=TenantWindowRateLimiter(maximum=1)
+    )
+    with tenant_scope(tenant_a):
+        first = asyncio.run(adapter.call_tool("memory.search", {"query": "x", "owner_id": "a"}))
+        limited = asyncio.run(
+            adapter.call_tool("memory.search", {"query": "x", "owner_id": "a"})
+        )
+    assert first["ok"] is True
+    assert limited["error"]["code"] == "rate_limited"
+    with tenant_scope(tenant_b):
+        other_tenant = asyncio.run(
+            adapter.call_tool("memory.search", {"query": "x", "owner_id": "b"})
+        )
+    assert other_tenant["ok"] is True
 
 
 def test_mcp_server_and_sdk_compatibility() -> None:
