@@ -71,13 +71,17 @@ async function renderAuthenticatedRoute(path) {
     }
     if (path === "/connections") {
       const result = await adapter.listConnections();
-      const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))}</small></li>`).join("") || "<li>No connections have been created.</li>";
-      return renderRoutePage(path, `<div class="control-card"><p class="mono">CONNECTIONS</p><ul class="data-list">${rows}</ul></div>`);
+      const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))}</small>${connection.status === "active" ? `<button type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been created.</li>";
+      renderRoutePage(path, `<div class="control-card"><p class="mono">CONNECTIONS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>`);
+      wireConnectionActions(adapter);
+      return true;
     }
     if (path === "/agents") {
       const result = await adapter.listAgentCredentials();
-      const rows = (result.credentials || []).map((credential) => `<li>${escapeHtml(credential.name)} <small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small></li>`).join("") || "<li>No agent credentials have been issued.</li>";
-      return renderRoutePage(path, `<div class="control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul></div>`);
+      const rows = (result.credentials || []).map((credential) => `<li>${escapeHtml(credential.name)} <small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small>${!credential.revoked ? `<button type="button" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No agent credentials have been issued.</li>";
+      renderRoutePage(path, `<div class="control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul><form id="agent-form"><label for="agent-name">Agent name</label><input id="agent-name" name="name" required maxlength="128"><label for="agent-expiry">Expiry (seconds)</label><input id="agent-expiry" name="expires_in_seconds" type="number" min="60" max="86400" value="3600" required><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Issue credential</button><p id="agent-action-status" role="status"></p></form></div>`);
+      wireAgentActions(adapter);
+      return true;
     }
     if (path === "/settings/security") {
       const session = await adapter.session();
@@ -93,6 +97,58 @@ async function renderAuthenticatedRoute(path) {
     return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ERROR</span><p>We could not load this account data. Please try again later.</p></div>`);
   }
   return unavailableRoute(path, staticPage[2]);
+}
+
+function scopeFields() {
+  return ["memory:read", "memory:write", "memory:delete", "memory:export", "connections:manage"]
+    .map((scope) => `<label><input type="checkbox" name="scope" value="${scope}" ${scope === "memory:read" ? "checked" : ""}> ${scope}</label>`)
+    .join("");
+}
+
+function selectedScopes(form) {
+  return new FormData(form).getAll("scope").map(String);
+}
+
+function wireConnectionActions(adapter) {
+  const form = document.querySelector("#connection-form");
+  const status = document.querySelector("#connection-action-status");
+  if (!form || !status) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const scopes = selectedScopes(form);
+    if (!scopes.length || !form.reportValidity()) return;
+    status.textContent = "Creating connection…";
+    try {
+      await adapter.createConnection({ name: new FormData(form).get("name"), scopes });
+      await renderAuthenticatedRoute("/connections");
+    } catch { status.textContent = "We could not create this connection. Please try again."; }
+  });
+  document.querySelectorAll("[data-revoke-connection]").forEach((button) => button.addEventListener("click", async () => {
+    if (!globalThis.confirm("Revoke this connection? Its access will stop.")) return;
+    try { await adapter.revokeConnection(button.dataset.revokeConnection); await renderAuthenticatedRoute("/connections"); }
+    catch { status.textContent = "We could not revoke this connection. Please try again."; }
+  }));
+}
+
+function wireAgentActions(adapter) {
+  const form = document.querySelector("#agent-form");
+  const status = document.querySelector("#agent-action-status");
+  if (!form || !status) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const scopes = selectedScopes(form);
+    if (!scopes.length || !form.reportValidity()) return;
+    status.textContent = "Issuing credential…";
+    try {
+      const result = await adapter.createAgentCredential({ name: new FormData(form).get("name"), scopes, expires_in_seconds: Number(new FormData(form).get("expires_in_seconds")) });
+      status.textContent = `Copy this credential now; it will not be shown again: ${result.token}`;
+    } catch { status.textContent = "We could not issue a credential. Please try again."; }
+  });
+  document.querySelectorAll("[data-revoke-agent]").forEach((button) => button.addEventListener("click", async () => {
+    if (!globalThis.confirm("Revoke this credential? The agent will lose access.")) return;
+    try { await adapter.revokeAgentCredential(button.dataset.revokeAgent); await renderAuthenticatedRoute("/agents"); }
+    catch { status.textContent = "We could not revoke this credential. Please try again."; }
+  }));
 }
 
 function wireSecurityActions(adapter) {
