@@ -6,7 +6,8 @@
 **Pre-merge baseline:** `325faf32544e17c896ace07b8c712508c3ed7cce`
 **Merged lane:** `roadmap/luna-core` through Core implementation `7d798cb` and
 handoff `2b22671`
-**Current integration SHA:** `e768fa10b4132cbd363e72ea40a46339ddad76b9`
+**Partial demo SHA:** `e768fa10b4132cbd363e72ea40a46339ddad76b9`
+**Checkpoint commit:** recorded after the partial demo
 
 ## Current state
 
