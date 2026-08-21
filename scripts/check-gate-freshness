@@ -75,7 +75,8 @@ def main() -> int:
             errors.append(f"{prefix}: invalid result={result!r}")
         if freshness == "current" and gate_sha != sha and not docs_only_since(gate_sha, sha):
             errors.append(
-                f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha} and non-doc paths changed"
+                f"{prefix}: current gate sha={gate_sha} does not match HEAD={sha} "
+                "and non-doc paths changed"
             )
         if freshness in {"not-run", "environment-blocked"} and not reason:
             errors.append(f"{prefix}: {freshness} gates require a reason")
