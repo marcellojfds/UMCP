@@ -56,7 +56,8 @@ was refreshed on `2c305ed` after scoping gate freshness by affected paths.
 | MCP stdio/fixture conformance | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/conformance-and-evals.log` |
 | SDK | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 2 tests | `evidence/sdk-web.log` |
 | Web | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | check/test/build pass | `evidence/sdk-web.log` |
-| dependency/SBOM/secret-PII/claims | `2c305ed1d339bec1252a087df60d38e2741235c7` | current | pass where executed | `evidence/` |
+| dependency/SBOM/secret-PII | `4ecab259942be0b173d3d01fff1399ca8cde8452` | current | pass where executed | `evidence/` |
+| links/claims | `2c305ed1d339bec1252a087df60d38e2741235c7` | historical | pass before later handoff-document changes | `evidence/links-claims.log` |
 | browser E2E | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | environment-blocked | no backend | `evidence/browser-preflight.json` |
 | Integration readiness | `2c305ed1d339bec1252a087df60d38e2741235c7` | current | not-run/WAITING | `evidence/sync-readiness.log` |
 | Core-backed M00 acceptance | `2c305ed1d339bec1252a087df60d38e2741235c7` | not-run | waiting | no `M00-INTEGRATED.md` |
