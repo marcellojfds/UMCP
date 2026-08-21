@@ -61,6 +61,8 @@ memories = Table(
     CheckConstraint("length(trim(owner_id)) > 0", name="ck_memories_owner_nonempty"),
     UniqueConstraint("owner_id", "idempotency_key", name="uq_memories_owner_idempotency"),
     UniqueConstraint("owner_id", "id", name="uq_memories_owner_id"),
+    UniqueConstraint("tenant_id", "id", name="uq_memories_tenant_id"),
+    UniqueConstraint("tenant_id", "owner_id", "id", name="uq_memories_tenant_owner_id"),
 )
 
 memory_versions = Table(
@@ -92,6 +94,12 @@ memory_versions = Table(
         name="ck_memory_versions_content_or_ciphertext",
     ),
     UniqueConstraint("memory_id", "version", name="uq_memory_versions_memory_version"),
+    ForeignKeyConstraint(
+        ["tenant_id", "memory_id"],
+        ["memories.tenant_id", "memories.id"],
+        ondelete="CASCADE",
+        name="fk_memory_versions_tenant_memory",
+    ),
 )
 
 memory_embeddings = Table(
@@ -111,6 +119,12 @@ memory_embeddings = Table(
     Column("vector", Vector(64), nullable=False),
     UniqueConstraint(
         "memory_id", "profile_id", "profile_version", name="uq_memory_embeddings_profile"
+    ),
+    ForeignKeyConstraint(
+        ["tenant_id", "memory_id"],
+        ["memories.tenant_id", "memories.id"],
+        ondelete="CASCADE",
+        name="fk_memory_embeddings_tenant_memory",
     ),
 )
 
@@ -132,6 +146,12 @@ memory_embeddings_semantic = Table(
     Column("vector", Vector(384), nullable=False),
     PrimaryKeyConstraint("memory_id", "profile_id", "profile_version"),
     CheckConstraint("dimension = 384", name="ck_semantic_embedding_dimension"),
+    ForeignKeyConstraint(
+        ["tenant_id", "memory_id"],
+        ["memories.tenant_id", "memories.id"],
+        ondelete="CASCADE",
+        name="fk_memory_embeddings_semantic_tenant_memory",
+    ),
 )
 
 memory_relations = Table(
@@ -162,6 +182,18 @@ memory_relations = Table(
         ["memories.owner_id", "memories.id"],
         ondelete="CASCADE",
         name="fk_memory_relations_target_owner",
+    ),
+    ForeignKeyConstraint(
+        ["tenant_id", "owner_id", "source_id"],
+        ["memories.tenant_id", "memories.owner_id", "memories.id"],
+        ondelete="CASCADE",
+        name="fk_memory_relations_tenant_source",
+    ),
+    ForeignKeyConstraint(
+        ["tenant_id", "owner_id", "target_id"],
+        ["memories.tenant_id", "memories.owner_id", "memories.id"],
+        ondelete="CASCADE",
+        name="fk_memory_relations_tenant_target",
     ),
     CheckConstraint("source_id <> target_id", name="ck_memory_relations_not_self"),
     UniqueConstraint(

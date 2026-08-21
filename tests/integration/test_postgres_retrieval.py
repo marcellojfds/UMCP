@@ -271,12 +271,15 @@ async def test_cloud_postgres_uow_fails_closed_without_bound_tenant(runtime: Run
 
 @pytest.mark.asyncio
 async def test_cloud_postgres_write_persists_bound_tenant_id(runtime: Runtime) -> None:
-    tenant = uuid4()
+    tenant, forged_tenant = uuid4(), uuid4()
     owner = f"cloud:{tenant}:{uuid4()}"
     async with runtime.engine.begin() as connection:
         await connection.execute(
-            text("INSERT INTO tenants (id, name) VALUES (:id, 'cloud write tenant')"),
-            {"id": tenant},
+            text(
+                "INSERT INTO tenants (id, name) VALUES "
+                "(:id, 'cloud write tenant'), (:forged, 'forged child tenant')"
+            ),
+            {"id": tenant, "forged": forged_tenant},
         )
     settings = OMPSettings(
         database_url=runtime.database_url,
@@ -296,6 +299,19 @@ async def test_cloud_postgres_write_persists_bound_tenant_id(runtime: Runtime) -
             engine, "SELECT tenant_id FROM memories WHERE id = :id", id=written.memory.id
         )
         assert persisted_tenant == tenant
+        async with engine.connect() as connection:
+            with pytest.raises(IntegrityError):
+                await connection.execute(
+                    text(
+                        "INSERT INTO memory_versions "
+                        "(memory_id, version, tenant_id, memory_type, content, importance, "
+                        "confidence, state, provenance, changed_at, change_reason) "
+                        "VALUES (:memory_id, 999, :tenant_id, 'fact', 'forged child', 0.5, 0.5, "
+                        "'active', '{}'::jsonb, now(), 'forged tenant test')"
+                    ),
+                    {"memory_id": written.memory.id, "tenant_id": forged_tenant},
+                )
+            await connection.rollback()
     finally:
         await engine.dispose()
 

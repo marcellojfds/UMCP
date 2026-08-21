@@ -34,7 +34,7 @@ class OMPSettings(BaseSettings):
     retrieval_default_threshold: float = 0.78
     retrieval_default_candidate_limit: int = 50
     retrieval_default_limit: int = 5
-    migration_head: str = "0006_cloud_envelope_storage"
+    migration_head: str = "0007_tenant_fks"
     log_content: bool = False
 
     def safe_summary(self) -> dict[str, str | int | float | bool]:

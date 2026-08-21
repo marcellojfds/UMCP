@@ -692,7 +692,12 @@ class PostgresMemoryRepository:
         )
         covered = await self._session.scalar(
             select(func.count())
-            .select_from(memories.join(memory_embeddings_semantic))
+            .select_from(
+                memories.join(
+                    memory_embeddings_semantic,
+                    memory_embeddings_semantic.c.memory_id == memories.c.id,
+                )
+            )
             .where(
                 memories.c.owner_id == owner_id,
                 memories.c.embedding_dimension == 64,
