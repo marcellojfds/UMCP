@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, Any, cast
 
 import anyio
@@ -176,11 +177,23 @@ def create_cloud_server(
 
 
 def create_cloud_http_app(
-    runtime: ServerRuntime, verifier: OIDCTokenVerifier, *, allowed_hosts: list[str] | None = None
+    runtime: ServerRuntime,
+    verifier: OIDCTokenVerifier,
+    *,
+    allowed_hosts: list[str] | None = None,
+    admin_app: object | None = None,
+    web_directory: Path | None = None,
 ) -> object:
-    """Mount authenticated `/mcp` alongside redacted health/readiness routes."""
+    """Mount authenticated `/mcp` alongside redacted health/readiness routes.
+
+    ``admin_app`` and ``web_directory`` are deliberately opt-in local composition
+    inputs. They are installed before the MCP catch-all mount so a developer can
+    exercise the Admin API and browser shell on the same origin without changing
+    the hosted MCP contract.
+    """
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
+    from fastapi.staticfiles import StaticFiles
 
     server = create_cloud_server(runtime, verifier, allowed_hosts=allowed_hosts)
 
@@ -229,6 +242,26 @@ def create_cloud_http_app(
         except BaseException:
             ready = False
         return JSONResponse({"status": "ready" if ready else "not_ready"}, 200 if ready else 503)
+
+    if admin_app is not None:
+        app.mount("/admin", cast(Any, admin_app))
+    if web_directory is not None:
+        if not web_directory.is_dir():
+            raise ValueError("web_directory must be an existing directory")
+
+        # This fixed, server-owned script supplies only an API path. It never
+        # exposes a token, tenant, or other authorization input to the page.
+        from fastapi.responses import Response
+
+        @app.get("/web/admin-config.js", include_in_schema=False)
+        async def local_web_admin_config() -> Response:
+            return Response(
+                'window.__UMCP_ADMIN_API_BASE_URL__ = "/admin";\n',
+                media_type="application/javascript",
+                headers={"cache-control": "no-store"},
+            )
+
+        app.mount("/web", StaticFiles(directory=str(web_directory), html=True), name="web")
 
     app.mount("/", server.streamable_http_app())
     return app

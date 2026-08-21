@@ -17,6 +17,7 @@ from mcp.client.streamable_http import streamable_http_client
 from sse_starlette.sse import AppStatus
 
 from omp.cloud import LocalDevelopmentTokenVerifier, Scope
+from omp.cloud.admin import LocalMailboxAuth, create_admin_app
 from omp.config import OMPSettings
 from omp.server.composition import create_cloud_demo_runtime, create_demo_runtime
 from omp.server.official import create_cloud_http_app, create_cloud_server
@@ -93,6 +94,45 @@ def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
             json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
         )
         assert revoked.status_code == 401
+
+
+def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path) -> None:
+    """The browser shell can reach only the same-origin Admin API in local mode."""
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+    )
+    auth = LocalMailboxAuth()
+    root = Path(__file__).parents[2]
+    app = create_cloud_http_app(
+        runtime,
+        verifier(),
+        admin_app=create_admin_app(auth, runtime),
+        web_directory=root / "apps" / "web",
+    )
+    with TestClient(app, base_url="https://local.umcp.invalid") as client:
+        shell = client.get("/web/")
+        assert shell.status_code == 200
+        assert 'src="./admin-config.js"' in shell.text
+        bootstrap = client.get("/web/admin-config.js")
+        assert bootstrap.status_code == 200
+        assert bootstrap.text == 'window.__UMCP_ADMIN_API_BASE_URL__ = "/admin";\n'
+        assert "no-store" in bootstrap.headers["cache-control"]
+
+        assert client.post(
+            "/admin/api/auth/magic-link", json={"email": "person@example.test"}
+        ).json() == {"status": "accepted"}
+        callback = client.get(
+            "/admin/api/auth/callback", params={"token": auth.outbox[-1]["token"]}
+        )
+        assert callback.status_code == 200
+        assert client.get("/admin/api/session").status_code == 200
+
+        # The mounted application does not weaken the hosted MCP boundary.
+        assert client.post(
+            "/mcp",
+            headers={"accept": "application/json, text/event-stream"},
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        ).status_code == 401
 
 
 @pytest.mark.asyncio
