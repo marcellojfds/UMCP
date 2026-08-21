@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
 compose_file="$repo_root/ops/postgres/compose.yaml"
 database_url="${OMP_TEST_DATABASE_URL:-postgresql+asyncpg://omp_test:omp_test@127.0.0.1:55433/omp_test}"
 container_started=0

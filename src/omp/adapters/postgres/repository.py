@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import bindparam, delete, func, insert, select, update
+from sqlalchemy import bindparam, delete, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -794,8 +794,11 @@ class PostgresMemoryAdminRepository:
 
 
 class PostgresUnitOfWork:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool
+    ) -> None:
         self._session_factory = session_factory
+        self._community_mode = community_mode
         self._session: AsyncSession | None = None
         self.memories: PostgresMemoryRepository
         self.idempotency: PostgresIdempotencyRepository
@@ -804,6 +807,8 @@ class PostgresUnitOfWork:
     async def __aenter__(self) -> PostgresUnitOfWork:
         self._session = self._session_factory()
         await self._session.begin()
+        if self._community_mode:
+            await self._session.execute(text("SELECT set_config('app.community_mode', '1', true)"))
         self.memories = PostgresMemoryRepository(self._session)
         self.idempotency = PostgresIdempotencyRepository(self._session)
         self.admin = PostgresMemoryAdminRepository(self._session)
@@ -822,11 +827,14 @@ class PostgresUnitOfWork:
 
 
 class PostgresUnitOfWorkFactory:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool
+    ) -> None:
         self._session_factory = session_factory
+        self._community_mode = community_mode
 
     def __call__(self) -> PostgresUnitOfWork:
-        return PostgresUnitOfWork(self._session_factory)
+        return PostgresUnitOfWork(self._session_factory, community_mode=self._community_mode)
 
 
 def create_postgres_uow_factory(settings: OMPSettings) -> tuple[PostgresUnitOfWorkFactory, object]:
@@ -834,4 +842,6 @@ def create_postgres_uow_factory(settings: OMPSettings) -> tuple[PostgresUnitOfWo
 
     engine = create_async_engine(settings.database_url.get_secret_value(), pool_pre_ping=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    return PostgresUnitOfWorkFactory(session_factory), engine
+    return PostgresUnitOfWorkFactory(
+        session_factory, community_mode=settings.environment != "cloud"
+    ), engine

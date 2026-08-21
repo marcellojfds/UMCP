@@ -4,6 +4,7 @@ set -euo pipefail
 script_dir="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 cd "$repo_root"
+export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
 
 ruff check .
 mypy src

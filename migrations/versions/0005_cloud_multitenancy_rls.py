@@ -24,7 +24,7 @@ def upgrade() -> None:
         "CREATE TABLE memberships (id UUID PRIMARY KEY, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, role VARCHAR(32) NOT NULL, UNIQUE (tenant_id, user_id))"
     )
     op.execute(
-        "CREATE TABLE identities (id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, issuer VARCHAR(512) NOT NULL, subject VARCHAR(512) NOT NULL, UNIQUE (issuer, subject))"
+        "CREATE TABLE identities (id UUID PRIMARY KEY, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, issuer VARCHAR(512) NOT NULL, subject VARCHAR(512) NOT NULL, UNIQUE (issuer, subject))"
     )
     op.execute(
         "CREATE TABLE connections (id UUID PRIMARY KEY, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, client_id VARCHAR(256) NOT NULL, scopes TEXT[] NOT NULL, revoked_at TIMESTAMPTZ, UNIQUE (tenant_id, client_id))"
@@ -75,13 +75,70 @@ def upgrade() -> None:
         "memory_relations",
         "idempotency_operations",
     )
+    community_tables = {
+        "memories",
+        "memory_versions",
+        "memory_embeddings",
+        "memory_embeddings_semantic",
+        "memory_relations",
+        "idempotency_operations",
+    }
     for table in tenant_tables:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
+        predicate = (
+            "(tenant_id IS NULL AND current_setting('app.community_mode', true) = '1') OR "
+            if table in community_tables
+            else ""
+        )
         op.execute(
-            f"CREATE POLICY {table}_tenant_only ON {table} USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)"
+            f"CREATE POLICY {table}_tenant_only ON {table} USING ({predicate}tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK ({predicate}tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)"
         )
 
 
 def downgrade() -> None:
-    raise RuntimeError("Cloud tenant data requires a forward fix or verified restore")
+    # Limited to isolated zero→head test databases. Production Cloud data uses
+    # a forward fix or verified restore as documented.
+    tenant_tables = (
+        "memberships",
+        "identities",
+        "connections",
+        "agent_credentials",
+        "consents",
+        "audit_events",
+        "deletion_tombstones",
+        "usage_counters",
+        "memories",
+        "memory_versions",
+        "memory_embeddings",
+        "memory_embeddings_semantic",
+        "memory_relations",
+        "idempotency_operations",
+    )
+    for table in tenant_tables:
+        op.execute(f"DROP POLICY IF EXISTS {table}_tenant_only ON {table}")
+        op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY")
+        op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY")
+    for table in (
+        "memories",
+        "memory_versions",
+        "memory_embeddings",
+        "memory_embeddings_semantic",
+        "memory_relations",
+        "idempotency_operations",
+    ):
+        op.execute(f"DROP INDEX IF EXISTS ix_{table}_tenant_id")
+        op.execute(f"ALTER TABLE {table} DROP COLUMN tenant_id")
+    for table in (
+        "usage_counters",
+        "deletion_tombstones",
+        "audit_events",
+        "consents",
+        "agent_credentials",
+        "connections",
+        "identities",
+        "memberships",
+        "users",
+        "tenants",
+    ):
+        op.execute(f"DROP TABLE {table}")
