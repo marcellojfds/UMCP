@@ -26,6 +26,16 @@ Result: 4 MCP contract tests and 2 HTTP/auth tests passed. This is partial
 evidence only; it is not the final integrated gate until the other applicable
 handoffs are merged and all current gates are rerun on the resulting SHA.
 
+Additional partial gates executed on `e768fa10b4132cbd363e72ea40a46339ddad76b9`
+(the clean integration SHA before this documentation-only checkpoint):
+
+- `./scripts/gate-fast`: 73 passed, 1 deprecation warning;
+- `./scripts/gate-postgres`: 19 passed, PostgreSQL 16.15 + pgvector 0.8.6,
+  migrations zero→head and downgrade/re-upgrade passed.
+
+These results are current for the tested integration code paths, but remain
+partial until Experience and Verification handoffs are merged.
+
 ## Missing applicable handoffs
 
 These files were inspected with `git show` and do not exist yet:
