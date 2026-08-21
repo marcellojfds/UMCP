@@ -19,6 +19,7 @@ from typing import Protocol
 from uuid import UUID
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from mcp.server.auth.provider import AccessToken
 
 
 class Scope(StrEnum):
@@ -43,6 +44,117 @@ class Principal:
         now = now or datetime.now(UTC)
         if self.expires_at <= now or scope not in self.scopes:
             raise PermissionError("authorization denied")
+
+
+class OIDCTokenVerifier(Protocol):
+    """Production port implemented by a JWKS/OIDC verifier outside local dev."""
+
+    async def verify_token(self, token: str) -> AccessToken | None: ...
+
+
+class LocalDevelopmentTokenVerifier:
+    """HMAC signed compact tokens for local tests only.
+
+    The verifier checks issuer, audience/resource, expiry and a local
+    revocation set. It deliberately accepts no unsigned token or client owner
+    identifier, and has the same `verify_token` port as the official MCP SDK.
+    """
+
+    def __init__(self, *, secret: bytes, issuer: str, audience: str) -> None:
+        self._secret = secret
+        self._issuer = issuer
+        self._audience = audience
+        self._revoked: set[str] = set()
+
+    def issue(
+        self,
+        *,
+        subject: UUID,
+        tenant_id: UUID,
+        membership_id: UUID,
+        credential_id: UUID,
+        scopes: set[Scope],
+        expires_at: datetime,
+        client_id: str = "local-development",
+    ) -> str:
+        payload = {
+            "aud": self._audience,
+            "cid": client_id,
+            "credential_id": str(credential_id),
+            "exp": int(expires_at.timestamp()),
+            "iss": self._issuer,
+            "membership_id": str(membership_id),
+            "scope": sorted(scope.value for scope in scopes),
+            "sub": str(subject),
+            "tenant_id": str(tenant_id),
+        }
+        encoded = _b64(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+        signature = _b64(hmac.new(self._secret, encoded.encode(), hashlib.sha256).digest())
+        return f"v1.{encoded}.{signature}"
+
+    def revoke(self, token: str) -> None:
+        self._revoked.add(hashlib.sha256(token.encode()).hexdigest())
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        if hashlib.sha256(token.encode()).hexdigest() in self._revoked:
+            return None
+        try:
+            version, encoded, signature = token.split(".")
+            expected = _b64(hmac.new(self._secret, encoded.encode(), hashlib.sha256).digest())
+            payload = json.loads(_unb64(encoded))
+            if (
+                version != "v1"
+                or not hmac.compare_digest(signature, expected)
+                or payload["iss"] != self._issuer
+                or payload["aud"] != self._audience
+                or int(payload["exp"]) <= int(datetime.now(UTC).timestamp())
+            ):
+                return None
+            UUID(payload["sub"])
+            UUID(payload["tenant_id"])
+            UUID(payload["membership_id"])
+            UUID(payload["credential_id"])
+            scopes = [Scope(item).value for item in payload["scope"]]
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return None
+        return AccessToken(
+            token=token,
+            client_id=str(payload["cid"]),
+            scopes=scopes,
+            expires_at=int(payload["exp"]),
+            resource=self._audience,
+            subject=str(payload["sub"]),
+            claims={
+                "iss": self._issuer,
+                "tenant_id": payload["tenant_id"],
+                "membership_id": payload["membership_id"],
+                "credential_id": payload["credential_id"],
+            },
+        )
+
+
+def principal_from_access_token(token: AccessToken) -> Principal:
+    claims = token.claims or {}
+    try:
+        return Principal(
+            subject_id=UUID(str(token.subject)),
+            tenant_id=UUID(str(claims["tenant_id"])),
+            membership_id=UUID(str(claims["membership_id"])),
+            credential_id=UUID(str(claims["credential_id"])),
+            scopes=frozenset(Scope(item) for item in token.scopes),
+            auth_method="local-development",
+            expires_at=datetime.fromtimestamp(token.expires_at or 0, UTC),
+        )
+    except (KeyError, ValueError, TypeError) as exc:
+        raise PermissionError("invalid principal claims") from exc
+
+
+def _b64(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _unb64(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
 class KeyManagementService(Protocol):
