@@ -1,0 +1,3 @@
+# Experimental-only local inference dependencies; not runtime production deps.
+torch==2.3.0
+transformers==4.40.1

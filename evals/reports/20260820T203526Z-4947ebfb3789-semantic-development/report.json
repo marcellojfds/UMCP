@@ -1,0 +1,2673 @@
+{
+  "candidates": [
+    {
+      "calibration": {
+        "decision": "GO",
+        "folds": [
+          {
+            "calibration_episode_count": 16,
+            "calibration_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 32,
+              "deterministic_checks_passed": 32,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 10,
+              "positive_queries": 22,
+              "precision_at_5": 0.9469696969696971,
+              "queries": 32
+            },
+            "fold": 0,
+            "selected_threshold": 0.76,
+            "validation_episode_count": 4,
+            "validation_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 8,
+              "deterministic_checks_passed": 8,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 2,
+              "positive_queries": 6,
+              "precision_at_5": 0.7222222222222222,
+              "queries": 8
+            }
+          },
+          {
+            "calibration_episode_count": 16,
+            "calibration_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 32,
+              "deterministic_checks_passed": 32,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 10,
+              "positive_queries": 22,
+              "precision_at_5": 0.8712121212121211,
+              "queries": 32
+            },
+            "fold": 1,
+            "selected_threshold": 0.76,
+            "validation_episode_count": 4,
+            "validation_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 8,
+              "deterministic_checks_passed": 8,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 2,
+              "positive_queries": 6,
+              "precision_at_5": 1.0,
+              "queries": 8
+            }
+          },
+          {
+            "calibration_episode_count": 16,
+            "calibration_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 32,
+              "deterministic_checks_passed": 32,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 10,
+              "positive_queries": 22,
+              "precision_at_5": 0.9090909090909091,
+              "queries": 32
+            },
+            "fold": 2,
+            "selected_threshold": 0.76,
+            "validation_episode_count": 4,
+            "validation_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 8,
+              "deterministic_checks_passed": 8,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 2,
+              "positive_queries": 6,
+              "precision_at_5": 0.861111111111111,
+              "queries": 8
+            }
+          },
+          {
+            "calibration_episode_count": 16,
+            "calibration_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 32,
+              "deterministic_checks_passed": 32,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 9,
+              "positive_queries": 23,
+              "precision_at_5": 0.8913043478260869,
+              "queries": 32
+            },
+            "fold": 3,
+            "selected_threshold": 0.76,
+            "validation_episode_count": 4,
+            "validation_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 8,
+              "deterministic_checks_passed": 8,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 3,
+              "positive_queries": 5,
+              "precision_at_5": 0.9333333333333332,
+              "queries": 8
+            }
+          },
+          {
+            "calibration_episode_count": 16,
+            "calibration_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 32,
+              "deterministic_checks_passed": 32,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 9,
+              "positive_queries": 23,
+              "precision_at_5": 0.8768115942028984,
+              "queries": 32
+            },
+            "fold": 4,
+            "selected_threshold": 0.77,
+            "validation_episode_count": 4,
+            "validation_metrics": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 8,
+              "deterministic_checks_passed": 8,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 3,
+              "positive_queries": 5,
+              "precision_at_5": 0.6,
+              "queries": 8
+            }
+          }
+        ],
+        "out_of_fold_metrics": {
+          "abstention_rate": 1.0,
+          "deterministic_checks": 40,
+          "deterministic_checks_passed": 40,
+          "intrusion_at_5": 0.0,
+          "lifecycle_isolation_correctness": 1.0,
+          "negative_queries": 12,
+          "positive_queries": 28,
+          "precision_at_5": 0.8273809523809524,
+          "queries": 40
+        },
+        "out_of_fold_slices": {
+          "memory_type": {
+            "decision": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 19,
+              "deterministic_checks_passed": 19,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 19,
+              "precision_at_5": 0.8157894736842104,
+              "queries": 19
+            },
+            "fact": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 5,
+              "deterministic_checks_passed": 5,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 5,
+              "precision_at_5": 0.4,
+              "queries": 5
+            },
+            "insight": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 11,
+              "deterministic_checks_passed": 11,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 11,
+              "precision_at_5": 0.9393939393939393,
+              "queries": 11
+            },
+            "lesson": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 12,
+              "deterministic_checks_passed": 12,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 12,
+              "precision_at_5": 0.9027777777777778,
+              "queries": 12
+            },
+            "preference": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 9,
+              "deterministic_checks_passed": 9,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 9,
+              "precision_at_5": 0.8518518518518519,
+              "queries": 9
+            }
+          },
+          "query_kind": {
+            "cross_domain": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 8,
+              "deterministic_checks_passed": 8,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 8,
+              "precision_at_5": 0.875,
+              "queries": 8
+            },
+            "hard_negative": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 12,
+              "deterministic_checks_passed": 12,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 12,
+              "positive_queries": 0,
+              "precision_at_5": 0.0,
+              "queries": 12
+            },
+            "positive": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 20,
+              "deterministic_checks_passed": 20,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 20,
+              "precision_at_5": 0.8083333333333332,
+              "queries": 20
+            }
+          },
+          "space": {
+            "agriculture": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 0.0,
+              "queries": 2
+            },
+            "community": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 0.0,
+              "queries": 2
+            },
+            "culture": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 0.8333333333333333,
+              "queries": 4
+            },
+            "education": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 1.0,
+              "queries": 4
+            },
+            "energy": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "environment": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 1.0,
+              "queries": 4
+            },
+            "events": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "finance": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "logistics": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 1.0,
+              "queries": 4
+            },
+            "manufacturing": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 0.5833333333333333,
+              "queries": 4
+            },
+            "mobility": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "nonprofit": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "operations": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 1.0,
+              "queries": 4
+            },
+            "publicworks": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 0.0,
+              "queries": 2
+            },
+            "research": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "retail": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "service": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 1.0,
+              "queries": 4
+            },
+            "strategy": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 4,
+              "deterministic_checks_passed": 4,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 4,
+              "precision_at_5": 0.6666666666666666,
+              "queries": 4
+            },
+            "support": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            },
+            "training": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 2,
+              "deterministic_checks_passed": 2,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 2,
+              "precision_at_5": 1.0,
+              "queries": 2
+            }
+          },
+          "split": {
+            "development": {
+              "abstention_rate": 1.0,
+              "deterministic_checks": 40,
+              "deterministic_checks_passed": 40,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 12,
+              "positive_queries": 28,
+              "precision_at_5": 0.8273809523809524,
+              "queries": 40
+            }
+          },
+          "state": {
+            "active": {
+              "abstention_rate": 0.0,
+              "deterministic_checks": 56,
+              "deterministic_checks_passed": 56,
+              "intrusion_at_5": 0.0,
+              "lifecycle_isolation_correctness": 1.0,
+              "negative_queries": 0,
+              "positive_queries": 56,
+              "precision_at_5": 0.8273809523809523,
+              "queries": 56
+            }
+          }
+        },
+        "protocol": {
+          "folds": 5,
+          "selection": "abstention, intrusion, lifecycle/isolation and slice floor; then max precision@5; then higher threshold",
+          "threshold_grid": [
+            0.5,
+            0.51,
+            0.52,
+            0.53,
+            0.54,
+            0.55,
+            0.56,
+            0.57,
+            0.58,
+            0.59,
+            0.6,
+            0.61,
+            0.62,
+            0.63,
+            0.64,
+            0.65,
+            0.66,
+            0.67,
+            0.68,
+            0.69,
+            0.7,
+            0.71,
+            0.72,
+            0.73,
+            0.74,
+            0.75,
+            0.76,
+            0.77,
+            0.78,
+            0.79,
+            0.8,
+            0.81,
+            0.82,
+            0.83,
+            0.84,
+            0.85,
+            0.86,
+            0.87,
+            0.88,
+            0.89,
+            0.9
+          ],
+          "unit": "episode"
+        },
+        "reasons": []
+      },
+      "candidate": {
+        "dimension": 384,
+        "license": "MIT",
+        "max_length": 256,
+        "metric": "cosine",
+        "model_files_sha256": {
+          ".gitattributes": "db7c0371f46f0840b8f25794c1e3321c9b5820a8cb6ba9694a46fc64b8fae5a6",
+          "1_Pooling/config.json": "987f7a67a38fa564c849bb5d277c52ab9088a84368fc0be31a354125aebb12a0",
+          "README.md": "0d57eda4766cc7ac045f2bf7e700286ea5a8360bb9b57278f67f9b8ef60b0b24",
+          "config.json": "5dfb0363cd0243be179c03bcaafd1542d0fbb95e8cbcf575fff3e229342adc2f",
+          "model.onnx": "4b8205be2a3c5fc53c6534d76a2012064f7309c162b806f2889c6ec8ec4fdcba",
+          "model.safetensors": "45bfa60070649aae2244fbc9d508537779b93b6f353c17b0f95ceccb1c5116c1",
+          "modules.json": "c6e29747481e8b5dd2b58401966aeac910de39092f90cda9a704b1545f902b04",
+          "onnx/model_O4.onnx": "5a0ed8686280e292eec2321fbe06f21c3c53ed434ce5548712354211ef9e70bc",
+          "onnx/model_qint8_avx512_vnni.onnx": "ac5f66639a9975db4cbf37f0bc9322eb1459920cc3c8f854caef822a9a652997",
+          "openvino/openvino_model.bin": "96e21f1ba6452be9f368f15a2af0a6a4f81e02dc5e0806ea60b09961f53a4724",
+          "openvino/openvino_model.xml": "c018debce4ece2a0209bc49ceef65ec37f67721870b626a9c8b5dcf72b115a0c",
+          "openvino/openvino_model_qint8_quantized.bin": "840ce3ea55437187eb9c1c238e88bb1bb575c0644289e3dd5daee76d1b36e595",
+          "openvino/openvino_model_qint8_quantized.xml": "e28a7fd281e17990651dde94b3571dc06f2b44ccd92044ccfc3a0cbf5416a7d3",
+          "pytorch_model.bin": "4790fed2919e70bff573d01cd3aede75970f219ab4c0b0aeadd0f4b98084a17d",
+          "sentence_bert_config.json": "948201d8329907aae938fa62f9ceeed53f5694dacc2b87b9f3b78b37ee986529",
+          "special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+          "tf_model.h5": "2944a3d38da72d3c4d9c2518046122d1bf824a1d31bb4f271648eb3705296626",
+          "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+          "tokenizer_config.json": "ae83fa6ca0333117ff12606020af925d648667ef70d92ff7f27d781ba0ca4544",
+          "vocab.txt": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+        },
+        "model_id": "intfloat/e5-small-v2",
+        "model_revision": "ffb93f3bd4047442299a41ebb6fa998a38507c52",
+        "model_size_bytes": 133466304,
+        "passage_prefix": "passage:",
+        "pooling": "mean",
+        "profile_id": "semantic",
+        "profile_version": "e5-small-v2-s09",
+        "query_prefix": "query:"
+      },
+      "config": {
+        "candidate_limit": 50,
+        "dataset": "evals/datasets/retrieval-v0",
+        "dimension": 384,
+        "max_length": 256,
+        "model_id": "intfloat/e5-small-v2",
+        "model_license": "MIT",
+        "model_revision": "ffb93f3bd4047442299a41ebb6fa998a38507c52",
+        "model_source": "https://huggingface.co/intfloat/e5-small-v2/tree/ffb93f3bd4047442299a41ebb6fa998a38507c52",
+        "p95_budget_ms": 2500,
+        "passage_prefix": "passage:",
+        "pooling": "mean",
+        "profile_id": "semantic",
+        "profile_version": "e5-small-v2-s09",
+        "promotion_threshold_rule": "median of ADR-0008 E5 fold thresholds",
+        "provider": "e5",
+        "query_prefix": "query:",
+        "result_limit": 5,
+        "runs": 2,
+        "session": "T2-e5-promotion",
+        "sha256": "3b4c6f793324b9440a3dce9ea4e6880a2f83f7b19a6cc942fe344aa2b81cb1ee",
+        "threshold": 0.76,
+        "warmups": 3
+      },
+      "decision": "GO",
+      "development_only": true,
+      "diagnostic": {
+        "queries": [
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.77729936
+            ],
+            "query_id": "query-01-a",
+            "relevant_scores": [
+              0.77445551,
+              0.84676208
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-01-core",
+                "score": 0.84676208
+              },
+              {
+                "memory_id": "memory-01-distractor",
+                "score": 0.77729936
+              },
+              {
+                "memory_id": "memory-01-current",
+                "score": 0.77445551
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.77264301
+            ],
+            "query_id": "query-01-b",
+            "relevant_scores": [
+              0.80450068,
+              0.83977391
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-01-current",
+                "score": 0.83977391
+              },
+              {
+                "memory_id": "memory-01-core",
+                "score": 0.80450068
+              },
+              {
+                "memory_id": "memory-01-distractor",
+                "score": 0.77264301
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.71821615
+            ],
+            "query_id": "query-02-a",
+            "relevant_scores": [
+              0.74943571,
+              0.78646075
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-02-core",
+                "score": 0.78646075
+              },
+              {
+                "memory_id": "memory-02-current",
+                "score": 0.74943571
+              },
+              {
+                "memory_id": "memory-02-distractor",
+                "score": 0.71821615
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.72559051
+            ],
+            "query_id": "query-02-b",
+            "relevant_scores": [
+              0.79473405,
+              0.81604596
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-02-core",
+                "score": 0.81604596
+              },
+              {
+                "memory_id": "memory-02-current",
+                "score": 0.79473405
+              },
+              {
+                "memory_id": "memory-02-distractor",
+                "score": 0.72559051
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.73990705
+            ],
+            "query_id": "query-03-a",
+            "relevant_scores": [
+              0.7647478,
+              0.81947224
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-03-core",
+                "score": 0.81947224
+              },
+              {
+                "memory_id": "memory-03-current",
+                "score": 0.7647478
+              },
+              {
+                "memory_id": "memory-03-distractor",
+                "score": 0.73990705
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.72143539
+            ],
+            "query_id": "query-03-b",
+            "relevant_scores": [
+              0.79535931,
+              0.81628627
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-03-current",
+                "score": 0.81628627
+              },
+              {
+                "memory_id": "memory-03-core",
+                "score": 0.79535931
+              },
+              {
+                "memory_id": "memory-03-distractor",
+                "score": 0.72143539
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.72955083
+            ],
+            "query_id": "query-04-a",
+            "relevant_scores": [
+              0.7666991,
+              0.80117767
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-04-current",
+                "score": 0.80117767
+              },
+              {
+                "memory_id": "memory-04-core",
+                "score": 0.7666991
+              },
+              {
+                "memory_id": "memory-04-distractor",
+                "score": 0.72955083
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.79275273
+            ],
+            "query_id": "query-04-b",
+            "relevant_scores": [
+              0.80923005,
+              0.81074899
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-04-current",
+                "score": 0.81074899
+              },
+              {
+                "memory_id": "memory-04-core",
+                "score": 0.80923005
+              },
+              {
+                "memory_id": "memory-04-distractor",
+                "score": 0.79275273
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.7588241
+            ],
+            "query_id": "query-05-a",
+            "relevant_scores": [
+              0.78138054,
+              0.80236741
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-05-core",
+                "score": 0.80236741
+              },
+              {
+                "memory_id": "memory-05-current",
+                "score": 0.78138054
+              },
+              {
+                "memory_id": "memory-05-distractor",
+                "score": 0.7588241
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.75637303
+            ],
+            "query_id": "query-05-b",
+            "relevant_scores": [
+              0.73870778,
+              0.78704733
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-05-core",
+                "score": 0.78704733
+              },
+              {
+                "memory_id": "memory-05-distractor",
+                "score": 0.75637303
+              },
+              {
+                "memory_id": "memory-05-current",
+                "score": 0.73870778
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.72871576
+            ],
+            "query_id": "query-06-a",
+            "relevant_scores": [
+              0.75821704,
+              0.79383406
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-06-core",
+                "score": 0.79383406
+              },
+              {
+                "memory_id": "memory-06-current",
+                "score": 0.75821704
+              },
+              {
+                "memory_id": "memory-06-distractor",
+                "score": 0.72871576
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.74837878
+            ],
+            "query_id": "query-06-b",
+            "relevant_scores": [
+              0.81559901,
+              0.86596768
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-06-core",
+                "score": 0.86596768
+              },
+              {
+                "memory_id": "memory-06-current",
+                "score": 0.81559901
+              },
+              {
+                "memory_id": "memory-06-distractor",
+                "score": 0.74837878
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.71117151
+            ],
+            "query_id": "query-07-a",
+            "relevant_scores": [
+              0.75005045,
+              0.79170391
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-07-core",
+                "score": 0.79170391
+              },
+              {
+                "memory_id": "memory-07-current",
+                "score": 0.75005045
+              },
+              {
+                "memory_id": "memory-07-distractor",
+                "score": 0.71117151
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.7485849
+            ],
+            "query_id": "query-07-b",
+            "relevant_scores": [
+              0.73616583,
+              0.80053736
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-07-core",
+                "score": 0.80053736
+              },
+              {
+                "memory_id": "memory-07-distractor",
+                "score": 0.7485849
+              },
+              {
+                "memory_id": "memory-07-current",
+                "score": 0.73616583
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.79497762
+            ],
+            "query_id": "query-08-a",
+            "relevant_scores": [
+              0.75299738,
+              0.83228988
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-08-core",
+                "score": 0.83228988
+              },
+              {
+                "memory_id": "memory-08-distractor",
+                "score": 0.79497762
+              },
+              {
+                "memory_id": "memory-08-current",
+                "score": 0.75299738
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": false,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.77088215
+            ],
+            "query_id": "query-08-b",
+            "relevant_scores": [
+              0.78330395,
+              0.79365185
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-08-current",
+                "score": 0.79365185
+              },
+              {
+                "memory_id": "memory-08-core",
+                "score": 0.78330395
+              },
+              {
+                "memory_id": "memory-08-distractor",
+                "score": 0.77088215
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.69408209
+            ],
+            "query_id": "query-09-a",
+            "relevant_scores": [
+              0.74324192,
+              0.77515577
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-09-core",
+                "score": 0.77515577
+              },
+              {
+                "memory_id": "memory-09-current",
+                "score": 0.74324192
+              },
+              {
+                "memory_id": "memory-09-distractor",
+                "score": 0.69408209
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.74540413,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.71215135,
+              0.74359325,
+              0.74540413
+            ],
+            "query_id": "query-09-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-09-core",
+                "score": 0.74540413
+              },
+              {
+                "memory_id": "memory-09-current",
+                "score": 0.74359325
+              },
+              {
+                "memory_id": "memory-09-distractor",
+                "score": 0.71215135
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.73558065
+            ],
+            "query_id": "query-10-a",
+            "relevant_scores": [
+              0.74028216,
+              0.7632268
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-10-core",
+                "score": 0.7632268
+              },
+              {
+                "memory_id": "memory-10-current",
+                "score": 0.74028216
+              },
+              {
+                "memory_id": "memory-10-distractor",
+                "score": 0.73558065
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.71395139,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.69065078,
+              0.69380723,
+              0.71395139
+            ],
+            "query_id": "query-10-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-10-current",
+                "score": 0.71395139
+              },
+              {
+                "memory_id": "memory-10-distractor",
+                "score": 0.69380723
+              },
+              {
+                "memory_id": "memory-10-core",
+                "score": 0.69065078
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.70826639
+            ],
+            "query_id": "query-11-a",
+            "relevant_scores": [
+              0.73461496,
+              0.82361236
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-11-core",
+                "score": 0.82361236
+              },
+              {
+                "memory_id": "memory-11-current",
+                "score": 0.73461496
+              },
+              {
+                "memory_id": "memory-11-distractor",
+                "score": 0.70826639
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.72493384,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.69767815,
+              0.70683386,
+              0.72493384
+            ],
+            "query_id": "query-11-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-11-core",
+                "score": 0.72493384
+              },
+              {
+                "memory_id": "memory-11-distractor",
+                "score": 0.70683386
+              },
+              {
+                "memory_id": "memory-11-current",
+                "score": 0.69767815
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.72071827
+            ],
+            "query_id": "query-12-a",
+            "relevant_scores": [
+              0.73015129,
+              0.78037065
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-12-core",
+                "score": 0.78037065
+              },
+              {
+                "memory_id": "memory-12-current",
+                "score": 0.73015129
+              },
+              {
+                "memory_id": "memory-12-distractor",
+                "score": 0.72071827
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.71941242,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.71416532,
+              0.71597176,
+              0.71941242
+            ],
+            "query_id": "query-12-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-12-current",
+                "score": 0.71941242
+              },
+              {
+                "memory_id": "memory-12-distractor",
+                "score": 0.71597176
+              },
+              {
+                "memory_id": "memory-12-core",
+                "score": 0.71416532
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.68749294
+            ],
+            "query_id": "query-13-a",
+            "relevant_scores": [
+              0.70689511,
+              0.81264563
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-13-core",
+                "score": 0.81264563
+              },
+              {
+                "memory_id": "memory-13-current",
+                "score": 0.70689511
+              },
+              {
+                "memory_id": "memory-13-distractor",
+                "score": 0.68749294
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.7424601,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.69658967,
+              0.7146128,
+              0.7424601
+            ],
+            "query_id": "query-13-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-13-core",
+                "score": 0.7424601
+              },
+              {
+                "memory_id": "memory-13-current",
+                "score": 0.7146128
+              },
+              {
+                "memory_id": "memory-13-distractor",
+                "score": 0.69658967
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.71511537
+            ],
+            "query_id": "query-14-a",
+            "relevant_scores": [
+              0.76154807,
+              0.77671812
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-14-current",
+                "score": 0.77671812
+              },
+              {
+                "memory_id": "memory-14-core",
+                "score": 0.76154807
+              },
+              {
+                "memory_id": "memory-14-distractor",
+                "score": 0.71511537
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.71866181,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.70208075,
+              0.7183215,
+              0.71866181
+            ],
+            "query_id": "query-14-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-14-core",
+                "score": 0.71866181
+              },
+              {
+                "memory_id": "memory-14-distractor",
+                "score": 0.7183215
+              },
+              {
+                "memory_id": "memory-14-current",
+                "score": 0.70208075
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.73837436
+            ],
+            "query_id": "query-15-a",
+            "relevant_scores": [
+              0.70674635,
+              0.78527204
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-15-core",
+                "score": 0.78527204
+              },
+              {
+                "memory_id": "memory-15-distractor",
+                "score": 0.73837436
+              },
+              {
+                "memory_id": "memory-15-current",
+                "score": 0.70674635
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.73047746,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.67988236,
+              0.69279873,
+              0.73047746
+            ],
+            "query_id": "query-15-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-15-core",
+                "score": 0.73047746
+              },
+              {
+                "memory_id": "memory-15-distractor",
+                "score": 0.69279873
+              },
+              {
+                "memory_id": "memory-15-current",
+                "score": 0.67988236
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.71525212
+            ],
+            "query_id": "query-16-a",
+            "relevant_scores": [
+              0.74356238,
+              0.74622972
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-16-core",
+                "score": 0.74622972
+              },
+              {
+                "memory_id": "memory-16-current",
+                "score": 0.74356238
+              },
+              {
+                "memory_id": "memory-16-distractor",
+                "score": 0.71525212
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.72605311,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.69847861,
+              0.70922273,
+              0.72605311
+            ],
+            "query_id": "query-16-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-16-current",
+                "score": 0.72605311
+              },
+              {
+                "memory_id": "memory-16-distractor",
+                "score": 0.70922273
+              },
+              {
+                "memory_id": "memory-16-core",
+                "score": 0.69847861
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.67326781
+            ],
+            "query_id": "query-17-a",
+            "relevant_scores": [
+              0.70794104,
+              0.82460089
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-17-core",
+                "score": 0.82460089
+              },
+              {
+                "memory_id": "memory-17-current",
+                "score": 0.70794104
+              },
+              {
+                "memory_id": "memory-17-distractor",
+                "score": 0.67326781
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.74293935,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.72381995,
+              0.7264329,
+              0.74293935
+            ],
+            "query_id": "query-17-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-17-core",
+                "score": 0.74293935
+              },
+              {
+                "memory_id": "memory-17-distractor",
+                "score": 0.7264329
+              },
+              {
+                "memory_id": "memory-17-current",
+                "score": 0.72381995
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.70006649
+            ],
+            "query_id": "query-18-a",
+            "relevant_scores": [
+              0.72182197,
+              0.77811783
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-18-core",
+                "score": 0.77811783
+              },
+              {
+                "memory_id": "memory-18-current",
+                "score": 0.72182197
+              },
+              {
+                "memory_id": "memory-18-distractor",
+                "score": 0.70006649
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.71673812,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.7052927,
+              0.71146943,
+              0.71673812
+            ],
+            "query_id": "query-18-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-18-current",
+                "score": 0.71673812
+              },
+              {
+                "memory_id": "memory-18-core",
+                "score": 0.71146943
+              },
+              {
+                "memory_id": "memory-18-distractor",
+                "score": 0.7052927
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.68943174
+            ],
+            "query_id": "query-19-a",
+            "relevant_scores": [
+              0.7425152,
+              0.79602938
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-19-core",
+                "score": 0.79602938
+              },
+              {
+                "memory_id": "memory-19-current",
+                "score": 0.7425152
+              },
+              {
+                "memory_id": "memory-19-distractor",
+                "score": 0.68943174
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.75883891,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.73650187,
+              0.75186464,
+              0.75883891
+            ],
+            "query_id": "query-19-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-19-current",
+                "score": 0.75883891
+              },
+              {
+                "memory_id": "memory-19-core",
+                "score": 0.75186464
+              },
+              {
+                "memory_id": "memory-19-distractor",
+                "score": 0.73650187
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": null,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": 1,
+            "labeled_negative_scores": [
+              0.74239997
+            ],
+            "query_id": "query-20-a",
+            "relevant_scores": [
+              0.7634327,
+              0.76400322
+            ],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-20-current",
+                "score": 0.76400322
+              },
+              {
+                "memory_id": "memory-20-core",
+                "score": 0.7634327
+              },
+              {
+                "memory_id": "memory-20-distractor",
+                "score": 0.74239997
+              }
+            ]
+          },
+          {
+            "best_score_if_abstention_query": 0.71522367,
+            "filters_applied": {
+              "owner": true,
+              "space": true,
+              "state": true,
+              "type": false
+            },
+            "first_relevant_rank": null,
+            "labeled_negative_scores": [
+              0.69867514,
+              0.69969117,
+              0.71522367
+            ],
+            "query_id": "query-20-b",
+            "relevant_scores": [],
+            "top_50_before_threshold": [
+              {
+                "memory_id": "memory-20-core",
+                "score": 0.71522367
+              },
+              {
+                "memory_id": "memory-20-current",
+                "score": 0.69969117
+              },
+              {
+                "memory_id": "memory-20-distractor",
+                "score": 0.69867514
+              }
+            ]
+          }
+        ],
+        "ranking_metrics": {
+          "mean_labeled_negative_score": 0.0,
+          "mean_negative_query_best_score": 0.729591,
+          "mean_relevant_minus_labeled_negative": 0.778722,
+          "mean_relevant_score": 0.778722,
+          "mrr": 1.0,
+          "ndcg_at_5": 0.833364,
+          "positive_candidate_coverage": 1.0,
+          "recall_at_1": 0.5,
+          "recall_at_10": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_50": 1.0
+        }
+      },
+      "external_cost": {
+        "amount": 0.0,
+        "currency": "USD",
+        "reason": "local model inference; no API calls"
+      },
+      "failures": [
+        {
+          "failures": [
+            "no_retrieval"
+          ],
+          "query_id": "query-16-a",
+          "returned_memory_ids": []
+        }
+      ],
+      "latency_ms": {
+        "budget_ms": 2500,
+        "p50": 26.028,
+        "p95": 127.29
+      },
+      "metrics": {
+        "abstention_rate": 1.0,
+        "deterministic_checks": 40,
+        "deterministic_checks_passed": 40,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 12,
+        "positive_queries": 28,
+        "precision_at_5": 0.8988095238095237,
+        "queries": 40
+      },
+      "reasons": [],
+      "runs": {
+        "measured_searches": 80,
+        "runs": 2,
+        "warmups": 3
+      },
+      "served_results": [
+        {
+          "query_id": "query-01-a",
+          "returned": [
+            {
+              "memory_id": "memory-01-core",
+              "score": 0.860072
+            },
+            {
+              "memory_id": "memory-01-current",
+              "score": 0.793342
+            },
+            {
+              "memory_id": "memory-01-distractor",
+              "score": 0.687975
+            }
+          ]
+        },
+        {
+          "query_id": "query-01-b",
+          "returned": [
+            {
+              "memory_id": "memory-01-current",
+              "score": 0.84233
+            },
+            {
+              "memory_id": "memory-01-core",
+              "score": 0.828376
+            },
+            {
+              "memory_id": "memory-01-distractor",
+              "score": 0.684482
+            }
+          ]
+        },
+        {
+          "query_id": "query-02-a",
+          "returned": [
+            {
+              "memory_id": "memory-02-core",
+              "score": 0.814846
+            }
+          ]
+        },
+        {
+          "query_id": "query-02-b",
+          "returned": [
+            {
+              "memory_id": "memory-02-core",
+              "score": 0.837034
+            },
+            {
+              "memory_id": "memory-02-current",
+              "score": 0.808551
+            }
+          ]
+        },
+        {
+          "query_id": "query-03-a",
+          "returned": [
+            {
+              "memory_id": "memory-03-core",
+              "score": 0.839604
+            },
+            {
+              "memory_id": "memory-03-current",
+              "score": 0.786061
+            }
+          ]
+        },
+        {
+          "query_id": "query-03-b",
+          "returned": [
+            {
+              "memory_id": "memory-03-current",
+              "score": 0.824715
+            },
+            {
+              "memory_id": "memory-03-core",
+              "score": 0.821519
+            }
+          ]
+        },
+        {
+          "query_id": "query-04-a",
+          "returned": [
+            {
+              "memory_id": "memory-04-current",
+              "score": 0.813383
+            },
+            {
+              "memory_id": "memory-04-core",
+              "score": 0.800024
+            }
+          ]
+        },
+        {
+          "query_id": "query-04-b",
+          "returned": [
+            {
+              "memory_id": "memory-04-core",
+              "score": 0.831923
+            },
+            {
+              "memory_id": "memory-04-current",
+              "score": 0.820562
+            },
+            {
+              "memory_id": "memory-04-distractor",
+              "score": 0.699565
+            }
+          ]
+        },
+        {
+          "query_id": "query-05-a",
+          "returned": [
+            {
+              "memory_id": "memory-05-core",
+              "score": 0.826776
+            },
+            {
+              "memory_id": "memory-05-current",
+              "score": 0.798535
+            }
+          ]
+        },
+        {
+          "query_id": "query-05-b",
+          "returned": [
+            {
+              "memory_id": "memory-05-core",
+              "score": 0.815285
+            }
+          ]
+        },
+        {
+          "query_id": "query-06-a",
+          "returned": [
+            {
+              "memory_id": "memory-06-core",
+              "score": 0.820376
+            }
+          ]
+        },
+        {
+          "query_id": "query-06-b",
+          "returned": [
+            {
+              "memory_id": "memory-06-core",
+              "score": 0.874476
+            },
+            {
+              "memory_id": "memory-06-current",
+              "score": 0.824199
+            }
+          ]
+        },
+        {
+          "query_id": "query-07-a",
+          "returned": [
+            {
+              "memory_id": "memory-07-core",
+              "score": 0.818778
+            }
+          ]
+        },
+        {
+          "query_id": "query-07-b",
+          "returned": [
+            {
+              "memory_id": "memory-07-core",
+              "score": 0.825403
+            }
+          ]
+        },
+        {
+          "query_id": "query-08-a",
+          "returned": [
+            {
+              "memory_id": "memory-08-core",
+              "score": 0.849217
+            },
+            {
+              "memory_id": "memory-08-distractor",
+              "score": 0.701233
+            }
+          ]
+        },
+        {
+          "query_id": "query-08-b",
+          "returned": [
+            {
+              "memory_id": "memory-08-core",
+              "score": 0.812478
+            },
+            {
+              "memory_id": "memory-08-current",
+              "score": 0.807739
+            },
+            {
+              "memory_id": "memory-08-distractor",
+              "score": 0.683162
+            }
+          ]
+        },
+        {
+          "query_id": "query-09-a",
+          "returned": [
+            {
+              "memory_id": "memory-09-core",
+              "score": 0.806367
+            }
+          ]
+        },
+        {
+          "query_id": "query-09-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-10-a",
+          "returned": [
+            {
+              "memory_id": "memory-10-core",
+              "score": 0.79742
+            }
+          ]
+        },
+        {
+          "query_id": "query-10-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-11-a",
+          "returned": [
+            {
+              "memory_id": "memory-11-core",
+              "score": 0.842709
+            }
+          ]
+        },
+        {
+          "query_id": "query-11-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-12-a",
+          "returned": [
+            {
+              "memory_id": "memory-12-core",
+              "score": 0.810278
+            }
+          ]
+        },
+        {
+          "query_id": "query-12-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-13-a",
+          "returned": [
+            {
+              "memory_id": "memory-13-core",
+              "score": 0.834484
+            }
+          ]
+        },
+        {
+          "query_id": "query-13-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-14-a",
+          "returned": [
+            {
+              "memory_id": "memory-14-core",
+              "score": 0.796161
+            },
+            {
+              "memory_id": "memory-14-current",
+              "score": 0.795039
+            }
+          ]
+        },
+        {
+          "query_id": "query-14-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-15-a",
+          "returned": [
+            {
+              "memory_id": "memory-15-core",
+              "score": 0.813954
+            }
+          ]
+        },
+        {
+          "query_id": "query-15-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-16-a",
+          "returned": []
+        },
+        {
+          "query_id": "query-16-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-17-a",
+          "returned": [
+            {
+              "memory_id": "memory-17-core",
+              "score": 0.843451
+            }
+          ]
+        },
+        {
+          "query_id": "query-17-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-18-a",
+          "returned": [
+            {
+              "memory_id": "memory-18-core",
+              "score": 0.808588
+            }
+          ]
+        },
+        {
+          "query_id": "query-18-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-19-a",
+          "returned": [
+            {
+              "memory_id": "memory-19-core",
+              "score": 0.822022
+            }
+          ]
+        },
+        {
+          "query_id": "query-19-b",
+          "returned": []
+        },
+        {
+          "query_id": "query-20-a",
+          "returned": [
+            {
+              "memory_id": "memory-20-core",
+              "score": 0.797575
+            },
+            {
+              "memory_id": "memory-20-current",
+              "score": 0.785502
+            }
+          ]
+        },
+        {
+          "query_id": "query-20-b",
+          "returned": []
+        }
+      ],
+      "slices": {
+        "memory_type": {
+          "decision": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 19,
+            "deterministic_checks_passed": 19,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 19,
+            "precision_at_5": 0.868421052631579,
+            "queries": 19
+          },
+          "fact": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 5,
+            "deterministic_checks_passed": 5,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 5,
+            "precision_at_5": 0.8,
+            "queries": 5
+          },
+          "insight": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 11,
+            "deterministic_checks_passed": 11,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 11,
+            "precision_at_5": 0.9393939393939393,
+            "queries": 11
+          },
+          "lesson": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 12,
+            "deterministic_checks_passed": 12,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 12,
+            "precision_at_5": 0.9027777777777777,
+            "queries": 12
+          },
+          "preference": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 9,
+            "deterministic_checks_passed": 9,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 9,
+            "precision_at_5": 0.9629629629629629,
+            "queries": 9
+          }
+        },
+        "query_kind": {
+          "cross_domain": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 8,
+            "deterministic_checks_passed": 8,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 8,
+            "precision_at_5": 0.875,
+            "queries": 8
+          },
+          "hard_negative": {
+            "abstention_rate": 1.0,
+            "deterministic_checks": 12,
+            "deterministic_checks_passed": 12,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 12,
+            "positive_queries": 0,
+            "precision_at_5": 0.0,
+            "queries": 12
+          },
+          "positive": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 20,
+            "deterministic_checks_passed": 20,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 20,
+            "precision_at_5": 0.9083333333333332,
+            "queries": 20
+          }
+        },
+        "space": {
+          "agriculture": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 0.0,
+            "queries": 2
+          },
+          "community": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "culture": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 0.8333333333333333,
+            "queries": 4
+          },
+          "education": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 1.0,
+            "queries": 4
+          },
+          "energy": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "environment": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 1.0,
+            "queries": 4
+          },
+          "events": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "finance": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "logistics": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 1.0,
+            "queries": 4
+          },
+          "manufacturing": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 0.5833333333333333,
+            "queries": 4
+          },
+          "mobility": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "nonprofit": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "operations": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 1.0,
+            "queries": 4
+          },
+          "publicworks": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "research": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "retail": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "service": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 1.0,
+            "queries": 4
+          },
+          "strategy": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 4,
+            "deterministic_checks_passed": 4,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 4,
+            "precision_at_5": 0.6666666666666666,
+            "queries": 4
+          },
+          "support": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          },
+          "training": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 2,
+            "deterministic_checks_passed": 2,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 2,
+            "precision_at_5": 1.0,
+            "queries": 2
+          }
+        },
+        "split": {
+          "development": {
+            "abstention_rate": 1.0,
+            "deterministic_checks": 40,
+            "deterministic_checks_passed": 40,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 12,
+            "positive_queries": 28,
+            "precision_at_5": 0.8988095238095237,
+            "queries": 40
+          }
+        },
+        "state": {
+          "active": {
+            "abstention_rate": 0.0,
+            "deterministic_checks": 56,
+            "deterministic_checks_passed": 56,
+            "intrusion_at_5": 0.0,
+            "lifecycle_isolation_correctness": 1.0,
+            "negative_queries": 0,
+            "positive_queries": 56,
+            "precision_at_5": 0.8988095238095238,
+            "queries": 56
+          }
+        }
+      }
+    }
+  ],
+  "dataset": {
+    "name": "retrieval-v0",
+    "sha256": {
+      "checksums.json": "071b254d7689303096ed0e09c14fa438582a2e8d6be863679065dc172b1adbff",
+      "memories.jsonl": "30135468f0a2ec4f1539d7f53c2175267ba77962a65b3694e86809d3e380df98",
+      "queries.jsonl": "114b9dfb1f7cebe41334539ff14eda1741bc7bd0f967fee760ba8c020f6d9068",
+      "relevance.jsonl": "8fec0e7f42caad36e4a1a6f2d3d078ac94bcff6e62c625cb230e3f5dc3e96a9c"
+    }
+  },
+  "decision": "GO-CANDIDATE",
+  "environment": {
+    "backend": "experimental-in-memory-local",
+    "device": "cpu",
+    "omp": "0.1.0a1",
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "python": "3.11.8",
+    "torch": "2.3.0",
+    "transformers": "4.40.1"
+  },
+  "git": {
+    "dirty": true,
+    "revision": "4947ebfb3789558892c242e0d7a8743256f3656d"
+  },
+  "holdout_executed": false,
+  "reasons": [
+    "selected intfloat/e5-small-v2: sole candidate satisfying every development gate"
+  ],
+  "schema_version": 1,
+  "selected_candidate": "intfloat/e5-small-v2",
+  "session": "T2-e5-promotion"
+}

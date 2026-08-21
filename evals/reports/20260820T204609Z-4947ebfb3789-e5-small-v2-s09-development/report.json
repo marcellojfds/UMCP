@@ -1,0 +1,801 @@
+{
+  "config": {
+    "candidate_limit": 50,
+    "dataset": "evals/datasets/retrieval-v0",
+    "dimension": 384,
+    "max_length": 256,
+    "model_id": "intfloat/e5-small-v2",
+    "model_license": "MIT",
+    "model_revision": "ffb93f3bd4047442299a41ebb6fa998a38507c52",
+    "model_source": "https://huggingface.co/intfloat/e5-small-v2/tree/ffb93f3bd4047442299a41ebb6fa998a38507c52",
+    "p95_budget_ms": 2500,
+    "passage_prefix": "passage:",
+    "pooling": "mean",
+    "profile_id": "semantic",
+    "profile_version": "e5-small-v2-s09",
+    "promotion_threshold_rule": "median of ADR-0008 E5 fold thresholds",
+    "provider": "e5",
+    "query_prefix": "query:",
+    "result_limit": 5,
+    "runs": 2,
+    "session": "T2-e5-promotion",
+    "sha256": "3b4c6f793324b9440a3dce9ea4e6880a2f83f7b19a6cc942fe344aa2b81cb1ee",
+    "threshold": 0.76,
+    "warmups": 3
+  },
+  "dataset": {
+    "name": "retrieval-v0",
+    "sha256": {
+      "checksums.json": "071b254d7689303096ed0e09c14fa438582a2e8d6be863679065dc172b1adbff",
+      "memories.jsonl": "30135468f0a2ec4f1539d7f53c2175267ba77962a65b3694e86809d3e380df98",
+      "queries.jsonl": "114b9dfb1f7cebe41334539ff14eda1741bc7bd0f967fee760ba8c020f6d9068",
+      "relevance.jsonl": "8fec0e7f42caad36e4a1a6f2d3d078ac94bcff6e62c625cb230e3f5dc3e96a9c"
+    }
+  },
+  "decision": "GO",
+  "environment": {
+    "backend": "postgresql+pgvector",
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "single_client": true
+  },
+  "external_cost": {
+    "amount": 0.0,
+    "currency": "USD",
+    "reason": "local embedding inference; no external embedding calls"
+  },
+  "failures": [
+    {
+      "failures": [
+        "no_retrieval"
+      ],
+      "query_id": "query-16-a",
+      "relevant_memory_ids": [
+        "memory-16-core",
+        "memory-16-current"
+      ],
+      "returned_memory_ids": []
+    }
+  ],
+  "git": {
+    "dirty": true,
+    "revision": "4947ebfb3789558892c242e0d7a8743256f3656d"
+  },
+  "holdout_executed": false,
+  "latency_ms": {
+    "budget_ms": 2500,
+    "p50": 28.986,
+    "p95": 254.758
+  },
+  "metrics": {
+    "abstention_rate": 1.0,
+    "deterministic_checks": 40,
+    "deterministic_checks_passed": 40,
+    "intrusion_at_5": 0.0,
+    "lifecycle_isolation_correctness": 1.0,
+    "negative_queries": 12,
+    "positive_queries": 28,
+    "precision_at_5": 0.8988095238095237,
+    "queries": 40
+  },
+  "reasons": [],
+  "runs": {
+    "measured_searches": 80,
+    "runs": 2,
+    "warmups": 3
+  },
+  "schema_version": 1,
+  "served_results": [
+    {
+      "query_id": "query-01-a",
+      "returned": [
+        {
+          "memory_id": "memory-01-core",
+          "score": 0.860072
+        },
+        {
+          "memory_id": "memory-01-current",
+          "score": 0.793342
+        },
+        {
+          "memory_id": "memory-01-distractor",
+          "score": 0.687974
+        }
+      ]
+    },
+    {
+      "query_id": "query-01-b",
+      "returned": [
+        {
+          "memory_id": "memory-01-current",
+          "score": 0.84233
+        },
+        {
+          "memory_id": "memory-01-core",
+          "score": 0.828376
+        },
+        {
+          "memory_id": "memory-01-distractor",
+          "score": 0.684482
+        }
+      ]
+    },
+    {
+      "query_id": "query-02-a",
+      "returned": [
+        {
+          "memory_id": "memory-02-core",
+          "score": 0.814846
+        }
+      ]
+    },
+    {
+      "query_id": "query-02-b",
+      "returned": [
+        {
+          "memory_id": "memory-02-core",
+          "score": 0.837035
+        },
+        {
+          "memory_id": "memory-02-current",
+          "score": 0.80855
+        }
+      ]
+    },
+    {
+      "query_id": "query-03-a",
+      "returned": [
+        {
+          "memory_id": "memory-03-core",
+          "score": 0.839604
+        },
+        {
+          "memory_id": "memory-03-current",
+          "score": 0.786061
+        }
+      ]
+    },
+    {
+      "query_id": "query-03-b",
+      "returned": [
+        {
+          "memory_id": "memory-03-current",
+          "score": 0.824715
+        },
+        {
+          "memory_id": "memory-03-core",
+          "score": 0.821519
+        }
+      ]
+    },
+    {
+      "query_id": "query-04-a",
+      "returned": [
+        {
+          "memory_id": "memory-04-current",
+          "score": 0.813383
+        },
+        {
+          "memory_id": "memory-04-core",
+          "score": 0.800024
+        }
+      ]
+    },
+    {
+      "query_id": "query-04-b",
+      "returned": [
+        {
+          "memory_id": "memory-04-core",
+          "score": 0.831922
+        },
+        {
+          "memory_id": "memory-04-current",
+          "score": 0.820562
+        },
+        {
+          "memory_id": "memory-04-distractor",
+          "score": 0.699565
+        }
+      ]
+    },
+    {
+      "query_id": "query-05-a",
+      "returned": [
+        {
+          "memory_id": "memory-05-core",
+          "score": 0.826776
+        },
+        {
+          "memory_id": "memory-05-current",
+          "score": 0.798535
+        }
+      ]
+    },
+    {
+      "query_id": "query-05-b",
+      "returned": [
+        {
+          "memory_id": "memory-05-core",
+          "score": 0.815286
+        }
+      ]
+    },
+    {
+      "query_id": "query-06-a",
+      "returned": [
+        {
+          "memory_id": "memory-06-core",
+          "score": 0.820376
+        }
+      ]
+    },
+    {
+      "query_id": "query-06-b",
+      "returned": [
+        {
+          "memory_id": "memory-06-core",
+          "score": 0.874476
+        },
+        {
+          "memory_id": "memory-06-current",
+          "score": 0.824199
+        }
+      ]
+    },
+    {
+      "query_id": "query-07-a",
+      "returned": [
+        {
+          "memory_id": "memory-07-core",
+          "score": 0.818778
+        }
+      ]
+    },
+    {
+      "query_id": "query-07-b",
+      "returned": [
+        {
+          "memory_id": "memory-07-core",
+          "score": 0.825403
+        }
+      ]
+    },
+    {
+      "query_id": "query-08-a",
+      "returned": [
+        {
+          "memory_id": "memory-08-core",
+          "score": 0.849217
+        },
+        {
+          "memory_id": "memory-08-distractor",
+          "score": 0.701233
+        }
+      ]
+    },
+    {
+      "query_id": "query-08-b",
+      "returned": [
+        {
+          "memory_id": "memory-08-core",
+          "score": 0.812478
+        },
+        {
+          "memory_id": "memory-08-current",
+          "score": 0.807739
+        },
+        {
+          "memory_id": "memory-08-distractor",
+          "score": 0.683162
+        }
+      ]
+    },
+    {
+      "query_id": "query-09-a",
+      "returned": [
+        {
+          "memory_id": "memory-09-core",
+          "score": 0.806367
+        }
+      ]
+    },
+    {
+      "query_id": "query-09-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-10-a",
+      "returned": [
+        {
+          "memory_id": "memory-10-core",
+          "score": 0.79742
+        }
+      ]
+    },
+    {
+      "query_id": "query-10-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-11-a",
+      "returned": [
+        {
+          "memory_id": "memory-11-core",
+          "score": 0.842709
+        }
+      ]
+    },
+    {
+      "query_id": "query-11-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-12-a",
+      "returned": [
+        {
+          "memory_id": "memory-12-core",
+          "score": 0.810278
+        }
+      ]
+    },
+    {
+      "query_id": "query-12-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-13-a",
+      "returned": [
+        {
+          "memory_id": "memory-13-core",
+          "score": 0.834484
+        }
+      ]
+    },
+    {
+      "query_id": "query-13-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-14-a",
+      "returned": [
+        {
+          "memory_id": "memory-14-core",
+          "score": 0.796161
+        },
+        {
+          "memory_id": "memory-14-current",
+          "score": 0.795039
+        }
+      ]
+    },
+    {
+      "query_id": "query-14-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-15-a",
+      "returned": [
+        {
+          "memory_id": "memory-15-core",
+          "score": 0.813954
+        }
+      ]
+    },
+    {
+      "query_id": "query-15-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-16-a",
+      "returned": []
+    },
+    {
+      "query_id": "query-16-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-17-a",
+      "returned": [
+        {
+          "memory_id": "memory-17-core",
+          "score": 0.843451
+        }
+      ]
+    },
+    {
+      "query_id": "query-17-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-18-a",
+      "returned": [
+        {
+          "memory_id": "memory-18-core",
+          "score": 0.808588
+        }
+      ]
+    },
+    {
+      "query_id": "query-18-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-19-a",
+      "returned": [
+        {
+          "memory_id": "memory-19-core",
+          "score": 0.822022
+        }
+      ]
+    },
+    {
+      "query_id": "query-19-b",
+      "returned": []
+    },
+    {
+      "query_id": "query-20-a",
+      "returned": [
+        {
+          "memory_id": "memory-20-core",
+          "score": 0.797574
+        },
+        {
+          "memory_id": "memory-20-current",
+          "score": 0.785502
+        }
+      ]
+    },
+    {
+      "query_id": "query-20-b",
+      "returned": []
+    }
+  ],
+  "slices": {
+    "memory_type": {
+      "decision": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 19,
+        "deterministic_checks_passed": 19,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 19,
+        "precision_at_5": 0.868421052631579,
+        "queries": 19
+      },
+      "fact": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 5,
+        "deterministic_checks_passed": 5,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 5,
+        "precision_at_5": 0.8,
+        "queries": 5
+      },
+      "insight": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 11,
+        "deterministic_checks_passed": 11,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 11,
+        "precision_at_5": 0.9393939393939393,
+        "queries": 11
+      },
+      "lesson": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 12,
+        "deterministic_checks_passed": 12,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 12,
+        "precision_at_5": 0.9027777777777777,
+        "queries": 12
+      },
+      "preference": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 9,
+        "deterministic_checks_passed": 9,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 9,
+        "precision_at_5": 0.9629629629629629,
+        "queries": 9
+      }
+    },
+    "query_kind": {
+      "cross_domain": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 8,
+        "deterministic_checks_passed": 8,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 8,
+        "precision_at_5": 0.875,
+        "queries": 8
+      },
+      "hard_negative": {
+        "abstention_rate": 1.0,
+        "deterministic_checks": 12,
+        "deterministic_checks_passed": 12,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 12,
+        "positive_queries": 0,
+        "precision_at_5": 0.0,
+        "queries": 12
+      },
+      "positive": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 20,
+        "deterministic_checks_passed": 20,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 20,
+        "precision_at_5": 0.9083333333333332,
+        "queries": 20
+      }
+    },
+    "space": {
+      "agriculture": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 0.0,
+        "queries": 2
+      },
+      "community": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "culture": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 0.8333333333333333,
+        "queries": 4
+      },
+      "education": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 1.0,
+        "queries": 4
+      },
+      "energy": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "environment": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 1.0,
+        "queries": 4
+      },
+      "events": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "finance": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "logistics": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 1.0,
+        "queries": 4
+      },
+      "manufacturing": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 0.5833333333333333,
+        "queries": 4
+      },
+      "mobility": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "nonprofit": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "operations": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 1.0,
+        "queries": 4
+      },
+      "publicworks": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "research": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "retail": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "service": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 1.0,
+        "queries": 4
+      },
+      "strategy": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 4,
+        "deterministic_checks_passed": 4,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 4,
+        "precision_at_5": 0.6666666666666666,
+        "queries": 4
+      },
+      "support": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      },
+      "training": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 2,
+        "deterministic_checks_passed": 2,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 2,
+        "precision_at_5": 1.0,
+        "queries": 2
+      }
+    },
+    "split": {
+      "development": {
+        "abstention_rate": 1.0,
+        "deterministic_checks": 40,
+        "deterministic_checks_passed": 40,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 12,
+        "positive_queries": 28,
+        "precision_at_5": 0.8988095238095237,
+        "queries": 40
+      }
+    },
+    "state": {
+      "active": {
+        "abstention_rate": 0.0,
+        "deterministic_checks": 56,
+        "deterministic_checks_passed": 56,
+        "intrusion_at_5": 0.0,
+        "lifecycle_isolation_correctness": 1.0,
+        "negative_queries": 0,
+        "positive_queries": 56,
+        "precision_at_5": 0.8988095238095238,
+        "queries": 56
+      }
+    }
+  },
+  "split": "development",
+  "versions": {
+    "omp": "0.1.0a1",
+    "pgvector": "0.8.6",
+    "postgresql": "16.15 (Debian 16.15-1.pgdg12+2)",
+    "python": "3.11.8"
+  }
+}

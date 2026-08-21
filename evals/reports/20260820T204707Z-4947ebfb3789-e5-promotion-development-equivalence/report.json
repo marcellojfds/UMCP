@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "decision": "development_promotion_eligible",
+  "holdout_executed": false,
+  "candidate": {
+    "model_id": "intfloat/e5-small-v2",
+    "model_revision": "ffb93f3bd4047442299a41ebb6fa998a38507c52",
+    "profile_id": "semantic",
+    "profile_version": "e5-small-v2-s09",
+    "pooling": "mean",
+    "query_prefix": "query:",
+    "passage_prefix": "passage:",
+    "dimension": 384,
+    "threshold": 0.76,
+    "candidate_limit": 50,
+    "result_limit": 5
+  },
+  "inputs": {
+    "promotion_config_sha256": "3b4c6f793324b9440a3dce9ea4e6880a2f83f7b19a6cc942fe344aa2b81cb1ee",
+    "harness_report_sha256": "630322d66e5f7deb696806cc70e1d05743e0939e540ddb6026d765571bb52d68",
+    "postgres_report_sha256": "26db7ecc0018b8bc7cf76cc48f11b65086814e7f97726840d1426888baf72b7a"
+  },
+  "metrics": {
+    "harness": {
+      "precision_at_5": 0.8988095238095237,
+      "intrusion_at_5": 0.0,
+      "abstention_rate": 1.0,
+      "lifecycle_isolation_correctness": 1.0,
+      "p95_ms": 44.02
+    },
+    "postgres_gateway": {
+      "precision_at_5": 0.8988095238095237,
+      "intrusion_at_5": 0.0,
+      "abstention_rate": 1.0,
+      "lifecycle_isolation_correctness": 1.0,
+      "p95_ms": 254.758
+    }
+  },
+  "equivalence": {
+    "query_count": 40,
+    "returned_id_mismatches": 0,
+    "compared_scores": 44,
+    "max_decimal_score_delta": "0.000001",
+    "score_tolerance": "0.000001",
+    "result": "pass"
+  },
+  "source_version": {
+    "regression_test": "test_semantic_source_version_is_written_updated_imported_and_stale_safe",
+    "result": "pass",
+    "hash_64d_unchanged": true
+  }
+}

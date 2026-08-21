@@ -7,6 +7,7 @@ and emits identifiers only in reports so artifacts never reproduce corpus text.
 from __future__ import annotations
 
 import argparse
+import ast
 import asyncio
 import hashlib
 import json
@@ -19,7 +20,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from pydantic import SecretStr
@@ -27,7 +28,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from omp import __version__
-from omp.adapters.embeddings import HashEmbeddingProvider
+from omp.adapters.embeddings import HashEmbeddingProvider, LocalTransformerEmbeddingProvider
 from omp.adapters.mcp.application_gateway import MemoryApplicationGateway
 from omp.adapters.postgres import create_postgres_uow_factory
 from omp.application.models import UpdateMemoryCommand
@@ -57,6 +58,12 @@ def load_config(path: Path) -> dict[str, Any]:
         if not separator or not key.strip() or not raw_value.strip():
             raise ValueError(f"invalid eval config line: {line!r}")
         value = raw_value.strip()
+        if value[:1] in {'"', "'"} and value[-1:] == value[:1]:
+            try:
+                result[key.strip()] = ast.literal_eval(value)
+            except (SyntaxError, ValueError) as exc:
+                raise ValueError(f"invalid quoted eval config value: {line!r}") from exc
+            continue
         if value.isdigit():
             result[key.strip()] = int(value)
         else:
@@ -119,7 +126,7 @@ async def _truncate(engine: Any) -> None:
         await connection.execute(
             text(
                 "TRUNCATE TABLE idempotency_operations, memory_relations, "
-                "memory_embeddings, memory_versions, memories CASCADE"
+                "memory_embeddings, memory_embeddings_semantic, memory_versions, memories CASCADE"
             )
         )
 
@@ -201,6 +208,7 @@ async def _run_split(
                     "memory_type": memory["type"],
                     "space": memory["space"] or "none",
                     "state": memory["state"],
+                    "score": f"{float(item['score']):.6f}",
                 }
             )
             if memory["owner_id"] != query["owner_id"]:
@@ -272,6 +280,24 @@ def _decision(
     return ("GO" if not reasons else "NO-GO"), reasons
 
 
+def _served_results(outcomes: list[QueryOutcome]) -> list[dict[str, Any]]:
+    """Identifier/score-only trace for harness/PostgreSQL equivalence."""
+    return [
+        {
+            "query_id": outcome.query_id,
+            "returned": [
+                {"memory_id": memory_id, "score": float(metadata["score"])}
+                for memory_id, metadata in zip(
+                    outcome.returned_ids,
+                    outcome.returned_metadata,
+                    strict=True,
+                )
+            ],
+        }
+        for outcome in sorted(outcomes, key=lambda item: item.query_id)
+    ]
+
+
 def _markdown(report: dict[str, Any]) -> str:
     metrics = report["metrics"]
     return (
@@ -305,7 +331,7 @@ def _markdown(report: dict[str, Any]) -> str:
     )
 
 
-async def run(config_path: Path, output_root: Path | None = None) -> Path:
+async def run(config_path: Path, output_root: Path | None = None, split: str | None = None) -> Path:
     root = Path.cwd()
     config = load_config(config_path)
     dataset_dir = root / str(config["dataset"])
@@ -317,25 +343,50 @@ async def run(config_path: Path, output_root: Path | None = None) -> Path:
     relevance: dict[str, dict[str, int]] = defaultdict(dict)
     for label in labels:
         relevance[label["query_id"]][label["memory_id"]] = label["grade"]
+    provider_kind = str(config.get("provider", "hash"))
+    if provider_kind not in {"hash", "e5"}:
+        raise ValueError("eval provider must be hash or e5")
+    profile_id = str(config["profile_id"])
+    profile_version = str(config["profile_version"])
+    dimension = int(config["dimension"])
     settings = OMPSettings(
         database_url=SecretStr(
             os.environ.get("OMP_DATABASE_URL", OMPSettings().database_url.get_secret_value())
         ),
-        embedding_profile_id=str(config["profile_id"]),
-        embedding_profile_version=str(config["profile_version"]),
-        embedding_dimension=int(config["dimension"]),
+        embedding_provider=cast(Literal["hash", "e5"], provider_kind),
+        embedding_profile_id=profile_id,
+        embedding_profile_version=profile_version,
+        embedding_dimension=dimension,
         retrieval_default_threshold=float(config["threshold"]),
         retrieval_default_candidate_limit=int(config["candidate_limit"]),
         retrieval_default_limit=int(config["result_limit"]),
     )
     factory, engine = create_postgres_uow_factory(settings)
+    if provider_kind == "e5":
+        model_root = os.environ.get("OMP_SEMANTIC_MODEL_ROOT")
+        if not model_root:
+            raise RuntimeError("OMP_SEMANTIC_MODEL_ROOT is required for semantic evaluation")
+        embedding_provider: Any = LocalTransformerEmbeddingProvider(
+            model_root=model_root,
+            model_id=str(config["model_id"]),
+            model_revision=str(config["model_revision"]),
+            profile_id=profile_id,
+            profile_version=profile_version,
+            dimension=dimension,
+            query_prefix=str(config["query_prefix"]),
+            passage_prefix=str(config["passage_prefix"]),
+            max_length=int(config["max_length"]),
+        )
+        await embedding_provider.startup()
+    else:
+        embedding_provider = HashEmbeddingProvider(
+            dimension=dimension,
+            profile_id=profile_id,
+            version=profile_version,
+        )
     service = MemoryApplicationService(
         uow_factory=cast(Callable[[], Any], factory),
-        embedding_provider=HashEmbeddingProvider(
-            dimension=int(config["dimension"]),
-            profile_id=str(config["profile_id"]),
-            version=str(config["profile_version"]),
-        ),
+        embedding_provider=embedding_provider,
     )
     gateway = MemoryApplicationGateway(service)
     try:
@@ -343,11 +394,14 @@ async def run(config_path: Path, output_root: Path | None = None) -> Path:
         versions = await _database_versions(typed_engine)
         outcomes: list[QueryOutcome] = []
         timings: list[float] = []
-        for split in ("development", "holdout"):
+        selected_splits = (split,) if split is not None else ("development", "holdout")
+        if any(item not in {"development", "holdout"} for item in selected_splits):
+            raise ValueError("split must be development or holdout")
+        for current_split in selected_splits:
             await _truncate(typed_engine)
             split_outcomes, split_timings = await _run_split(
-                records=[x for x in memories if x["split"] == split],
-                queries=[x for x in queries if x["split"] == split],
+                records=[x for x in memories if x["split"] == current_split],
+                queries=[x for x in queries if x["split"] == current_split],
                 config=config,
                 gateway=gateway,
                 service=service,
@@ -404,11 +458,15 @@ async def run(config_path: Path, output_root: Path | None = None) -> Path:
             )
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     revision = _git_metadata(root)["revision"][:12]
-    destination = (output_root or root / "evals" / "reports") / f"{stamp}-{revision}-hash-v1"
+    report_split = split or "development-holdout"
+    suffix = "hash-v1" if provider_kind == "hash" else f"{profile_version}-{report_split}"
+    destination = (output_root or root / "evals" / "reports") / f"{stamp}-{revision}-{suffix}"
     destination.mkdir(parents=True, exist_ok=False)
     report: dict[str, Any] = {
         "schema_version": 1,
         "decision": decision,
+        "split": report_split,
+        "holdout_executed": "holdout" in selected_splits,
         "reasons": reasons,
         "git": _git_metadata(root),
         "dataset": {
@@ -436,9 +494,14 @@ async def run(config_path: Path, output_root: Path | None = None) -> Path:
         "external_cost": {
             "currency": "USD",
             "amount": 0.0,
-            "reason": "hash/v1 is local and has no external embedding calls",
+            "reason": (
+                "local embedding inference; no external embedding calls"
+                if provider_kind == "e5"
+                else "hash/v1 is local and has no external embedding calls"
+            ),
         },
         "failures": failures,
+        "served_results": _served_results(outcomes),
     }
     (destination / "report.json").write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -460,8 +523,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output-root", type=Path)
+    parser.add_argument("--split", choices=("development", "holdout"))
     args = parser.parse_args()
-    print(asyncio.run(run(args.config, args.output_root)))
+    print(asyncio.run(run(args.config, args.output_root, args.split)))
 
 
 if __name__ == "__main__":

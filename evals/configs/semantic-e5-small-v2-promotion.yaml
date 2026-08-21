@@ -1,0 +1,22 @@
+# Frozen by ADR 0008 promotion rule; do not tune after this file is created.
+session: T2-e5-promotion
+dataset: evals/datasets/retrieval-v0
+provider: e5
+profile_id: semantic
+profile_version: e5-small-v2-s09
+dimension: 384
+threshold: 0.76
+candidate_limit: 50
+result_limit: 5
+warmups: 3
+runs: 2
+p95_budget_ms: 2500
+model_id: intfloat/e5-small-v2
+model_revision: ffb93f3bd4047442299a41ebb6fa998a38507c52
+model_source: https://huggingface.co/intfloat/e5-small-v2/tree/ffb93f3bd4047442299a41ebb6fa998a38507c52
+model_license: MIT
+query_prefix: "query: "
+passage_prefix: "passage: "
+pooling: mean
+max_length: 256
+promotion_threshold_rule: "median of ADR-0008 E5 fold thresholds"

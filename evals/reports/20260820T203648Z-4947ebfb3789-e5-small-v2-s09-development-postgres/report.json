@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "decision": "NO-GO",
+  "split": "development",
+  "holdout_executed": false,
+  "candidate": {
+    "model_id": "intfloat/e5-small-v2",
+    "model_revision": "ffb93f3bd4047442299a41ebb6fa998a38507c52",
+    "profile_id": "semantic",
+    "profile_version": "e5-small-v2-s09",
+    "dimension": 384,
+    "pooling": "mean",
+    "query_prefix": "query:",
+    "passage_prefix": "passage:"
+  },
+  "config": {
+    "path": "evals/configs/semantic-e5-small-v2-promotion.yaml",
+    "sha256": "3b4c6f793324b9440a3dce9ea4e6880a2f83f7b19a6cc942fe344aa2b81cb1ee",
+    "threshold": 0.76,
+    "candidate_limit": 50,
+    "result_limit": 5
+  },
+  "environment": {
+    "backend": "postgresql+pgvector",
+    "postgres_server_version_num": 160015,
+    "disposable_compose": true
+  },
+  "failure": {
+    "code": "semantic_embedding_source_version_missing",
+    "stage": "first development fixture write",
+    "detail": "memory_embeddings_semantic.source_version is NOT NULL but repository create omitted it",
+    "metrics_executed": false,
+    "queries_executed": 0
+  },
+  "reasons": [
+    "implementation_bug prevents the real PostgreSQL/repository/application/gateway path from writing semantic fixtures",
+    "promotion validation cannot satisfy both required paths"
+  ]
+}
