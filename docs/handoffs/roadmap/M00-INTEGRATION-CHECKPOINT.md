@@ -4,8 +4,8 @@
 **Branch:** `roadmap/integration`
 **Worktree:** `/private/tmp/umcp-roadmap-integration`
 **Pre-merge baseline:** `325faf32544e17c896ace07b8c712508c3ed7cce`
-**Merged lane:** `roadmap/luna-core` through Core implementation `1eb157f` and
-handoff `c0418df`
+**Merged lane:** `roadmap/luna-core` through Core tip `164d84b`; M00 handoff
+`c0418df` plus the handoff-readiness gate
 **Partial demo SHA:** `61705c92215db0547e90e3d668c6fc971574612d`
 **Checkpoint commit:** recorded after the partial demo
 
@@ -35,6 +35,16 @@ Additional partial gates executed on `26d02135d47af5536c12528a6db1638d3083e724`
 
 These results are current for the tested integration code paths, but remain
 partial until Experience and Verification handoffs are merged.
+
+The coordination gate was also executed on the integration context:
+
+```sh
+./scripts/assert-m00-handoffs /private/tmp/umcp-roadmap-integration
+```
+
+It returned exit code `2` and `m00-handoffs=WAITING`: Core is present, while
+Experience and Verification are missing. This is the expected fail-closed
+result and is not an acceptance pass.
 
 ## Missing applicable handoffs
 
