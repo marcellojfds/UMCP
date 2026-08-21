@@ -86,6 +86,28 @@ def test_cloud_memory_adapter_persists_ciphertext_and_tenant_binding() -> None:
         )
 
 
+def test_cloud_memory_rewrap_rotates_fields_without_plaintext_persistence() -> None:
+    tenant, subject = uuid4(), uuid4()
+    service = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    created = service.write(
+        {
+            "owner_id": f"cloud:{tenant}:{subject}",
+            "content": "ROTATION-CANARY",
+            "type": "fact",
+            "provenance": {"source_type": "user"},
+            "idempotency_key": "rotation-1",
+        }
+    )
+    memory_id = created["memory"]["id"]
+    assert service._records[memory_id]["content_ciphertext"]["key_version"] == 1
+    assert service.rewrap(2) == 2
+    assert service._records[memory_id]["content_ciphertext"]["key_version"] == 2
+    assert service.search({"owner_id": f"cloud:{tenant}:{subject}", "query": "rotation"})[0][
+        "memory"
+    ]["content"] == "ROTATION-CANARY"
+    assert "ROTATION-CANARY" not in service.raw_dump()
+
+
 @pytest.mark.asyncio
 async def test_worker_is_tenant_bound_deduplicated_and_retries_to_dlq() -> None:
     secret, tenant, principal = b"s" * 32, uuid4(), uuid4()

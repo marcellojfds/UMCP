@@ -257,6 +257,33 @@ class TenantEnvelopeEncryptor:
         except Exception as exc:
             raise PermissionError("ciphertext authentication failed") from exc
 
+    def rewrap(
+        self,
+        *,
+        tenant_id: UUID,
+        record_id: UUID,
+        field: str,
+        value: EnvelopeCiphertext,
+        key_version: int,
+    ) -> EnvelopeCiphertext:
+        """Re-encrypt one field under a new version-bound AAD and wrapped DEK.
+
+        The ciphertext AAD intentionally includes its key version, so a real
+        rotation must authenticate/decrypt then encrypt again; merely swapping
+        the wrapped DEK would make the record unreadable.
+        """
+        if key_version < 1:
+            raise ValueError("key version must be positive")
+        return self.encrypt(
+            tenant_id=tenant_id,
+            record_id=record_id,
+            field=field,
+            plaintext=self.decrypt(
+                tenant_id=tenant_id, record_id=record_id, field=field, value=value
+            ),
+            key_version=key_version,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class WorkerEnvelope:

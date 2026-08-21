@@ -174,5 +174,30 @@ class EncryptedCloudMemoryService:
             raise ValueError("key version must be positive")
         self._key_version = version
 
+    def rewrap(self, version: int) -> int:
+        """Rotate existing encrypted fields without retaining plaintext in storage."""
+        if version < 1:
+            raise ValueError("key version must be positive")
+        migrated = 0
+        for stored in self._records.values():
+            tenant, record_id = self._tenant(stored["owner_id"]), UUID(stored["id"][4:])
+            for field in ("content", "provenance"):
+                ciphertext_key = f"{field}_ciphertext"
+                current = self._uncipher(stored[ciphertext_key])
+                if current.key_version == version:
+                    continue
+                stored[ciphertext_key] = self._cipher(
+                    self._encryptor.rewrap(
+                        tenant_id=tenant,
+                        record_id=record_id,
+                        field=field,
+                        value=current,
+                        key_version=version,
+                    )
+                )
+                migrated += 1
+        self._key_version = version
+        return migrated
+
     def raw_dump(self) -> str:
         return repr(self._records)
