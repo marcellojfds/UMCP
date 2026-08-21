@@ -79,6 +79,17 @@ def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
             json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
         )
         assert good.status_code == 200
+        revoked_token = token(local, {Scope.MEMORY_READ})
+        local.revoke(revoked_token)
+        revoked = client.post(
+            "/mcp",
+            headers={
+                "authorization": f"Bearer {revoked_token}",
+                "accept": "application/json, text/event-stream",
+            },
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        )
+        assert revoked.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -148,6 +159,48 @@ async def test_cloud_http_calls_tools_with_verified_tenant_principal(tmp_path) -
                         "memory.search", {"query": "authenticated"}
                     )
                     assert "remote authenticated memory" in searched.content[0].text
+
+            forged_owner = await http_client.post(
+                f"{base_url}/mcp",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 99,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "memory.write",
+                        "arguments": {
+                            "content": "must not be accepted",
+                            "type": "fact",
+                            "provenance": {"source_type": "user"},
+                            "idempotency_key": "forged-owner-1",
+                            "owner_id": "cloud:00000000-0000-0000-0000-000000000000:forged",
+                        },
+                    },
+                },
+            )
+            assert forged_owner.status_code == 400
+
+        read_only_headers = {
+            **headers,
+            "authorization": f"Bearer {token(local, {Scope.MEMORY_READ})}",
+        }
+        async with httpx.AsyncClient(headers=read_only_headers) as read_only_http:
+            async with streamable_http_client(
+                f"{base_url}/mcp", http_client=read_only_http
+            ) as streams:
+                read_stream, write_stream, _ = streams
+                async with ClientSession(read_stream, write_stream) as read_only_client:
+                    await read_only_client.initialize()
+                    denied = await read_only_client.call_tool(
+                        "memory.write",
+                        {
+                            "content": "scope must deny this",
+                            "type": "fact",
+                            "provenance": {"source_type": "user"},
+                            "idempotency_key": "scope-denied-1",
+                        },
+                    )
+                    assert denied.isError is True
     finally:
         server.should_exit = True
         await task

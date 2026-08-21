@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 import anyio
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -172,7 +172,7 @@ def create_cloud_server(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> 
 
 def create_cloud_http_app(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> object:
     """Mount authenticated `/mcp` alongside redacted health/readiness routes."""
-    from fastapi import FastAPI
+    from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
 
     server = create_cloud_server(runtime, verifier)
@@ -193,6 +193,23 @@ def create_cloud_http_app(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -
         openapi_url=None,
         lifespan=lifespan,
     )
+
+    @app.middleware("http")
+    async def reject_client_owner_id(request: Request, call_next: object) -> object:
+        """Reject, rather than silently discard, a hosted authorization boundary."""
+        if request.method == "POST" and request.url.path == "/mcp":
+            try:
+                payload = json.loads((await request.body()).decode("utf-8"))
+                arguments = payload.get("params", {}).get("arguments", {})
+            except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+                arguments = {}
+            if isinstance(arguments, dict) and "owner_id" in arguments:
+                return JSONResponse(
+                    {"error": "invalid request"},
+                    status_code=400,
+                    headers={"cache-control": "no-store"},
+                )
+        return await cast(Any, call_next)(request)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
