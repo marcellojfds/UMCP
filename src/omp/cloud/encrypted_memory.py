@@ -1,0 +1,178 @@
+"""Local Cloud memory adapter that persists only envelope ciphertext fields."""
+
+from __future__ import annotations
+
+import json
+import re
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID
+
+from .security import EnvelopeCiphertext, TenantEnvelopeEncryptor
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+class EncryptedCloudMemoryService:
+    """A local/dev Cloud adapter; never stores content/provenance in plaintext.
+
+    Vectors are deliberately out of scope for this adapter: production pgvector
+    remains protected by RLS/storage encryption, as documented in ADR 0013.
+    """
+
+    def __init__(self, encryptor: TenantEnvelopeEncryptor, *, key_version: int = 1) -> None:
+        self._encryptor = encryptor
+        self._key_version = key_version
+        self._records: dict[str, dict[str, Any]] = {}
+        self._write_keys: dict[tuple[str, str], str] = {}
+        self._forget_keys: set[tuple[str, str]] = set()
+
+    @staticmethod
+    def _tenant(owner_id: str) -> UUID:
+        try:
+            prefix, tenant, _ = owner_id.split(":", 2)
+            if prefix != "cloud":
+                raise ValueError
+            return UUID(tenant)
+        except ValueError as exc:
+            raise PermissionError("Cloud owner binding is invalid") from exc
+
+    @staticmethod
+    def _cipher(value: EnvelopeCiphertext) -> dict[str, Any]:
+        return {
+            "key_version": value.key_version,
+            "wrapped_dek": value.wrapped_dek,
+            "nonce": value.nonce,
+            "ciphertext": value.ciphertext,
+        }
+
+    @staticmethod
+    def _uncipher(value: dict[str, Any]) -> EnvelopeCiphertext:
+        return EnvelopeCiphertext(**value)
+
+    def _read(self, stored: dict[str, Any]) -> dict[str, Any]:
+        tenant, record_id = self._tenant(stored["owner_id"]), UUID(stored["id"][4:])
+        content = self._encryptor.decrypt(
+            tenant_id=tenant,
+            record_id=record_id,
+            field="content",
+            value=self._uncipher(stored["content_ciphertext"]),
+        )
+        provenance = json.loads(
+            self._encryptor.decrypt(
+                tenant_id=tenant,
+                record_id=record_id,
+                field="provenance",
+                value=self._uncipher(stored["provenance_ciphertext"]),
+            )
+        )
+        return {
+            key: value
+            for key, value in stored.items()
+            if key not in {"content_ciphertext", "provenance_ciphertext"}
+        } | {"content": content, "provenance": provenance}
+
+    def write(self, payload: dict[str, Any]) -> dict[str, Any]:
+        owner, key = str(payload["owner_id"]), str(payload["idempotency_key"])
+        tenant = self._tenant(owner)
+        existing = self._write_keys.get((owner, key))
+        if existing:
+            return {"memory": self._read(self._records[existing]), "status": "already_exists"}
+        memory_id, now = "mem_" + uuid.uuid4().hex, _now()
+        record_id = UUID(hex=memory_id[4:])
+        stored = {
+            "id": memory_id,
+            "owner_id": owner,
+            "type": payload["type"],
+            "space": payload.get("space"),
+            "importance": payload.get("importance", 0.5),
+            "confidence": payload.get("confidence", 0.5),
+            "state": "active",
+            "version": 1,
+            "created_at": now,
+            "updated_at": now,
+            "occurred_at": None,
+            "content_ciphertext": self._cipher(
+                self._encryptor.encrypt(
+                    tenant_id=tenant,
+                    record_id=record_id,
+                    field="content",
+                    plaintext=str(payload["content"]),
+                    key_version=self._key_version,
+                )
+            ),
+            "provenance_ciphertext": self._cipher(
+                self._encryptor.encrypt(
+                    tenant_id=tenant,
+                    record_id=record_id,
+                    field="provenance",
+                    plaintext=json.dumps(payload["provenance"], sort_keys=True),
+                    key_version=self._key_version,
+                )
+            ),
+        }
+        self._records[memory_id] = stored
+        self._write_keys[(owner, key)] = memory_id
+        return {"memory": self._read(stored), "status": "created"}
+
+    def search(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        owner, query = (
+            str(payload["owner_id"]),
+            set(re.findall(r"[\wÀ-ÿ]+", str(payload["query"]).casefold())),
+        )
+        self._tenant(owner)
+        output: list[dict[str, Any]] = []
+        for stored in self._records.values():
+            if stored["owner_id"] != owner or stored["state"] != payload.get("state", "active"):
+                continue
+            record = self._read(stored)
+            if query & set(re.findall(r"[\wÀ-ÿ]+", record["content"].casefold())):
+                output.append({"memory": record, "score": 0.9})
+        return output[: int(payload.get("limit", 10))]
+
+    def update(self, payload: dict[str, Any]) -> dict[str, Any]:
+        stored = self._records.get(str(payload["id"]))
+        if stored is None or stored["owner_id"] != payload["owner_id"]:
+            raise KeyError("not found")
+        if stored["version"] != payload["expected_version"]:
+            raise ValueError("version conflict")
+        record_id, tenant = UUID(stored["id"][4:]), self._tenant(stored["owner_id"])
+        patch = payload["patch"]
+        if patch.get("content") is not None:
+            stored["content_ciphertext"] = self._cipher(
+                self._encryptor.encrypt(
+                    tenant_id=tenant,
+                    record_id=record_id,
+                    field="content",
+                    plaintext=str(patch["content"]),
+                    key_version=self._key_version,
+                )
+            )
+        for key in ("type", "space", "importance", "confidence", "state"):
+            if patch.get(key) is not None:
+                stored[key] = patch[key]
+        stored["version"] += 1
+        stored["updated_at"] = _now()
+        return {"memory": self._read(stored), "status": "updated"}
+
+    def forget(self, payload: dict[str, Any]) -> dict[str, Any]:
+        key = (str(payload["owner_id"]), str(payload["id"]))
+        if key in self._forget_keys:
+            return {"status": "already_absent"}
+        self._forget_keys.add(key)
+        record = self._records.get(key[1])
+        if record is None or record["owner_id"] != key[0]:
+            return {"status": "already_absent"}
+        del self._records[key[1]]
+        return {"status": "forgotten"}
+
+    def rotate(self, version: int) -> None:
+        if version < 1:
+            raise ValueError("key version must be positive")
+        self._key_version = version
+
+    def raw_dump(self) -> str:
+        return repr(self._records)
