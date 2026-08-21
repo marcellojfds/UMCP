@@ -3,7 +3,13 @@ from uuid import uuid4
 
 import pytest
 
-from omp.cloud import LocalDevelopmentKMS, TenantEnvelopeEncryptor, WorkerEnvelope
+from omp.cloud import (
+    JobState,
+    LocalDevelopmentKMS,
+    LocalTenantWorker,
+    TenantEnvelopeEncryptor,
+    WorkerEnvelope,
+)
 from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
 
 
@@ -78,3 +84,25 @@ def test_cloud_memory_adapter_persists_ciphertext_and_tenant_binding() -> None:
                 "idempotency_key": "x",
             }
         )
+
+
+@pytest.mark.asyncio
+async def test_worker_is_tenant_bound_deduplicated_and_retries_to_dlq() -> None:
+    secret, tenant, principal = b"s" * 32, uuid4(), uuid4()
+    envelope = WorkerEnvelope.sign(
+        job_id=uuid4(),
+        tenant_id=tenant,
+        principal_id=principal,
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+        nonce="job-1",
+        secret=secret,
+    )
+    worker = LocalTenantWorker(signing_secret=secret, max_attempts=2)
+    first = worker.enqueue(envelope, dedupe_key="embed:memory-1", payload_ref="memory-1")
+    assert worker.enqueue(envelope, dedupe_key="embed:memory-1", payload_ref="ignored") is first
+
+    async def fails(_: object) -> JobState:
+        raise RuntimeError("synthetic")
+
+    assert (await worker.run_one(envelope.job_id, fails)).state == JobState.FAILED
+    assert (await worker.run_one(envelope.job_id, fails)).state == JobState.DEAD_LETTER

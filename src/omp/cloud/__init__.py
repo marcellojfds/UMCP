@@ -11,6 +11,7 @@ from .security import (
     WorkerEnvelope,
     principal_from_access_token,
 )
+from .worker import JobState, LocalTenantWorker
 
 __all__ = [
     "EnvelopeCiphertext",
@@ -22,4 +23,6 @@ __all__ = [
     "TenantEnvelopeEncryptor",
     "WorkerEnvelope",
     "principal_from_access_token",
+    "JobState",
+    "LocalTenantWorker",
 ]
