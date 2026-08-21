@@ -292,6 +292,72 @@ async def test_cloud_postgres_write_persists_bound_tenant_id(runtime: Runtime) -
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_cloud_postgres_blocks_cross_tenant_forged_owner_operations(runtime: Runtime) -> None:
+    role, password = "omp_cloud_repo_test", "omp_cloud_repo_test"
+    tenant_a, tenant_b = uuid4(), uuid4()
+    owner_a = f"cloud:{tenant_a}:{uuid4()}"
+    async with runtime.engine.begin() as connection:
+        await connection.execute(
+            text(
+                "DO $$ BEGIN "
+                "CREATE ROLE omp_cloud_repo_test LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD "
+                "'omp_cloud_repo_test'; "
+                "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            )
+        )
+        await connection.execute(text(f"GRANT USAGE ON SCHEMA public TO {role}"))
+        await connection.execute(
+            text(
+                f"GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, memories, memory_versions, "
+                f"memory_embeddings, memory_embeddings_semantic, idempotency_operations TO {role}"
+            )
+        )
+        await connection.execute(
+            text("INSERT INTO tenants (id, name) VALUES (:a, 'tenant a'), (:b, 'tenant b')"),
+            {"a": tenant_a, "b": tenant_b},
+        )
+    cloud_url = make_url(runtime.database_url).set(username=role, password=password)
+    factory, engine = create_postgres_uow_factory(
+        OMPSettings(
+            database_url=cloud_url.render_as_string(hide_password=False), environment="cloud"
+        )
+    )
+    app = MemoryApplicationService(uow_factory=factory, embedding_provider=HashEmbeddingProvider())
+    try:
+        with tenant_scope(tenant_a):
+            written = await app.write(write_command(owner_a, "tenant a private memory"))
+        with tenant_scope(tenant_b):
+            async with factory() as uow:
+                assert await uow.memories.get(owner_id=owner_a, memory_id=written.memory.id) is None
+            with pytest.raises(NotFoundError):
+                await app.update(
+                    UpdateMemoryCommand(
+                        owner_id=owner_a,
+                        memory_id=written.memory.id,
+                        expected_version=1,
+                        content="forged update",
+                        idempotency_key="forged-update",
+                    )
+                )
+            forged_forget = await app.forget(
+                ForgetMemoryCommand(
+                    owner_id=owner_a,
+                    memory_id=written.memory.id,
+                    idempotency_key="forged-forget",
+                )
+            )
+            assert forged_forget.forgotten is False
+        with tenant_scope(tenant_a):
+            async with factory() as uow:
+                assert await uow.memories.get(owner_id=owner_a, memory_id=written.memory.id)
+    finally:
+        await engine.dispose()
+        async with runtime.engine.begin() as connection:
+            await connection.execute(text(f"DROP OWNED BY {role}"))
+            await connection.execute(text(f"DROP ROLE {role}"))
+
+
 SEMANTIC_PROFILE = EmbeddingProfile("semantic", "e5-small-v2-s09", 384)
 SEMANTIC_VECTOR = (1.0,) + (0.0,) * 383
 
