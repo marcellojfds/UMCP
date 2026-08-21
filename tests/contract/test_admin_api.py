@@ -109,7 +109,7 @@ def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
             "/api/memories",
             headers={"x-umcp-csrf": csrf},
             json={
-                "content": "tenant scoped memory",
+                "content": "tenant scoped detail",
                 "type": "fact",
                 "provenance": {"source_type": "user", "captured_at": "2026-01-01T00:00:00Z"},
                 "idempotency_key": "create-1",
@@ -118,6 +118,9 @@ def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
         assert created.status_code == 200
         memory = created.json()["memory"]
         assert "owner_id" not in memory
+        detail = client.get(f"/api/memories/{memory['id']}")
+        assert detail.status_code == 200
+        assert detail.json()["content"] == "tenant scoped detail"
         listed = client.get("/api/memories", params={"query": "tenant"})
         assert listed.json()["count"] == 1
         forgotten = client.delete(

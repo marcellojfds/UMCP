@@ -98,6 +98,12 @@ class InMemoryMemoryService:
         results.sort(key=lambda item: (-item["score"], item["memory"]["created_at"]))
         return results[: payload["limit"]]
 
+    def get(self, *, owner_id: str, memory_id: str) -> dict[str, Any] | None:
+        record = self.records.get(memory_id)
+        if record is None or record["owner_id"] != owner_id:
+            return None
+        return dict(record)
+
     def update(self, payload: dict[str, Any]) -> dict[str, Any]:
         memory_id = payload["id"]
         record = self.records.get(memory_id)

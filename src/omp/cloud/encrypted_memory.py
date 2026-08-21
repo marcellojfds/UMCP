@@ -135,6 +135,14 @@ class EncryptedCloudMemoryService:
                 output.append({"memory": record, "score": 0.9})
         return output[: int(payload.get("limit", 10))]
 
+    def get(self, *, owner_id: str, memory_id: str) -> dict[str, Any] | None:
+        """Return one owner-bound local Cloud memory without query matching."""
+        self._tenant(owner_id)
+        stored = self._records.get(memory_id)
+        if stored is None or stored["owner_id"] != owner_id:
+            return None
+        return self._read(stored)
+
     def update(self, payload: dict[str, Any]) -> dict[str, Any]:
         stored = self._records.get(str(payload["id"]))
         if stored is None or stored["owner_id"] != payload["owner_id"]:

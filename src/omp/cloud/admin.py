@@ -365,6 +365,16 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
 
     @app.get("/api/memories/{memory_id}")
     async def get_memory(request: Request, memory_id: str) -> dict[str, object]:
+        value = principal(request)
+        value.requires(Scope.MEMORY_READ)
+        service = getattr(runtime, "service", None) if runtime is not None else None
+        getter = getattr(service, "get", None)
+        if callable(getter):
+            memory = getter(owner_id=owner(value), memory_id=memory_id)
+            if not isinstance(memory, dict):
+                raise HTTPException(status_code=404, detail="not found")
+            _redact_owner(memory)
+            return memory
         result = await list_memories(request, query="memory", limit=50)
         items = result.get("memories", [])
         if not isinstance(items, list):
