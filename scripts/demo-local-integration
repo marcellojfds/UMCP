@@ -10,6 +10,14 @@ if [[ "$#" -gt 2 ]]; then
 fi
 expected_branch="${1:-roadmap/luna-core}"
 expected_worktree="${2:-$repo_root}"
+expected_worktree=$(CDPATH= cd -- "$expected_worktree" 2>/dev/null && pwd -P) || {
+  echo "expected worktree does not exist: $2" >&2
+  exit 1
+}
+if [[ "$expected_worktree" != "$repo_root" ]]; then
+  echo "demo/worktree mismatch: demo=$repo_root expected=$expected_worktree" >&2
+  exit 1
+fi
 "$repo_root/scripts/assert-worktree-context" "$expected_branch" "$expected_worktree"
 actual_branch=$(git branch --show-current)
 actual_sha=$(git rev-parse HEAD)
