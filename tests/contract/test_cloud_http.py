@@ -16,7 +16,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from sse_starlette.sse import AppStatus
 
-from omp.cloud import LocalDevelopmentTokenVerifier, Scope
+from omp.cloud import LocalAgentCredentialVerifier, LocalDevelopmentTokenVerifier, Scope
 from omp.cloud.admin import LocalMailboxAuth, create_admin_app
 from omp.config import OMPSettings
 from omp.server.composition import create_cloud_demo_runtime, create_demo_runtime
@@ -103,9 +103,12 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
     )
     auth = LocalMailboxAuth()
     root = Path(__file__).parents[2]
+    pat_verifier = LocalAgentCredentialVerifier(
+        auth, issuer="https://local.umcp.invalid", audience="https://local.umcp.invalid/mcp"
+    )
     app = create_cloud_http_app(
         runtime,
-        verifier(),
+        pat_verifier,
         admin_app=create_admin_app(auth, runtime),
         web_directory=root / "apps" / "web",
     )
@@ -126,6 +129,33 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
         )
         assert callback.status_code == 200
         assert client.get("/admin/api/session").status_code == 200
+        csrf = callback.json()["csrf"]
+        credential = client.post(
+            "/admin/api/agent-credentials",
+            headers={"x-umcp-csrf": csrf},
+            json={"name": "local mcp", "scopes": ["memory:read"]},
+        ).json()
+        raw_pat = credential["token"]
+        assert client.post(
+            "/mcp",
+            headers={
+                "authorization": f"Bearer {raw_pat}",
+                "accept": "application/json, text/event-stream",
+            },
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        ).status_code == 200
+        assert client.post(
+            f"/admin/api/agent-credentials/{credential['credential']['id']}/revoke",
+            headers={"x-umcp-csrf": csrf},
+        ).status_code == 200
+        assert client.post(
+            "/mcp",
+            headers={
+                "authorization": f"Bearer {raw_pat}",
+                "accept": "application/json, text/event-stream",
+            },
+            json={"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": {}},
+        ).status_code == 401
 
         # The mounted application does not weaken the hosted MCP boundary.
         assert client.post(

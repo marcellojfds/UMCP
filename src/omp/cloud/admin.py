@@ -11,6 +11,7 @@ from typing import cast
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from mcp.server.auth.provider import AccessToken
 from pydantic import BaseModel, ConfigDict, Field
 
 from omp.cloud.security import Principal, Scope
@@ -83,6 +84,7 @@ class LocalMailboxAuth:
         self._csrf: dict[str, str] = {}
         self._connections: dict[str, dict[str, object]] = {}
         self._agent_credentials: dict[str, dict[str, object]] = {}
+        self._agent_token_index: dict[str, str] = {}
         self._operations: dict[str, dict[str, object]] = {}
         self._magic_link_attempts: dict[str, list[datetime]] = {}
 
@@ -151,6 +153,54 @@ class LocalMailboxAuth:
         value = self._receipt(kind, principal, status)
         self._operations[str(value["id"])] = value
         return value
+
+
+class LocalAgentCredentialVerifier:
+    """Verify local-development PATs without retaining their raw values.
+
+    This adapter intentionally shares only the official MCP token-verifier
+    boundary. It is not an OIDC replacement: a production verifier must fetch
+    and validate tokens from its configured identity provider.
+    """
+
+    def __init__(self, auth: LocalMailboxAuth, *, issuer: str, audience: str) -> None:
+        self._auth = auth
+        self._issuer = issuer
+        self._audience = audience
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        credential_id = self._auth._agent_token_index.get(digest)
+        if credential_id is None:
+            return None
+        credential = self._auth._agent_credentials.get(credential_id)
+        if credential is None or credential.get("_token_digest") != digest:
+            return None
+        try:
+            expires_at = datetime.fromisoformat(str(credential["expires_at"]))
+            scopes = [Scope(str(item)).value for item in cast(list[object], credential["scopes"])]
+            if bool(credential["revoked"]) or expires_at <= datetime.now(UTC):
+                return None
+            subject_id = str(credential["_subject_id"])
+            tenant_id = str(credential["tenant_id"])
+            membership_id = str(credential["_membership_id"])
+            internal_credential_id = str(credential["_credential_id"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return AccessToken(
+            token=token,
+            client_id=f"local-agent:{credential_id}",
+            scopes=scopes,
+            expires_at=int(expires_at.timestamp()),
+            resource=self._audience,
+            subject=subject_id,
+            claims={
+                "iss": self._issuer,
+                "tenant_id": tenant_id,
+                "membership_id": membership_id,
+                "credential_id": internal_credential_id,
+            },
+        )
 
 
 def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> FastAPI:
@@ -349,22 +399,27 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
         value.requires(Scope.CONNECTIONS_MANAGE)
         raw = "umcp_pat_" + secrets.token_urlsafe(32)
         credential_id = "cred_" + secrets.token_urlsafe(12)
+        token_digest = hashlib.sha256(raw.encode()).hexdigest()
         auth._agent_credentials[credential_id] = {
             "id": credential_id,
             "name": payload.name,
             "tenant_id": str(value.tenant_id),
             "scopes": sorted(scope.value for scope in payload.scopes),
-            "token_digest": hashlib.sha256(raw.encode()).hexdigest(),
+            "_token_digest": token_digest,
+            "_subject_id": str(value.subject_id),
+            "_membership_id": str(value.membership_id),
+            "_credential_id": str(uuid4()),
             "expires_at": (datetime.now(UTC) + timedelta(seconds=payload.expires_in_seconds))
             .isoformat()
             .replace("+00:00", "Z"),
             "revoked": False,
         }
+        auth._agent_token_index[token_digest] = credential_id
         # The raw secret is returned exactly once and never retained by this adapter.
         public_credential = {
             key: item
             for key, item in auth._agent_credentials[credential_id].items()
-            if key != "token_digest"
+            if not key.startswith("_")
         }
         return {"credential": public_credential, "token": raw}
 

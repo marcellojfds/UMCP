@@ -1,5 +1,6 @@
 """Cloud-only security primitives; Community transports do not import these."""
 
+from .admin import LocalAgentCredentialVerifier
 from .security import (
     EnvelopeCiphertext,
     LocalDevelopmentKMS,
@@ -17,6 +18,7 @@ __all__ = [
     "EnvelopeCiphertext",
     "LocalDevelopmentKMS",
     "LocalDevelopmentTokenVerifier",
+    "LocalAgentCredentialVerifier",
     "OIDCTokenVerifier",
     "Principal",
     "Scope",
