@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -61,8 +62,20 @@ class _MagicLink:
 class LocalMailboxAuth:
     """Development mailbox sink; tokens are single-use and only token digests persist."""
 
-    def __init__(self, *, secure_cookies: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        secure_cookies: bool = False,
+        magic_link_limit: int = 5,
+        magic_link_window: timedelta = timedelta(minutes=15),
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        if magic_link_limit < 1 or magic_link_window <= timedelta(0):
+            raise ValueError("magic-link rate limit must be positive")
         self.secure_cookies = secure_cookies
+        self._magic_link_limit = magic_link_limit
+        self._magic_link_window = magic_link_window
+        self._clock = clock or (lambda: datetime.now(UTC))
         self.outbox: list[dict[str, str]] = []
         self._links: dict[str, _MagicLink] = {}
         self._sessions: dict[str, Principal] = {}
@@ -70,10 +83,20 @@ class LocalMailboxAuth:
         self._connections: dict[str, dict[str, object]] = {}
         self._agent_credentials: dict[str, dict[str, object]] = {}
         self._operations: dict[str, dict[str, object]] = {}
+        self._magic_link_attempts: dict[str, list[datetime]] = {}
 
-    def request(self, email: str) -> None:
+    def request(self, email: str) -> bool:
         # Non-enumerating response. A deterministic local principal makes the
         # development integration usable without storing real identities.
+        now = self._clock()
+        email_digest = hashlib.sha256(email.strip().casefold().encode()).hexdigest()
+        previous = self._magic_link_attempts.get(email_digest, [])
+        allowed = [item for item in previous if item > now - self._magic_link_window]
+        if len(allowed) >= self._magic_link_limit:
+            self._magic_link_attempts[email_digest] = allowed
+            return False
+        allowed.append(now)
+        self._magic_link_attempts[email_digest] = allowed
         principal = Principal(
             subject_id=uuid4(),
             tenant_id=uuid4(),
@@ -81,18 +104,19 @@ class LocalMailboxAuth:
             credential_id=uuid4(),
             scopes=frozenset(Scope),
             auth_method="local-magic-link",
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            expires_at=now + timedelta(hours=1),
         )
         raw = secrets.token_urlsafe(32)
         digest = hashlib.sha256(raw.encode()).hexdigest()
         self._links[digest] = _MagicLink(
-            digest, principal, datetime.now(UTC) + timedelta(minutes=10)
+            digest, principal, now + timedelta(minutes=10)
         )
         self.outbox.append({"to": "captured", "token": raw})
+        return True
 
     def consume(self, raw: str) -> tuple[str, str] | None:
         link = self._links.get(hashlib.sha256(raw.encode()).hexdigest())
-        if link is None or link.used or link.expires_at <= datetime.now(UTC):
+        if link is None or link.used or link.expires_at <= self._clock():
             return None
         link.used = True
         session, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(24)

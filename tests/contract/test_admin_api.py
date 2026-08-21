@@ -24,6 +24,18 @@ def test_local_magic_link_is_captured_single_use_and_csrf_protected() -> None:
         assert client.get("/api/session").status_code == 401
 
 
+def test_magic_link_rate_limit_is_non_enumerating_and_does_not_store_email() -> None:
+    auth = LocalMailboxAuth(magic_link_limit=2)
+    with TestClient(create_admin_app(auth)) as client:
+        responses = [
+            client.post("/api/auth/magic-link", json={"email": "person@example.test"}).json()
+            for _ in range(3)
+        ]
+    assert responses == [{"status": "accepted"}] * 3
+    assert len(auth.outbox) == 2
+    assert "person@example.test" not in repr(auth._magic_link_attempts)
+
+
 def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
     auth = LocalMailboxAuth()
     runtime = create_demo_runtime(OMPSettings(demo_data_file=str(tmp_path / "admin.json")))
