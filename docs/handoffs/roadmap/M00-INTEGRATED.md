@@ -7,6 +7,7 @@ handoff, not an independent audit and not a release GO.
 
 - integration worktree: `/private/tmp/umcp-roadmap-integration`
 - tested code HEAD: `22f866ab31210a0e9a741e4c17c85d363b72b288`
+- sha: `22f866ab31210a0e9a741e4c17c85d363b72b288` (tested code HEAD)
 - branch: `roadmap/integration`
 - worktree status before this handoff: clean
 
