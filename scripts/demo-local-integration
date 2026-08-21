@@ -5,12 +5,9 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
 
 expected_branch='roadmap/luna-core'
+"$repo_root/scripts/assert-worktree-context" "$expected_branch" "$repo_root"
 actual_branch=$(git branch --show-current)
 actual_sha=$(git rev-parse HEAD)
-if [[ "$actual_branch" != "$expected_branch" ]]; then
-  echo "FAIL branch context: expected $expected_branch, got $actual_branch" >&2
-  exit 1
-fi
 
 echo "UMCP local integration demo"
 echo "branch=$actual_branch"

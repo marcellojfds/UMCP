@@ -27,6 +27,7 @@ must print no plaintext secrets and must identify external/unsupported gates as
 ## Owned paths
 
 - `scripts/demo-local-integration`
+- `scripts/assert-worktree-context`
 - `scripts/gate-postgres` (G00 gate reliability fix)
 - `GOAL-PROGRESS.md`
 - `docs/handoffs/roadmap/M00-CORE-DONE.md`
