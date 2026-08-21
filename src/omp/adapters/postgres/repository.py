@@ -27,7 +27,7 @@ from omp.application.ports import (
     IdempotencyOperationType,
     MemorySearchCandidate,
 )
-from omp.cloud.tenant import current_tenant, set_tenant_context
+from omp.cloud.tenant import current_tenant, current_tenant_or_none, set_tenant_context
 from omp.config import OMPSettings
 from omp.domain import (
     EmbeddingDescriptor,
@@ -131,6 +131,7 @@ class PostgresIdempotencyRepository:
                 .values(
                     {
                         "owner_id": owner_id,
+                        "tenant_id": current_tenant_or_none(),
                         "operation_type": operation_type.value,
                         "idempotency_key": idempotency_key,
                         "fingerprint": fingerprint,
@@ -428,6 +429,7 @@ class PostgresMemoryRepository:
         statement = pg_insert(memory_relations).values(
             {
                 "owner_id": relation.owner_id,
+                "tenant_id": current_tenant_or_none(),
                 "source_id": relation.source_id,
                 "target_id": relation.target_id,
                 "relation_type": relation.relation_type.value,
@@ -494,6 +496,7 @@ class PostgresMemoryRepository:
         statement = pg_insert(table).values(
             {
                 "memory_id": memory_id,
+                "tenant_id": current_tenant_or_none(),
                 "profile_id": profile.id,
                 "profile_version": profile.version,
                 "source_version": expected_version,
@@ -558,6 +561,7 @@ class PostgresMemoryRepository:
         return {
             "id": memory.id,
             "owner_id": memory.owner_id,
+            "tenant_id": current_tenant_or_none(),
             "space": memory.space,
             "memory_type": memory.memory_type.value,
             "content": memory.content,
@@ -584,6 +588,7 @@ class PostgresMemoryRepository:
         if memory.embedding is None:
             raise ValueError("memory must have an embedding descriptor for storage")
         values: dict[str, object] = {
+            "tenant_id": current_tenant_or_none(),
             "profile_id": memory.embedding.profile_id,
             "profile_version": memory.embedding.profile_version,
             "dimension": memory.embedding.dimension,
@@ -611,6 +616,7 @@ class PostgresMemoryRepository:
     def _version_values(version: MemoryVersion) -> dict[str, object]:
         return {
             "memory_id": version.memory_id,
+            "tenant_id": current_tenant_or_none(),
             "version": version.version,
             "memory_type": version.memory_type.value,
             "content": version.content,
@@ -776,6 +782,7 @@ class PostgresMemoryAdminRepository:
                     .values(
                         {
                             "owner_id": relation.owner_id,
+                            "tenant_id": current_tenant_or_none(),
                             "source_id": relation.source_id,
                             "target_id": relation.target_id,
                             "relation_type": relation.relation_type.value,

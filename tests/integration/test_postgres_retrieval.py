@@ -34,7 +34,7 @@ from omp.application.models import (
 )
 from omp.application.ports import EmbeddingProfile
 from omp.application.services import MemoryApplicationService
-from omp.cloud.tenant import TenantContextError
+from omp.cloud.tenant import TenantContextError, tenant_scope
 from omp.config import OMPSettings
 from omp.domain import (
     EmbeddingProfileMismatchError,
@@ -260,6 +260,34 @@ async def test_cloud_postgres_uow_fails_closed_without_bound_tenant(runtime: Run
         with pytest.raises(TenantContextError):
             async with factory():
                 pass
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_cloud_postgres_write_persists_bound_tenant_id(runtime: Runtime) -> None:
+    tenant = uuid4()
+    owner = f"cloud:{tenant}:{uuid4()}"
+    async with runtime.engine.begin() as connection:
+        await connection.execute(
+            text("INSERT INTO tenants (id, name) VALUES (:id, 'cloud write tenant')"),
+            {"id": tenant},
+        )
+    settings = OMPSettings(
+        database_url=runtime.database_url,
+        environment="cloud",
+        migration_head="0005_cloud_multitenancy_rls",
+    )
+    factory, engine = create_postgres_uow_factory(settings)
+    app = MemoryApplicationService(uow_factory=factory, embedding_provider=HashEmbeddingProvider())
+    try:
+        with tenant_scope(tenant):
+            written = await app.write(write_command(owner, "cloud tenant persistence"))
+        assert written.created is True
+        persisted_tenant = await scalar(
+            engine, "SELECT tenant_id FROM memories WHERE id = :id", id=written.memory.id
+        )
+        assert persisted_tenant == tenant
     finally:
         await engine.dispose()
 

@@ -35,6 +35,11 @@ def current_tenant() -> UUID:
     return tenant_id
 
 
+def current_tenant_or_none() -> UUID | None:
+    """Read the request binding without turning Community transactions into Cloud."""
+    return _tenant_context.get()
+
+
 async def set_tenant_context(session: AsyncSession, tenant_id: UUID | None) -> None:
     """Set PostgreSQL LOCAL context; it dies with the transaction.
 
