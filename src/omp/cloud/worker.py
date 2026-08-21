@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -75,3 +76,58 @@ class LocalTenantWorker:
 
     def job(self, job_id: UUID) -> LocalJob:
         return self._jobs[job_id]
+
+    def snapshot(self) -> tuple[dict[str, object], ...]:
+        """Return restart-safe job metadata; payloads remain external references."""
+        return tuple(
+            {
+                "job_id": str(job.envelope.job_id),
+                "tenant_id": str(job.envelope.tenant_id),
+                "principal_id": str(job.envelope.principal_id),
+                "expires_at": job.envelope.expires_at.isoformat(),
+                "nonce": job.envelope.nonce,
+                "signature": job.envelope.signature,
+                "dedupe_key": job.dedupe_key,
+                "payload_ref": job.payload_ref,
+                "state": job.state.value,
+                "attempts": job.attempts,
+            }
+            for job in self._jobs.values()
+        )
+
+    def restore(self, snapshot: tuple[dict[str, object], ...]) -> int:
+        """Restore only signed, non-terminal jobs after a local worker restart."""
+        restored: dict[UUID, LocalJob] = {}
+        dedupe: dict[tuple[UUID, str], UUID] = {}
+        try:
+            for item in snapshot:
+                envelope = WorkerEnvelope(
+                    job_id=UUID(str(item["job_id"])),
+                    tenant_id=UUID(str(item["tenant_id"])),
+                    principal_id=UUID(str(item["principal_id"])),
+                    expires_at=datetime.fromisoformat(str(item["expires_at"])),
+                    nonce=str(item["nonce"]),
+                    signature=str(item["signature"]),
+                )
+                envelope.verify(secret=self._secret)
+                state = JobState(str(item["state"]))
+                attempts = int(str(item["attempts"]))
+                if attempts < 0 or state in {JobState.READY, JobState.STALE, JobState.DEAD_LETTER}:
+                    continue
+                dedupe_key = str(item["dedupe_key"])
+                key = (envelope.tenant_id, dedupe_key)
+                if envelope.job_id in restored or key in dedupe:
+                    raise ValueError("duplicate worker snapshot entry")
+                restored[envelope.job_id] = LocalJob(
+                    envelope=envelope,
+                    dedupe_key=dedupe_key,
+                    payload_ref=str(item["payload_ref"]),
+                    state=state,
+                    attempts=attempts,
+                    error="worker execution failed" if state == JobState.FAILED else None,
+                )
+                dedupe[key] = envelope.job_id
+        except (KeyError, TypeError, ValueError) as exc:
+            raise PermissionError("worker snapshot rejected") from exc
+        self._jobs, self._dedupe = restored, dedupe
+        return len(restored)

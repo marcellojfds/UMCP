@@ -198,3 +198,35 @@ async def test_worker_is_tenant_bound_deduplicated_and_retries_to_dlq() -> None:
 
     assert (await worker.run_one(envelope.job_id, fails)).state == JobState.FAILED
     assert (await worker.run_one(envelope.job_id, fails)).state == JobState.DEAD_LETTER
+
+
+@pytest.mark.asyncio
+async def test_worker_restart_restores_signed_retryable_job_without_payload() -> None:
+    secret, tenant, principal = b"s" * 32, uuid4(), uuid4()
+    envelope = WorkerEnvelope.sign(
+        job_id=uuid4(),
+        tenant_id=tenant,
+        principal_id=principal,
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+        nonce="restart-job",
+        secret=secret,
+    )
+    worker = LocalTenantWorker(signing_secret=secret, max_attempts=2)
+    worker.enqueue(envelope, dedupe_key="embed:restart", payload_ref="memory-ref")
+
+    async def fails(_: object) -> JobState:
+        raise RuntimeError("synthetic")
+
+    assert (await worker.run_one(envelope.job_id, fails)).state == JobState.FAILED
+    snapshot = worker.snapshot()
+    assert "content" not in repr(snapshot)
+    restarted = LocalTenantWorker(signing_secret=secret, max_attempts=2)
+    assert restarted.restore(snapshot) == 1
+
+    async def ready(_: object) -> JobState:
+        return JobState.READY
+
+    assert (await restarted.run_one(envelope.job_id, ready)).state == JobState.READY
+    tampered = [dict(snapshot[0], signature="bad")]
+    with pytest.raises(PermissionError):
+        LocalTenantWorker(signing_secret=secret).restore(tuple(tampered))
