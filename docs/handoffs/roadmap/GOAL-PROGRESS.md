@@ -31,7 +31,7 @@
 
 ## Final V0/V1 checkpoint
 
-- **Tested executable SHA:** `45ca25c15fedfd383eb96f8a04141fbe2423d3d1`.
+- **Tested executable SHA:** `03263d1eafbba494757506aa7e1af7864d2dfbd4`.
 - **Current:** gate-fast 73 passed; PostgreSQL/migrations 19 passed on
   PostgreSQL 16.15 + pgvector 0.8.6; SDK 2 passed; web check/test/build
   passed; dependency audit, secret/PII, SBOM and local links/claims passed.
@@ -45,6 +45,9 @@
 - **M00 synchronization:** `roadmap/integration` has now published the
   partial checkpoint and is waiting for the exact
   `M00-VERIFICATION-DONE.md`; this handoff is now present on this branch.
+- **Readiness gate:** `scripts/assert-roadmap-integration-ready --milestone M00`
+  returns `WAITING`/exit 2 until `M00-INTEGRATED.md` exists; it is not counted
+  as acceptance.
 - **Prohibitions honored:** holdout not run, E5/threshold unchanged, no
   external service or real data, no push/PR/deploy/release/GO.
 

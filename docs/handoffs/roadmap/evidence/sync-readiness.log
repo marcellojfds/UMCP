@@ -1,0 +1,3 @@
+sync=CONTEXT-FAIL
+worktree context failed: worktree is not clean
+exit_code=1

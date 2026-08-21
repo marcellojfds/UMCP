@@ -9,7 +9,7 @@ Verification lane only, not an integrated acceptance or release `GO`.
 
 - Worktree: `/private/tmp/umcp-roadmap-verification`
 - Branch: `roadmap/luna-verification`
-- Executable SHA tested: `45ca25c15fedfd383eb96f8a04141fbe2423d3d1`
+- Executable SHA tested: `03263d1eafbba494757506aa7e1af7864d2dfbd4`
 - Documentation/evidence commit: `e7bf14ce30a3ff78a7ec799b75fc2f10729104a2`
 - Baseline: `325faf32544e17c896ace07b8c712508c3ed7cce`
 - Data boundary: synthetic/disposable only; no holdout, real data, email,
@@ -47,19 +47,19 @@ This is fixture-backed evidence. The Core-backed M00 integration demo remains
 ## Current gate freshness
 
 See [`GATE-FRESHNESS.json`](GATE-FRESHNESS.json). Current executable evidence
-was run on `45ca25c`; the later `e7bf14c` delta contains only `docs/**`, which
-the freshness checker accepts explicitly.
+was rerun on `03263d1` after adding the integration readiness gate.
 
 | Gate | SHA | Freshness | Result | Artifact |
 | --- | --- | --- | --- | --- |
-| gate-fast | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass, 73 tests | `evidence/gate-fast.log` |
-| PostgreSQL/migrations | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass, 19 tests | `evidence/postgres-migrations.md` |
-| MCP stdio/fixture conformance | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass | `evidence/conformance-and-evals.log` |
-| SDK | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass, 2 tests | `M0-VERIFICATION-DONE.md` |
-| Web | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | check/test/build pass | `M0-VERIFICATION-DONE.md` |
-| dependency/SBOM/secret-PII/claims | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass | `evidence/` |
+| gate-fast | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 73 tests | `evidence/gate-fast.log` |
+| PostgreSQL/migrations | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 19 tests | `evidence/postgres-migrations.md` |
+| MCP stdio/fixture conformance | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/conformance-and-evals.log` |
+| SDK | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 2 tests | `evidence/sdk-web.log` |
+| Web | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | check/test/build pass | `evidence/sdk-web.log` |
+| dependency/SBOM/secret-PII/claims | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/` |
 | browser E2E | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | environment-blocked | no backend | `evidence/browser-preflight.json` |
-| Core-backed M00 acceptance | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | not-run | waiting | no `M00-INTEGRATED.md` |
+| Integration readiness | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | not-run/WAITING | `evidence/sync-readiness.log` |
+| Core-backed M00 acceptance | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | not-run | waiting | no `M00-INTEGRATED.md` |
 
 Historical gates remain historical and are not promoted here.
 

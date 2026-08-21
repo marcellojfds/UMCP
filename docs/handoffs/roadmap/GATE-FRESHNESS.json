@@ -3,17 +3,25 @@
   "repository": {
     "path": "/private/tmp/umcp-roadmap-verification",
     "branch": "roadmap/luna-verification",
-    "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1"
+    "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4"
   },
   "gates": [
-    {"name": "gate-fast", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "lint, mypy and 73 tests passed on the final executable candidate"},
+    {"name": "gate-fast", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "lint, mypy and 73 tests passed on the current executable candidate"},
     {"name": "unit-contract", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "baseline evidence predates Verification-owned paths"},
-    {"name": "postgres-migrations", "sha": "1bd460e", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "must be repeated on the integrated candidate"},
-    {"name": "mcp-stdio-conformance", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/conformance-and-evals.log", "reason": "fixture-backed conformance and both development protocols passed; Core candidate is not integrated"},
+    {"name": "postgres-migrations", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/postgres-migrations.md", "reason": "19 integration tests and zero-to-head/downgrade/re-upgrade passed"},
+    {"name": "mcp-stdio-conformance", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/conformance-and-evals.log", "reason": "fixture conformance and contract MCP tests passed; Core candidate is not integrated"},
     {"name": "browser-e2e", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "environment-blocked", "result": "blocked", "artifact": "evidence/browser-preflight.json", "reason": "managed browser runtime had zero connected backends; no browser pass inferred"},
-    {"name": "secret-pii", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/checksums.sha256", "reason": "tracked-source and synthetic runtime-output scans passed"},
-    {"name": "dependency-vulnerability", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/dependency-audit.log", "reason": "pip-audit reported no known vulnerabilities with controlled network access"},
-    {"name": "sbom", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/sbom.json", "reason": "CycloneDX SBOM generated locally"},
-    {"name": "links-claims", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/links-claims.log", "reason": "134 local Markdown files checked; external URLs intentionally not probed"}
+    {"name": "auth-negative", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "fail-closed auth and hosted owner-boundary contract tests passed"},
+    {"name": "rls-cross-tenant", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/postgres-migrations.md", "reason": "PostgreSQL RLS and forged cross-tenant owner tests passed"},
+    {"name": "encryption-rotation", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "ciphertext binding and rewrap unit tests passed"},
+    {"name": "backup-restore-tombstones", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "content-free tombstone restore test passed"},
+    {"name": "worker-retry-restart", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "tenant-bound retry/DLQ and restart recovery tests passed"},
+    {"name": "sdk", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/sdk-web.log", "reason": "TypeScript SDK tests passed"},
+    {"name": "web", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/sdk-web.log", "reason": "web check/tests/build passed"},
+    {"name": "secret-pii", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/checksums.sha256", "reason": "tracked-source and synthetic runtime-output scans passed"},
+    {"name": "dependency-vulnerability", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/dependency-audit.log", "reason": "pip-audit reported no known vulnerabilities with controlled network access"},
+    {"name": "sbom", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/sbom.json", "reason": "CycloneDX SBOM generated locally"},
+    {"name": "links-claims", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "pass", "artifact": "evidence/links-claims.log", "reason": "local Markdown files checked; external URLs intentionally not probed"},
+    {"name": "integration-readiness", "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4", "freshness": "current", "result": "not-run", "artifact": "evidence/sync-readiness.log", "reason": "roadmap/integration has not published M00-INTEGRATED.md; checker returned WAITING/exit 2"}
   ]
 }

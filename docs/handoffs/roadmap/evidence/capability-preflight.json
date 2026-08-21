@@ -2,7 +2,7 @@
   "checks": [
     {
       "name": "writable-disposable-path",
-      "path": "/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/umcp-verification-2y_z9igc",
+      "path": "/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/umcp-verification-0npjv340",
       "status": "pass"
     },
     {
@@ -13,9 +13,8 @@
     {
       "name": "docker",
       "path": "/usr/local/bin/docker",
-      "reason": "version smoke returned non-zero",
-      "smoke_exit_code": 1,
-      "status": "environment-blocked",
+      "smoke_exit_code": 0,
+      "status": "pass",
       "version": "Client:"
     },
     {
@@ -97,7 +96,7 @@
   "repository": {
     "branch": "roadmap/luna-verification",
     "path": "/private/tmp/umcp-roadmap-verification",
-    "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1"
+    "sha": "03263d1eafbba494757506aa7e1af7864d2dfbd4"
   },
   "schema_version": 1
 }
