@@ -26,6 +26,7 @@ echo "UMCP local integration demo"
 echo "branch=$actual_branch"
 echo "sha=$actual_sha"
 echo "data=synthetic-only"
+echo "synthetic-run=local-integration"
 
 python -m pytest -q \
   tests/contract/test_mcp_contract.py \
