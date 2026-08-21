@@ -48,6 +48,18 @@ Exit 1 is an intervention signal, not a product failure: stop adding features,
 reduce to a minimal reproducer, checkpoint, try a safe alternative and update
 the milestone contract.
 
+## Integration synchronization
+
+```sh
+scripts/assert-roadmap-integration-ready --milestone M00
+```
+
+Exit 2 means `roadmap/integration` has not published
+`docs/handoffs/roadmap/M00-INTEGRATED.md`; it is a deliberate waiting state,
+not a green acceptance. Exit 1 means the handoff exists but is structurally
+incomplete. Only exit 0 permits the Verification lane to synchronize and rerun
+the next candidate.
+
 ## Ownership and claims
 
 Do not edit `src/omp`, migrations, `apps/web`, SDK implementation, auth/crypto/RLS
