@@ -79,6 +79,12 @@ async function renderAuthenticatedRoute(path) {
       const rows = (result.credentials || []).map((credential) => `<li>${escapeHtml(credential.name)} <small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small></li>`).join("") || "<li>No agent credentials have been issued.</li>";
       return renderRoutePage(path, `<div class="control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul></div>`);
     }
+    if (path === "/settings/security") {
+      const session = await adapter.session();
+      renderRoutePage(path, `<div class="control-card"><p class="mono">VERIFIED SESSION</p><p>${escapeHtml(session.subject_id)}</p><dl><div><dt>Tenant</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Scopes</dt><dd>${escapeHtml((session.scopes || []).join(", "))}</dd></div></dl><div class="card-actions"><button class="button" id="request-export" type="button">Request export</button><button class="button button--dark" id="request-deletion" type="button">Request account deletion</button><button id="logout" type="button">Log out</button></div><p id="security-action-status" role="status"></p></div>`);
+      wireSecurityActions(adapter);
+      return true;
+    }
     if (path === "/status") {
       const capabilities = await adapter.capabilities();
       return renderRoutePage(path, `<div class="control-card"><p class="mono">${escapeHtml(capabilities.version)}</p><dl><div><dt>Authentication</dt><dd>${escapeHtml(capabilities.auth)}</dd></div><div><dt>Email delivery</dt><dd>${escapeHtml(capabilities.email_delivery)}</dd></div><div><dt>Tenant export</dt><dd>${capabilities.tenant_export ? "available" : "unavailable"}</dd></div></dl></div>`);
@@ -87,6 +93,42 @@ async function renderAuthenticatedRoute(path) {
     return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ERROR</span><p>We could not load this account data. Please try again later.</p></div>`);
   }
   return unavailableRoute(path, staticPage[2]);
+}
+
+function wireSecurityActions(adapter) {
+  const status = document.querySelector("#security-action-status");
+  const exportButton = document.querySelector("#request-export");
+  const deletionButton = document.querySelector("#request-deletion");
+  const logoutButton = document.querySelector("#logout");
+  if (!status || !exportButton || !deletionButton || !logoutButton) return;
+  exportButton.addEventListener("click", async () => {
+    status.textContent = "Requesting export…";
+    try {
+      const result = await adapter.exportTenant();
+      status.textContent = `Export request ${result.receipt.id} is ${result.receipt.status}.`;
+    } catch {
+      status.textContent = "We could not request an export. Please try again.";
+    }
+  });
+  deletionButton.addEventListener("click", async () => {
+    if (!globalThis.confirm("Request account deletion? This starts a destructive server-side workflow.")) return;
+    status.textContent = "Requesting account deletion…";
+    try {
+      const result = await adapter.requestAccountDeletion();
+      status.textContent = `Deletion request ${result.receipt.id} is ${result.receipt.status}.`;
+    } catch {
+      status.textContent = "We could not request account deletion. Please try again.";
+    }
+  });
+  logoutButton.addEventListener("click", async () => {
+    try {
+      await adapter.logout();
+      location.hash = "#login";
+      location.reload();
+    } catch {
+      status.textContent = "We could not log out. Please try again.";
+    }
+  });
 }
 
 async function renderMemoryDetail(memoryId) {
