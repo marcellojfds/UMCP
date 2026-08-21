@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
-from uuid import uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from mcp.server.auth.provider import AccessToken
@@ -88,6 +88,22 @@ class LocalMailboxAuth:
         self._operations: dict[str, dict[str, object]] = {}
         self._magic_link_attempts: dict[str, list[datetime]] = {}
 
+    @staticmethod
+    def _principal_for_digest(email_digest: str, *, expires_at: datetime) -> Principal:
+        """Derive stable development IDs without retaining an email address."""
+        def identifier(kind: str) -> UUID:
+            return uuid5(NAMESPACE_URL, f"umcp.local.magic-link/{kind}/{email_digest}")
+
+        return Principal(
+            subject_id=identifier("subject"),
+            tenant_id=identifier("tenant"),
+            membership_id=identifier("membership"),
+            credential_id=identifier("credential"),
+            scopes=frozenset(Scope),
+            auth_method="local-magic-link",
+            expires_at=expires_at,
+        )
+
     def request(self, email: str) -> bool:
         # Non-enumerating response. A deterministic local principal makes the
         # development integration usable without storing real identities.
@@ -100,15 +116,7 @@ class LocalMailboxAuth:
             return False
         allowed.append(now)
         self._magic_link_attempts[email_digest] = allowed
-        principal = Principal(
-            subject_id=uuid4(),
-            tenant_id=uuid4(),
-            membership_id=uuid4(),
-            credential_id=uuid4(),
-            scopes=frozenset(Scope),
-            auth_method="local-magic-link",
-            expires_at=now + timedelta(hours=1),
-        )
+        principal = self._principal_for_digest(email_digest, expires_at=now + timedelta(hours=1))
         raw = secrets.token_urlsafe(32)
         digest = hashlib.sha256(raw.encode()).hexdigest()
         self._links[digest] = _MagicLink(

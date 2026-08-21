@@ -41,6 +41,22 @@ def test_magic_link_rate_limit_is_non_enumerating_and_does_not_store_email() -> 
     assert "person@example.test" not in repr(auth._magic_link_attempts)
 
 
+def test_magic_link_relogin_keeps_the_same_local_identity_without_storing_email() -> None:
+    auth = LocalMailboxAuth()
+    with TestClient(create_admin_app(auth)) as client:
+        client.post("/api/auth/magic-link", json={"email": "person@example.test"})
+        first = client.get("/api/auth/callback", params={"token": auth.outbox[-1]["token"]})
+        assert first.status_code == 200
+        first_session = client.get("/api/session").json()
+        client.post("/api/auth/magic-link", json={"email": "person@example.test"})
+        second = client.get("/api/auth/callback", params={"token": auth.outbox[-1]["token"]})
+        assert second.status_code == 200
+        second_session = client.get("/api/session").json()
+    assert second_session["subject_id"] == first_session["subject_id"]
+    assert second_session["tenant_id"] == first_session["tenant_id"]
+    assert "person@example.test" not in repr(auth._links)
+
+
 def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
     auth = LocalMailboxAuth()
     runtime = create_demo_runtime(OMPSettings(demo_data_file=str(tmp_path / "admin.json")))
