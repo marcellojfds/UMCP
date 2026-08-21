@@ -356,6 +356,7 @@ async def test_cloud_postgres_blocks_cross_tenant_forged_owner_operations(runtim
         with tenant_scope(tenant_b):
             async with factory() as uow:
                 assert await uow.memories.get(owner_id=owner_a, memory_id=written.memory.id) is None
+            assert await app.export_memories(owner_id=owner_a) == ()
             with pytest.raises(NotFoundError):
                 await app.update(
                     UpdateMemoryCommand(
