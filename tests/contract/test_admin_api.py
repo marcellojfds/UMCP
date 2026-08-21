@@ -57,6 +57,21 @@ def test_magic_link_relogin_keeps_the_same_local_identity_without_storing_email(
     assert "person@example.test" not in repr(auth._links)
 
 
+def test_completed_local_tenant_deletion_invalidates_every_session() -> None:
+    auth = LocalMailboxAuth()
+    auth.request("person@example.test")
+    first = auth.consume(auth.outbox[-1]["token"])
+    assert first is not None
+    auth.request("person@example.test")
+    second = auth.consume(auth.outbox[-1]["token"])
+    assert second is not None
+    principal = auth.session(first[0])
+    assert principal is not None
+    auth.delete_tenant(principal)
+    assert auth.session(first[0]) is None
+    assert auth.session(second[0]) is None
+
+
 def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
     auth = LocalMailboxAuth()
     runtime = create_demo_runtime(OMPSettings(demo_data_file=str(tmp_path / "admin.json")))

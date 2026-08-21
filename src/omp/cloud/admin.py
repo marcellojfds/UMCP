@@ -87,6 +87,7 @@ class LocalMailboxAuth:
         self._agent_token_index: dict[str, str] = {}
         self._operations: dict[str, dict[str, object]] = {}
         self._magic_link_attempts: dict[str, list[datetime]] = {}
+        self._deleted_tenants: set[str] = set()
 
     @staticmethod
     def _principal_for_digest(email_digest: str, *, expires_at: datetime) -> Principal:
@@ -136,7 +137,10 @@ class LocalMailboxAuth:
         return session, csrf
 
     def session(self, raw: str | None) -> Principal | None:
-        return self._sessions.get(hashlib.sha256(raw.encode()).hexdigest()) if raw else None
+        value = self._sessions.get(hashlib.sha256(raw.encode()).hexdigest()) if raw else None
+        if value is None or str(value.tenant_id) in self._deleted_tenants:
+            return None
+        return value
 
     def csrf(self, raw: str | None) -> str | None:
         return self._csrf.get(hashlib.sha256(raw.encode()).hexdigest()) if raw else None
@@ -144,6 +148,28 @@ class LocalMailboxAuth:
     def logout(self, raw: str | None) -> None:
         if raw:
             digest = hashlib.sha256(raw.encode()).hexdigest()
+            self._sessions.pop(digest, None)
+            self._csrf.pop(digest, None)
+
+    def delete_tenant(self, principal: Principal) -> None:
+        """Revoke local access artifacts when synchronous deletion completes."""
+        tenant_id = str(principal.tenant_id)
+        self._deleted_tenants.add(tenant_id)
+        for connection in self._connections.values():
+            if connection["tenant_id"] == tenant_id:
+                connection["status"] = "revoked"
+        for credential in self._agent_credentials.values():
+            if credential["tenant_id"] == tenant_id:
+                credential["revoked"] = True
+                token_digest = credential.get("_token_digest")
+                if isinstance(token_digest, str):
+                    self._agent_token_index.pop(token_digest, None)
+        session_digests = [
+            digest
+            for digest, value in self._sessions.items()
+            if str(value.tenant_id) == tenant_id
+        ]
+        for digest in session_digests:
             self._sessions.pop(digest, None)
             self._csrf.pop(digest, None)
 
@@ -482,6 +508,7 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
         if not callable(delete_owner):
             return {"receipt": auth.receipt("account.deletion", value, "accepted")}
         deleted = int(delete_owner(owner(value)))
+        auth.delete_tenant(value)
         return {
             "receipt": auth.receipt("account.deletion", value, "done"),
             "deleted_memories": deleted,
