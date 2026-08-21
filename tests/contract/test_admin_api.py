@@ -1,6 +1,9 @@
+import asyncio
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 
-from omp.cloud.admin import LocalMailboxAuth, create_admin_app
+from omp.cloud.admin import LocalAgentCredentialVerifier, LocalMailboxAuth, create_admin_app
 from omp.config import OMPSettings
 from omp.server.composition import create_demo_runtime
 
@@ -137,3 +140,22 @@ def test_admin_control_plane_uses_scoped_session_and_safe_receipts() -> None:
         assert export_status["receipt"]["status"] == "accepted"
         deleted = client.post("/api/account-deletions", headers=headers).json()["receipt"]
         assert deleted["kind"] == "account.deletion"
+
+
+def test_local_agent_credential_verifier_rejects_expired_pat() -> None:
+    auth = LocalMailboxAuth()
+    with TestClient(create_admin_app(auth)) as client:
+        client.post("/api/auth/magic-link", json={"email": "person@example.test"})
+        callback = client.get("/api/auth/callback", params={"token": auth.outbox[-1]["token"]})
+        credential = client.post(
+            "/api/agent-credentials",
+            headers={"x-umcp-csrf": callback.json()["csrf"]},
+            json={"name": "short lived", "scopes": ["memory:read"], "expires_in_seconds": 60},
+        ).json()
+    verifier = LocalAgentCredentialVerifier(
+        auth,
+        issuer="https://local.umcp.invalid",
+        audience="https://local.umcp.invalid/mcp",
+        clock=lambda: datetime.now(UTC) + timedelta(hours=2),
+    )
+    assert asyncio.run(verifier.verify_token(credential["token"])) is None

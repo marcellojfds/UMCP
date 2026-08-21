@@ -163,10 +163,18 @@ class LocalAgentCredentialVerifier:
     and validate tokens from its configured identity provider.
     """
 
-    def __init__(self, auth: LocalMailboxAuth, *, issuer: str, audience: str) -> None:
+    def __init__(
+        self,
+        auth: LocalMailboxAuth,
+        *,
+        issuer: str,
+        audience: str,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self._auth = auth
         self._issuer = issuer
         self._audience = audience
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     async def verify_token(self, token: str) -> AccessToken | None:
         digest = hashlib.sha256(token.encode()).hexdigest()
@@ -179,7 +187,7 @@ class LocalAgentCredentialVerifier:
         try:
             expires_at = datetime.fromisoformat(str(credential["expires_at"]))
             scopes = [Scope(str(item)).value for item in cast(list[object], credential["scopes"])]
-            if bool(credential["revoked"]) or expires_at <= datetime.now(UTC):
+            if bool(credential["revoked"]) or expires_at <= self._clock():
                 return None
             subject_id = str(credential["_subject_id"])
             tenant_id = str(credential["tenant_id"])
