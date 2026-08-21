@@ -25,9 +25,25 @@
 | Checkpoint | Evidence | Status | Next action |
 | --- | --- | --- | --- |
 | Contract frozen | This file at the baseline SHA | current | Add controls and fixture harness |
-| Capability preflight | `scripts/capability-preflight` | not-run | Execute after scripts exist |
-| Cross-client fixture | `scripts/demo-cross-client-memory` | not-run | Run after fixture is added |
+| Capability preflight | `evidence/capability-preflight.json` | current | Browser backend remains environment-blocked |
+| Cross-client fixture | `scripts/demo-cross-client-memory` + 12 focused tests | current | Preserve assertions while waiting for Core candidate |
 | Core integration | No `M1-INTEGRATED.md` observed | not-run | Wait for integration handoff; continue independent checks |
+
+## Final V0/V1 checkpoint
+
+- **Tested executable SHA:** `45ca25c15fedfd383eb96f8a04141fbe2423d3d1`.
+- **Current:** gate-fast 73 passed; PostgreSQL/migrations 19 passed on
+  PostgreSQL 16.15 + pgvector 0.8.6; SDK 2 passed; web check/test/build
+  passed; dependency audit, secret/PII, SBOM and local links/claims passed.
+- **Fixture-only current:** cross-client acceptance and 40 development eval
+  cases (20 English + 20 Portuguese) passed. This is not Core evidence.
+- **Environment-blocked:** managed browser runtime has no connected backend;
+  no browser E2E pass is claimed.
+- **Synchronization blocker:** no `M1-INTEGRATED.md` was present on
+  `roadmap/integration`; the Core/Experience candidate acceptance remains
+  not-run.
+- **Prohibitions honored:** holdout not run, E5/threshold unchanged, no
+  external service or real data, no push/PR/deploy/release/GO.
 
 ## Classification policy
 

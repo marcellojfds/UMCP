@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "sha_tested": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1",
+  "managed_browser_runtime": "available",
+  "connected_backends": [],
+  "result": "environment-blocked",
+  "reason": "browser setup completed but no browser backend was available",
+  "browser_e2e_executed": false,
+  "fallback": "retain browser E2E as blocked; do not count static render or local-file navigation"
+}

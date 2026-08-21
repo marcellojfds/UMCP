@@ -1,0 +1,3 @@
+{"cases": 20, "decision": "PASS-DEVELOPMENT-HARNESS", "language": "en", "output": "docs/handoffs/roadmap/evidence/evals-en.json"}
+{"cases": 20, "decision": "PASS-DEVELOPMENT-HARNESS", "language": "pt", "output": "docs/handoffs/roadmap/evidence/evals-pt.json"}
+fixture scenario passed: cross-client synthetic-run=6abac9157ffa

@@ -3,14 +3,17 @@
   "repository": {
     "path": "/private/tmp/umcp-roadmap-verification",
     "branch": "roadmap/luna-verification",
-    "sha": "325faf32544e17c896ace07b8c712508c3ed7cce"
+    "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1"
   },
   "gates": [
-    {"name": "gate-fast", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "not-run", "result": "not-run", "artifact": "-", "reason": "V0 controls were not yet installed at baseline capture"},
+    {"name": "gate-fast", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/gate-fast.log", "reason": "lint, mypy and 73 tests passed on the final executable candidate"},
     {"name": "unit-contract", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "baseline evidence predates Verification-owned paths"},
     {"name": "postgres-migrations", "sha": "1bd460e", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "must be repeated on the integrated candidate"},
-    {"name": "mcp-stdio-conformance", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "not-run", "result": "not-run", "artifact": "-", "reason": "candidate implementation handoff is not present"},
-    {"name": "browser-e2e", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "environment-blocked", "result": "blocked", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "prior loopback/process-lifetime and local-file navigation smoke failed; managed runner preflight pending"},
-    {"name": "secret-pii", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "not-run", "result": "not-run", "artifact": "-", "reason": "Verification scan will run after owned fixtures are added"}
+    {"name": "mcp-stdio-conformance", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/conformance-and-evals.log", "reason": "fixture-backed conformance and both development protocols passed; Core candidate is not integrated"},
+    {"name": "browser-e2e", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "environment-blocked", "result": "blocked", "artifact": "evidence/browser-preflight.json", "reason": "managed browser runtime had zero connected backends; no browser pass inferred"},
+    {"name": "secret-pii", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/checksums.sha256", "reason": "tracked-source and synthetic runtime-output scans passed"},
+    {"name": "dependency-vulnerability", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/dependency-audit.log", "reason": "pip-audit reported no known vulnerabilities with controlled network access"},
+    {"name": "sbom", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/sbom.json", "reason": "CycloneDX SBOM generated locally"},
+    {"name": "links-claims", "sha": "45ca25c15fedfd383eb96f8a04141fbe2423d3d1", "freshness": "current", "result": "pass", "artifact": "evidence/links-claims.log", "reason": "134 local Markdown files checked; external URLs intentionally not probed"}
   ]
 }
