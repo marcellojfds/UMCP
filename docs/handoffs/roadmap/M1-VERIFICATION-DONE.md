@@ -7,7 +7,8 @@ that Core or Experience implements M1 and it does not issue a release GO.
 
 ## Acceptance and demo
 
-- Tested executable SHA: `45ca25c15fedfd383eb96f8a04141fbe2423d3d1`
+- Tested executable SHA for the latest focused harness run:
+  `30091f6a6a58f6c8f57940d6acf93086b8aa2ef1`
 - Acceptance: `pytest -q tests/conformance tests/verification tests/evals/test_development_suites.py`
 - Demo: `scripts/demo-cross-client-memory`
 - Fixture result: candidate → confirm → Claude recall, provenance/source/space,
@@ -21,11 +22,12 @@ disposable test fixture. They intentionally do not import or modify Core.
 
 | Gate | SHA | Freshness | Result | Artifact |
 | --- | --- | --- | --- | --- |
-| fixture cross-client | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass | `evidence/conformance-and-evals.log` |
-| development eval EN | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass | `evidence/evals-en.json` |
-| development eval PT | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | current | pass | `evidence/evals-pt.json` |
-| Core-backed M1 acceptance | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | not-run | not-run | no `M1-INTEGRATED.md` |
+| fixture cross-client | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/conformance-and-evals.log` |
+| development eval EN | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/evals-en.json` |
+| development eval PT | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/evals-pt.json` |
+| Core-backed M1 acceptance | `30091f6a6a58f6c8f57940d6acf93086b8aa2ef1` | not-run | not-run | no `M1-INTEGRATED.md` |
 | browser E2E | `45ca25c15fedfd383eb96f8a04141fbe2423d3d1` | environment-blocked | blocked | `evidence/browser-preflight.json` |
+| HTTP MCP contract | `2c305ed1d339bec1252a087df60d38e2741235c7` | environment-blocked | blocked | `evidence/gate-fast.log` |
 
 ## Development suites
 
@@ -38,6 +40,8 @@ candidate was changed or evaluated by this harness.
 ## Findings and blockers
 
 - [`M0-ENV-001.md`](findings/M0-ENV-001.md): browser backend unavailable.
+- [`M0-ENV-002.md`](findings/M0-ENV-002.md): loopback socket binding unavailable
+  for HTTP MCP contract tests.
 - Synchronization is pending `roadmap/integration` publishing
   `docs/handoffs/roadmap/M1-INTEGRATED.md`; Core-backed M1 assertions remain
   not-run.

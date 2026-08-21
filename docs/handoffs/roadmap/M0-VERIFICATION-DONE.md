@@ -8,7 +8,7 @@ This is a Verification handoff, not an independent release GO.
 
 - Worktree: `/private/tmp/umcp-roadmap-verification`
 - Branch: `roadmap/luna-verification`
-- Tested executable SHA: `45ca25c15fedfd383eb96f8a04141fbe2423d3d1`
+- Tested executable SHA for the latest gate-fast run: `2c305ed1d339bec1252a087df60d38e2741235c7`
 - Acceptance command: `./scripts/gate-fast` and `./scripts/gate-postgres`
 - Demo command: `scripts/demo-local-integration`
 - Data boundary: synthetic/disposable only; no holdout, real user, secret,
@@ -24,7 +24,8 @@ on the SHA above. Historical evidence remains historical.
 
 ### Current gates
 
-- gate-fast: pass, lint/mypy + 73 tests.
+- gate-fast: environment-blocked; lint/mypy + 71 tests passed, while two HTTP
+  MCP contract tests could not bind a loopback socket.
 - PostgreSQL/migrations: pass, 19 tests; PostgreSQL 16.15 + pgvector 0.8.6;
   zero-to-head and downgrade/re-upgrade reached `0007_tenant_fks`.
 - SDK: pass, 2 tests. Web: pass, check + 3 tests + build.
@@ -39,6 +40,8 @@ handoff.
 ### Failures and findings
 
 - [`M0-ENV-001.md`](findings/M0-ENV-001.md): managed browser unavailable.
+- [`M0-ENV-002.md`](findings/M0-ENV-002.md): loopback socket binding unavailable;
+  HTTP MCP contract tests remain environment-blocked.
 - No implementation finding was invented because no integrated Core candidate
   was delivered to this lane.
 
@@ -46,6 +49,8 @@ handoff.
 
 The browser smoke was attempted through the managed browser runtime and found
 zero connected backends. Browser E2E is `environment-blocked`, never `pass`.
+The HTTP MCP smoke was attempted by the contract tests and was blocked before
+server startup by the sandbox's loopback socket restriction.
 
 ## Artifacts and checksums
 
