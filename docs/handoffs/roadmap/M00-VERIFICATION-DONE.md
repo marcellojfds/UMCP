@@ -55,6 +55,7 @@ was refreshed on `2c305ed` after scoping gate freshness by affected paths.
 | root-pytest | `d9ad3958edc382adbd6d93a803c1f376e6ab6f10` | current | fail, 95 passed / 4 failed / 19 skipped; E5 and HTTP findings | `evidence/full-pytest.log` |
 | PostgreSQL/migrations | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 19 tests | `evidence/postgres-migrations.md` |
 | MCP stdio/fixture conformance | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass | `evidence/conformance-and-evals.log` |
+| MCP HTTP contract | `2c305ed1d339bec1252a087df60d38e2741235c7` | environment-blocked | loopback bind denied; see M0-ENV-002 | `evidence/gate-fast.log` |
 | SDK | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | pass, 2 tests | `evidence/sdk-web.log` |
 | Web | `03263d1eafbba494757506aa7e1af7864d2dfbd4` | current | check/test/build pass | `evidence/sdk-web.log` |
 | dependency/SBOM/secret-PII | `4ecab259942be0b173d3d01fff1399ca8cde8452` | current | pass where executed | `evidence/` |
