@@ -318,7 +318,8 @@ async def test_cloud_postgres_blocks_cross_tenant_forged_owner_operations(runtim
         await connection.execute(
             text(
                 f"GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, memories, memory_versions, "
-                f"memory_embeddings, memory_embeddings_semantic, idempotency_operations TO {role}"
+                f"memory_embeddings, memory_embeddings_semantic, idempotency_operations, "
+                f"audit_events, deletion_tombstones TO {role}"
             )
         )
         await connection.execute(
@@ -604,6 +605,8 @@ async def test_semantic_profile_coexists_cutover_and_forget_cascades(runtime: Ru
 @pytest.mark.asyncio
 async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str) -> None:
     tenant = uuid4()
+    subject = uuid4()
+    owner = f"cloud:{tenant}:{subject}"
     settings = OMPSettings(
         database_url=postgres_url,
         environment="cloud",
@@ -621,17 +624,17 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
                 text("INSERT INTO tenants (id, name) VALUES (:id, 'encrypted')"), {"id": tenant}
             )
         with tenant_scope(tenant):
-            created = await app.write(write_command(f"cloud:{tenant}:subject", "postgres canary"))
+            created = await app.write(write_command(owner, "postgres canary"))
             async with factory() as uow:
                 found = await uow.memories.get(
-                    owner_id=f"cloud:{tenant}:subject", memory_id=created.memory.id
+                    owner_id=owner, memory_id=created.memory.id
                 )
         assert found is not None and found.id == created.memory.id
         with tenant_scope(tenant):
             async with factory() as uow:
                 assert await uow.memories.rewrap_envelopes(key_version=2) == 1
                 reread = await uow.memories.get(
-                    owner_id=f"cloud:{tenant}:subject", memory_id=created.memory.id
+                    owner_id=owner, memory_id=created.memory.id
                 )
         assert reread is not None and reread.content == "postgres canary"
         async with engine_object.connect() as connection:
@@ -658,7 +661,7 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
         with tenant_scope(tenant):
             forgotten = await app.forget(
                 ForgetMemoryCommand(
-                    owner_id=f"cloud:{tenant}:subject",
+                    owner_id=owner,
                     memory_id=created.memory.id,
                     idempotency_key="encrypted-forget",
                 )
@@ -678,6 +681,19 @@ async def test_cloud_postgres_envelopes_content_and_provenance(postgres_url: str
         assert tombstone["memory_id"] == created.memory.id
         assert tombstone["subject_id"] is None
         assert tombstone["reason"] == "memory.forget"
+        async with engine_object.connect() as connection:
+            events = (
+                await connection.execute(
+                    text(
+                        "SELECT action, principal_id, metadata::text FROM audit_events "
+                        "WHERE tenant_id = :tenant ORDER BY created_at"
+                    ),
+                    {"tenant": tenant},
+                )
+            ).all()
+        assert [row.action for row in events] == ["memory.write", "memory.forget"]
+        assert all(row.principal_id == subject for row in events)
+        assert all("postgres canary" not in row[2] for row in events)
     finally:
         await engine_object.dispose()
 

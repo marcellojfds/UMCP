@@ -36,3 +36,8 @@ reference, timestamp and `memory.forget` reason; it does not retain content,
 provenance or the caller-owned identifier. The integration suite verifies this
 alongside encrypted storage and key rewrap. Backup transport and a production
 restore worker remain external-authorization work.
+
+The same local Cloud repository emits tenant-scoped audit events for successful
+write, update and forget mutations. They contain action, receipt, time and a
+memory reference only—never memory content, provenance, owner IDs, secrets or
+ciphertext.

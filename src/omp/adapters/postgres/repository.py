@@ -55,6 +55,7 @@ from omp.domain import (
 )
 
 from .schema import (
+    audit_events,
     deletion_tombstones,
     idempotency_operations,
     memories,
@@ -222,6 +223,33 @@ class PostgresMemoryRepository:
     ) -> None:
         self._session = session
         self._encryptor = encryptor
+
+    async def _audit(self, *, action: str, owner_id: str, memory_id: UUID) -> None:
+        """Write Cloud audit evidence without memory payload or credentials."""
+        tenant_id = current_tenant_or_none()
+        if tenant_id is None:
+            return
+        principal_id: UUID | None = None
+        try:
+            prefix, owner_tenant, subject_id = owner_id.split(":", 2)
+            if prefix == "cloud" and UUID(owner_tenant) == tenant_id:
+                principal_id = UUID(subject_id)
+        except ValueError:
+            # The memory operation has already passed its own authorization
+            # boundary. Audit still records tenant-scoped evidence if a legacy
+            # Cloud owner representation cannot identify a UUID principal.
+            pass
+        await self._session.execute(
+            insert(audit_events).values(
+                id=uuid4(),
+                tenant_id=tenant_id,
+                principal_id=principal_id,
+                action=action,
+                receipt_id=uuid4(),
+                created_at=datetime.now(UTC),
+                metadata={"memory_id": str(memory_id)},
+            )
+        )
 
     def _cloud_fields(
         self, *, record_id: UUID, content: str, provenance: Provenance, key_version: int = 1
@@ -423,6 +451,7 @@ class PostgresMemoryRepository:
                 self._version_values(memory.snapshot(change_reason="created"))
             )
         )
+        await self._audit(action="memory.write", owner_id=memory.owner_id, memory_id=memory.id)
         return CreateMemoryResult(memory=memory, created=True)
 
     async def update(
@@ -468,6 +497,7 @@ class PostgresMemoryRepository:
             .where(embedding_table.c.memory_id == memory.id)
             .values(self._embedding_values(memory, embedding, include_memory_id=False))
         )
+        await self._audit(action="memory.update", owner_id=memory.owner_id, memory_id=memory.id)
         return memory
 
     async def search_candidates(
@@ -553,6 +583,7 @@ class PostgresMemoryRepository:
                     reason="memory.forget",
                 )
             )
+            await self._audit(action="memory.forget", owner_id=owner_id, memory_id=deleted_id)
         return True
 
     async def add_relation(self, *, relation: Relation) -> Relation:

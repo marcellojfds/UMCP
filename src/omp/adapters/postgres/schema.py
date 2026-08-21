@@ -206,6 +206,20 @@ deletion_tombstones = Table(
     Column("reason", String(128), nullable=False),
 )
 
+# Audit metadata is intentionally structural only.  Content, provenance,
+# owner IDs, tokens and ciphertext are never audit payloads.
+audit_events = Table(
+    "audit_events",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("tenant_id", UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False),
+    Column("principal_id", UUID(as_uuid=True), nullable=True),
+    Column("action", String(128), nullable=False),
+    Column("receipt_id", UUID(as_uuid=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("metadata", JSONB, nullable=False),
+)
+
 Index("ix_memories_owner_state", memories.c.owner_id, memories.c.state)
 Index("ix_memories_owner_space", memories.c.owner_id, memories.c.space)
 Index("ix_memories_owner_type", memories.c.owner_id, memories.c.memory_type)
