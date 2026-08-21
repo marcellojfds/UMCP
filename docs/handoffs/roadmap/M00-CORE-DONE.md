@@ -3,7 +3,7 @@
 **Milestone:** M00 / G00 — Integration Recovery
 **Branch:** `roadmap/luna-core`
 **Worktree:** `/private/tmp/umcp-roadmap-core`
-**Implementation SHA:** `7d798cbe3efb5eab16df5c9f7d931c1dfa9db537`
+**Implementation SHA:** `1eb157fe07de99903c897f59b556bb24dcfc9acb`
 **Status:** Core lane complete; integration pending other lanes and verification
 
 ## Capability
@@ -30,6 +30,8 @@ payloads and used synthetic data only.
   rerun after controlled integration merges.
 - Added `scripts/assert-worktree-context` and wired it into the demo so branch,
   path, SHA and clean-state checks fail closed.
+- Added a demo/worktree equality check so a demo cannot validate one worktree
+  while executing tests from another.
 - Added the G00 contract and evidence heartbeat in `GOAL-PROGRESS.md`.
 - Fixed `scripts/gate-postgres` so teardown that leaves the disposable database
   at Alembic `base` is upgraded to `head` before cleanup truncation.
@@ -40,8 +42,8 @@ payloads and used synthetic data only.
 
 | Gate | SHA | Freshness | Result | Artifact/evidence |
 | --- | --- | --- | --- | --- |
-| worktree/branch/SHA | `7d798cb` | current | pass, clean | `/private/tmp/umcp-roadmap-core` |
-| G00 demo and preflight | `7d798cb` | current | pass | `scripts/demo-local-integration`, `scripts/assert-worktree-context` |
+| worktree/branch/SHA | `1eb157f` | current | pass, clean | `/private/tmp/umcp-roadmap-core` |
+| G00 demo and preflight | `1eb157f` | current | pass, including mismatch rejection | `scripts/demo-local-integration`, `scripts/assert-worktree-context` |
 | Ruff/mypy/unit/contract | `7d798cb` | current | 73 passed, 1 deprecation warning | `./scripts/gate-fast` |
 | PostgreSQL/migrations | `7d798cb` | current | 19 passed; zero→head and downgrade/re-upgrade pass | `./scripts/gate-postgres`, PG 16.15 + pgvector 0.8.6 |
 | MCP stdio/HTTP and auth negative | `7d798cb` | current | pass in demo and contract suite | `tests/contract`, `gate-fast` |
@@ -54,6 +56,11 @@ payloads and used synthetic data only.
 | dependency audit | `7d798cb` | environment-blocked | pip bootstrap requires unavailable network | `./scripts/audit-dependencies` |
 | browser visual/keyboard/reduced-motion E2E | — | not run | loopback/browser limitation | post-mortem evidence |
 | hosted providers, real data, holdout, deploy, release | — | not run | outside authorization | explicit scope boundary |
+
+The demo-only revision from `7d798cb` to `1eb157f` does not touch MCP,
+application, persistence, migration, SDK or web paths. The broader gate rows
+therefore retain their valid `7d798cb` execution SHA; the demo/preflight rows
+were rerun directly on `1eb157f`.
 
 Historical results in `docs/handoffs/productization/INTEGRATION-RC.md` and the
 session post-mortem are preserved as historical; they are not used to promote

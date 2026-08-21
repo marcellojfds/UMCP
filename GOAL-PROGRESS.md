@@ -14,7 +14,7 @@
   data; it must exercise the existing local MCP write/search/update/forget
   path and fail closed for a forged owner/tenant context where the current
   local adapter exposes that check.
-- **Paths:** `scripts/demo-local-integration`, `GOAL-PROGRESS.md`,
+- **Paths:** `scripts/demo-local-integration`, `scripts/assert-worktree-context`, `GOAL-PROGRESS.md`,
   `docs/handoffs/roadmap/M00-CORE-CONTRACT.md`,
   `docs/handoffs/roadmap/M00-CORE-DONE.md`.
 - **Dependencies:** validated `product/integration` HEAD
@@ -43,10 +43,12 @@
 
 ### Final G00 evidence
 
-- **Implementation SHA:** `7d798cbe3efb5eab16df5c9f7d931c1dfa9db537`.
+- **Implementation SHA:** `1eb157fe07de99903c897f59b556bb24dcfc9acb`.
 - **Preflight:** `scripts/assert-worktree-context` now fails closed on path,
   branch, optional full/abbreviated SHA and dirty state; both valid and
   wrong-branch cases were exercised.
+- **Demo context:** a mismatched demo/worktree invocation is rejected before
+  tests execute; valid Core and integration invocations both passed.
 - **Acceptance:** `./scripts/demo-local-integration` passed; synthetic
   write→search→update→forget, cross-owner isolation, owner-boundary and
   fail-closed auth all passed.
