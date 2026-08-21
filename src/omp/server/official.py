@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, cast
 
 import anyio
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -12,7 +13,7 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
-from pydantic import Field
+from pydantic import AnyHttpUrl, Field
 
 from omp.adapters.mcp.schemas import (
     DEFAULT_TIMEOUT_MS,
@@ -104,8 +105,8 @@ def create_cloud_server(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -> 
         instructions="Use memory tools only within the scopes granted to this integration.",
         token_verifier=verifier,
         auth=AuthSettings(
-            issuer_url="https://local.umcp.invalid",
-            resource_server_url="https://local.umcp.invalid/mcp",
+            issuer_url=cast(AnyHttpUrl, "https://local.umcp.invalid"),
+            resource_server_url=cast(AnyHttpUrl, "https://local.umcp.invalid/mcp"),
             required_scopes=[],
         ),
         streamable_http_path="/mcp",
@@ -177,7 +178,7 @@ def create_cloud_http_app(runtime: ServerRuntime, verifier: OIDCTokenVerifier) -
     server = create_cloud_server(runtime, verifier)
 
     @asynccontextmanager
-    async def lifespan(_: object):
+    async def lifespan(_: object) -> AsyncIterator[None]:
         await runtime.startup()
         try:
             async with server.session_manager.run():

@@ -5,6 +5,8 @@ restricted Cloud role. Production backfill is an explicit, audited forward job;
 this revision never guesses a tenant from a client-provided owner id.
 """
 
+# ruff: noqa: E501
+
 from alembic import op
 
 revision = "0005_cloud_multitenancy_rls"

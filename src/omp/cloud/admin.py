@@ -6,6 +6,7 @@ import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -128,7 +129,7 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
             code = result["error"]["code"]
             status = 404 if code == "not_found" else 409 if code == "version_conflict" else 400
             raise HTTPException(status_code=status, detail="request could not be completed")
-        data = result["data"]
+        data = cast(dict[str, object], result["data"])
         _redact_owner(data)
         return data
 
@@ -195,9 +196,15 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
     @app.get("/api/memories/{memory_id}")
     async def get_memory(request: Request, memory_id: str) -> dict[str, object]:
         result = await list_memories(request, query="memory", limit=50)
-        for item in result.get("memories", []):
-            if item.get("memory", {}).get("id") == memory_id:
-                return item["memory"]
+        items = result.get("memories", [])
+        if not isinstance(items, list):
+            raise HTTPException(status_code=500, detail="service response invalid")
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            memory = item.get("memory")
+            if isinstance(memory, dict) and memory.get("id") == memory_id:
+                return cast(dict[str, object], memory)
         raise HTTPException(status_code=404, detail="not found")
 
     @app.patch("/api/memories/{memory_id}")
