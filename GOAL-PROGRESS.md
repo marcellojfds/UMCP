@@ -41,11 +41,29 @@
 | browser visual/keyboard E2E | not run | loopback/browser limitation in post-mortem |
 | external IdP/KMS/queue/backup/deploy | environment-blocked / not run | outside local authorization |
 
-### Heartbeat
+### Final G00 evidence
 
-- **Next action:** create the demo entrypoint, run it against synthetic local
-  adapters, then run the current gates on this exact SHA.
-- **Stagnation counters:** failures by same reason `0`; changes without green
-  acceptance `0`; subsystem switches without demo `0`.
-- **External blockers:** none for the local G00 work; hosted and release work
-  remains explicitly unauthorized.
+- **Implementation SHA:** `9efbc9c1ac85aa20a77032af20a3768716e29320`.
+- **Acceptance:** `./scripts/demo-local-integration` passed; synthetic
+  write→search→update→forget, cross-owner isolation, owner-boundary and
+  fail-closed auth all passed.
+- **Current gates:** `gate-fast` 73 passed; PostgreSQL 19 passed with
+  PostgreSQL 16.15/pgvector 0.8.6, zero→head, downgrade/re-upgrade and head
+  `0007_tenant_fks`; SDK 2 passed; web 3 passed plus check/build; CI safety,
+  runtime-output on generated web output, and SBOM passed/generated.
+- **Historical gates:** prior integration evidence in the post-mortem and
+  `INTEGRATION-RC.md` remains historical unless independently rerun; the
+  current run supersedes the local gate results listed above.
+- **Not run:** browser desktop/390px visual, keyboard and reduced-motion E2E;
+  holdout; hosted IdP/KMS/HSM/e-mail/queue/backup/deploy/release checks.
+- **Environment-blocked:** dependency audit could not bootstrap pip because
+  network access is unavailable. The initial sandboxed gate-fast attempt was
+  loopback-blocked, then passed with the authorized local loopback capability.
+- **Stagnation counters:** failures by same reason `1` (gate script cleanup,
+  fixed); changes without green acceptance `0`; subsystem switches without
+  demo `0`.
+- **Next action:** wait for applicable `M00-EXPERIENCE-DONE.md` and
+  `M00-VERIFICATION-DONE.md`, inspect them with `git show`, then integrate M00
+  on `roadmap/integration`. Do not open the next milestone before that merge.
+- **External blockers:** hosted and release work remains explicitly
+  unauthorized; no independent release `GO` is issued.
