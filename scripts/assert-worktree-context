@@ -20,6 +20,12 @@ actual_worktree_root=$(git -C "$expected_worktree" rev-parse --show-toplevel 2>/
 actual_worktree=$(CDPATH= cd -- "$actual_worktree_root" && pwd -P)
 actual_branch=$(git -C "$expected_worktree" branch --show-current)
 actual_sha=$(git -C "$expected_worktree" rev-parse HEAD)
+if [[ -n "$expected_sha" ]]; then
+  expected_sha=$(git -C "$expected_worktree" rev-parse --verify "${expected_sha}^{commit}" 2>/dev/null) || {
+    echo "invalid expected SHA: $3" >&2
+    exit 1
+  }
+fi
 dirty=$(git -C "$expected_worktree" status --porcelain)
 
 if [[ "$actual_worktree" != "$expected_worktree" ]]; then
