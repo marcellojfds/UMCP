@@ -19,7 +19,7 @@
 | PostgreSQL integration/e2e gate | 18 passed |
 | TypeScript SDK | 2 passed |
 | Web tests / check / build | 3 passed / passed / passed |
-| MCP conformance syntax | passed |
+| MCP conformance lifecycle | passed against local authenticated `/mcp` |
 | Dependency audit / CI safety scan | passed |
 
 The local browser inspection covered the landing structure only. Browser E2E at

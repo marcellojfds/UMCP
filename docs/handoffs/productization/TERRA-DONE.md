@@ -30,8 +30,9 @@
 - `./scripts/gate-fast`: **71 passed** (one Starlette/httpx deprecation warning).
 - `./scripts/gate-postgres`: **18 passed**, including disposable PostgreSQL 16
   + pgvector, zero-to-head migrations and downgrade/re-upgrade validation.
-- TypeScript SDK test: **2 passed**; web tests **3 passed**, check, build and
-  conformance syntax check passed.
+- TypeScript SDK test: **2 passed**; web tests **3 passed**, check and build
+  passed. The conformance runner executed write → search → update → forget
+  against an authenticated local `/mcp` gateway without emitting its canary.
 - Dependency audit: no known vulnerabilities; CI safety scan passed.
 - The final candidate's SBOM is generated locally after its documentation
   commit, using its Git SHA in the artifact filename.
