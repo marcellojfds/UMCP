@@ -42,6 +42,9 @@
 - **Synchronization blocker:** no `M1-INTEGRATED.md` was present on
   `roadmap/integration`; the Core/Experience candidate acceptance remains
   not-run.
+- **M00 synchronization:** `roadmap/integration` has now published the
+  partial checkpoint and is waiting for the exact
+  `M00-VERIFICATION-DONE.md`; this handoff is now present on this branch.
 - **Prohibitions honored:** holdout not run, E5/threshold unchanged, no
   external service or real data, no push/PR/deploy/release/GO.
 
