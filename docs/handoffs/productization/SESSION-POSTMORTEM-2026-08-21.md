@@ -67,14 +67,14 @@ falha, reinício, retry bem-sucedido e assinatura alterada.
 | --- | --- |
 | `./scripts/gate-fast` no commit `19fc215` | passou: lint, mypy e 72 testes Python |
 | Teste focado de segurança Cloud | 10 passaram antes da porta completa |
-| PostgreSQL descartável (`scripts/gate-postgres`) | 18 testes passaram em execução anterior; não repetido após os quatro commits finais de leitura/export/worker |
+| PostgreSQL descartável (`scripts/gate-postgres`) | 18 testes passaram no HEAD `1bd460e`; migrations zero→head concluídas em PostgreSQL 16.15 com pgvector 0.8.6 |
 | SDK TypeScript | 2 testes passaram em execução anterior |
 | Web | 3 testes, check e build passaram em execução anterior |
 | Conformance MCP local autenticado | ciclo write/search/update/forget passou em execução anterior |
 | Audit de dependências / segurança de CI | passaram em execução anterior |
 
-Apenas a primeira linha é validação do HEAD atual. As demais continuam como
-evidência histórica e devem ser repetidas antes de qualquer conclusão de
+As duas primeiras linhas são validações atuais do HEAD. As demais continuam
+como evidência histórica e devem ser repetidas antes de qualquer conclusão de
 release.
 
 ## Lacunas conhecidas — não ocultar

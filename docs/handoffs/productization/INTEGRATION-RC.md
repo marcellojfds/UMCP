@@ -16,7 +16,7 @@
 | Check | Result |
 | --- | --- |
 | Python fast gate | 72 passed (HEAD `19fc215`) |
-| PostgreSQL integration/e2e gate | 18 passed |
+| PostgreSQL integration/e2e gate | 18 passed (HEAD `1bd460e`; migrations zero→head `0007_tenant_fks`) |
 | TypeScript SDK | 2 passed |
 | Web tests / check / build | 3 passed / passed / passed |
 | MCP conformance lifecycle | passed against local authenticated `/mcp` |
