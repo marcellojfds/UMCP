@@ -52,3 +52,39 @@ def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
             headers={"x-umcp-csrf": csrf},
         )
         assert forgotten.json()["status"] == "forgotten"
+
+
+def test_admin_control_plane_uses_scoped_session_and_safe_receipts() -> None:
+    auth = LocalMailboxAuth()
+    with TestClient(create_admin_app(auth)) as client:
+        client.post("/api/auth/magic-link", json={"email": "person@example.test"})
+        callback = client.get("/api/auth/callback", params={"token": auth.outbox[-1]["token"]})
+        csrf = callback.json()["csrf"]
+        headers = {"x-umcp-csrf": csrf}
+
+        connection = client.post(
+            "/api/connections",
+            headers=headers,
+            json={"name": "local agent", "scopes": ["memory:read"]},
+        ).json()["connection"]
+        assert connection["status"] == "active"
+        revoked = client.post(f"/api/connections/{connection['id']}/revoke", headers=headers)
+        assert revoked.json()["connection"]["status"] == "revoked"
+
+        credential = client.post(
+            "/api/agent-credentials",
+            headers=headers,
+            json={"name": "worker", "scopes": ["memory:read"], "expires_in_seconds": 60},
+        ).json()
+        assert credential["token"].startswith("umcp_pat_")
+        assert "token_digest" not in credential["credential"]
+        assert client.post(
+            f"/api/agent-credentials/{credential['credential']['id']}/revoke", headers=headers
+        ).status_code == 200
+
+        exported = client.post("/api/exports", headers=headers).json()["receipt"]
+        assert exported["kind"] == "tenant.export"
+        export_status = client.get(f"/api/operations/{exported['id']}").json()
+        assert export_status["receipt"]["status"] == "accepted"
+        deleted = client.post("/api/account-deletions", headers=headers).json()["receipt"]
+        assert deleted["kind"] == "account.deletion"

@@ -39,6 +39,17 @@ class MemoryUpdateRequest(_Request):
     idempotency_key: str = Field(min_length=1, max_length=128)
 
 
+class ConnectionRequest(_Request):
+    name: str = Field(min_length=1, max_length=128)
+    scopes: set[Scope] = Field(min_length=1)
+
+
+class AgentCredentialRequest(_Request):
+    name: str = Field(min_length=1, max_length=128)
+    scopes: set[Scope] = Field(min_length=1)
+    expires_in_seconds: int = Field(default=3600, ge=60, le=86_400)
+
+
 @dataclass(slots=True)
 class _MagicLink:
     digest: str
@@ -56,6 +67,9 @@ class LocalMailboxAuth:
         self._links: dict[str, _MagicLink] = {}
         self._sessions: dict[str, Principal] = {}
         self._csrf: dict[str, str] = {}
+        self._connections: dict[str, dict[str, object]] = {}
+        self._agent_credentials: dict[str, dict[str, object]] = {}
+        self._operations: dict[str, dict[str, object]] = {}
 
     def request(self, email: str) -> None:
         # Non-enumerating response. A deterministic local principal makes the
@@ -98,6 +112,21 @@ class LocalMailboxAuth:
             self._sessions.pop(digest, None)
             self._csrf.pop(digest, None)
 
+    @staticmethod
+    def _receipt(kind: str, principal: Principal, status: str) -> dict[str, object]:
+        return {
+            "id": "op_" + secrets.token_urlsafe(12),
+            "kind": kind,
+            "status": status,
+            "tenant_id": str(principal.tenant_id),
+            "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        }
+
+    def receipt(self, kind: str, principal: Principal, status: str) -> dict[str, object]:
+        value = self._receipt(kind, principal, status)
+        self._operations[str(value["id"])] = value
+        return value
+
 
 def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> FastAPI:
     app = FastAPI(title="UMCP Admin API", docs_url=None, redoc_url=None)
@@ -139,6 +168,10 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
             "version": "umcp.admin.v1",
             "auth": "local_magic_link",
             "email_delivery": "captured",
+            "connections": True,
+            "agent_credentials": True,
+            "tenant_export": True,
+            "account_deletion": True,
         }
 
     @app.post("/api/auth/magic-link")
@@ -228,6 +261,102 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
         return await call(
             value, "memory.forget", {"id": memory_id, "idempotency_key": idempotency_key}
         )
+
+    @app.get("/api/connections")
+    async def list_connections(request: Request) -> dict[str, object]:
+        value = principal(request)
+        value.requires(Scope.CONNECTIONS_MANAGE)
+        items = [
+            item for item in auth._connections.values() if item["tenant_id"] == str(value.tenant_id)
+        ]
+        return {"connections": items, "count": len(items)}
+
+    @app.post("/api/connections")
+    async def create_connection(request: Request, payload: ConnectionRequest) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.CONNECTIONS_MANAGE)
+        connection_id = "conn_" + secrets.token_urlsafe(12)
+        connection: dict[str, object] = {
+            "id": connection_id,
+            "name": payload.name,
+            "scopes": sorted(scope.value for scope in payload.scopes),
+            "tenant_id": str(value.tenant_id),
+            "status": "active",
+        }
+        auth._connections[connection_id] = connection
+        return {
+            "connection": connection,
+            "receipt": auth.receipt("connection.created", value, "done"),
+        }
+
+    @app.post("/api/connections/{connection_id}/revoke")
+    async def revoke_connection(request: Request, connection_id: str) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.CONNECTIONS_MANAGE)
+        connection = auth._connections.get(connection_id)
+        if connection is None or connection["tenant_id"] != str(value.tenant_id):
+            raise HTTPException(status_code=404, detail="not found")
+        connection["status"] = "revoked"
+        return {
+            "connection": connection,
+            "receipt": auth.receipt("connection.revoked", value, "done"),
+        }
+
+    @app.post("/api/agent-credentials")
+    async def create_agent_credential(
+        request: Request, payload: AgentCredentialRequest
+    ) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.CONNECTIONS_MANAGE)
+        raw = "umcp_pat_" + secrets.token_urlsafe(32)
+        credential_id = "cred_" + secrets.token_urlsafe(12)
+        auth._agent_credentials[credential_id] = {
+            "id": credential_id,
+            "name": payload.name,
+            "tenant_id": str(value.tenant_id),
+            "scopes": sorted(scope.value for scope in payload.scopes),
+            "token_digest": hashlib.sha256(raw.encode()).hexdigest(),
+            "expires_at": (datetime.now(UTC) + timedelta(seconds=payload.expires_in_seconds))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "revoked": False,
+        }
+        # The raw secret is returned exactly once and never retained by this adapter.
+        public_credential = {
+            key: item
+            for key, item in auth._agent_credentials[credential_id].items()
+            if key != "token_digest"
+        }
+        return {"credential": public_credential, "token": raw}
+
+    @app.post("/api/agent-credentials/{credential_id}/revoke")
+    async def revoke_agent_credential(request: Request, credential_id: str) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.CONNECTIONS_MANAGE)
+        credential = auth._agent_credentials.get(credential_id)
+        if credential is None or credential["tenant_id"] != str(value.tenant_id):
+            raise HTTPException(status_code=404, detail="not found")
+        credential["revoked"] = True
+        return {"receipt": auth.receipt("agent_credential.revoked", value, "done")}
+
+    @app.post("/api/exports")
+    async def request_export(request: Request) -> dict[str, object]:
+        value = require_csrf(request)
+        value.requires(Scope.MEMORY_EXPORT)
+        return {"receipt": auth.receipt("tenant.export", value, "accepted")}
+
+    @app.get("/api/operations/{operation_id}")
+    async def operation_status(request: Request, operation_id: str) -> dict[str, object]:
+        value = principal(request)
+        operation = auth._operations.get(operation_id)
+        if operation is None or operation["tenant_id"] != str(value.tenant_id):
+            raise HTTPException(status_code=404, detail="not found")
+        return {"receipt": operation}
+
+    @app.post("/api/account-deletions")
+    async def request_account_deletion(request: Request) -> dict[str, object]:
+        value = require_csrf(request)
+        return {"receipt": auth.receipt("account.deletion", value, "accepted")}
 
     return app
 
