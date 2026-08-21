@@ -14,7 +14,15 @@ export const unavailableAdapter = Object.freeze({
 
 export function getAdminAdapter(scope = globalThis) {
   const adapter = scope.__UMCP_ADMIN_ADAPTER__;
-  return adapter && adapter.status === "ready" ? adapter : unavailableAdapter;
+  if (adapter && adapter.status === "ready") return adapter;
+
+  // A deployment may opt in to an Admin API mounted on the current origin.
+  // Reject protocol-relative URLs so a bootstrap value can never redirect
+  // credentialed browser requests to another host.
+  const baseUrl = scope.__UMCP_ADMIN_API_BASE_URL__;
+  return typeof baseUrl === "string" && /^\/(?![\\/])/.test(baseUrl)
+    ? createHttpAdminAdapter({ baseUrl })
+    : unavailableAdapter;
 }
 
 /** Create the browser-side transport to the server-owned Admin API. */

@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHttpAdminAdapter } from "../src/admin-adapter.js";
+import { createHttpAdminAdapter, getAdminAdapter, unavailableAdapter } from "../src/admin-adapter.js";
+
+test("browser bootstrap enables only an explicitly configured same-origin Admin API", () => {
+  assert.equal(getAdminAdapter({}).status, "unavailable");
+  assert.equal(getAdminAdapter({ __UMCP_ADMIN_API_BASE_URL__: "//example.test" }), unavailableAdapter);
+  assert.equal(getAdminAdapter({ __UMCP_ADMIN_API_BASE_URL__: "/admin" }).status, "ready");
+});
 
 test("HTTP adapter carries CSRF only after verified callback", async () => {
   const requests = [];
