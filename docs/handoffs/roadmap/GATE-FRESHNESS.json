@@ -3,7 +3,7 @@
   "repository": {
     "path": "/private/tmp/umcp-roadmap-verification",
     "branch": "roadmap/luna-verification",
-    "sha": "51f09433a71b4114332c9732fc72830b01fe6e26"
+    "sha": "760bd2552acced3b5ddabf8bc5d17d5b00ddcb21"
   },
   "gates": [
     {"name": "gate-fast", "sha": "2c305ed1d339bec1252a087df60d38e2741235c7", "freshness": "environment-blocked", "result": "blocked", "artifact": "evidence/gate-fast.log", "reason": "lint/mypy and 71 tests passed; two HTTP MCP contract tests could not bind a loopback socket in the sandbox; see findings/M0-ENV-002.md"},
