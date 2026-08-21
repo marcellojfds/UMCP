@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -29,6 +30,7 @@ class EncryptedCloudMemoryService:
         self._records: dict[str, dict[str, Any]] = {}
         self._write_keys: dict[tuple[str, str], str] = {}
         self._forget_keys: set[tuple[str, str]] = set()
+        self._tombstones: dict[tuple[str, str], str] = {}
 
     @staticmethod
     def _tenant(owner_id: str) -> UUID:
@@ -166,8 +168,57 @@ class EncryptedCloudMemoryService:
         record = self._records.get(key[1])
         if record is None or record["owner_id"] != key[0]:
             return {"status": "already_absent"}
+        # This is intentionally content-free and survives a logical backup
+        # replay. A restored record is removed before it can become readable.
+        self._tombstones[key] = _now()
         del self._records[key[1]]
         return {"status": "forgotten"}
+
+    def tombstones(self) -> tuple[dict[str, str], ...]:
+        """Return the content-free deletion ledger for an external restore job."""
+        return tuple(
+            {"owner_id": owner, "memory_id": memory_id, "deleted_at": deleted_at}
+            for (owner, memory_id), deleted_at in sorted(self._tombstones.items())
+        )
+
+    def backup(self) -> dict[str, object]:
+        """Create a logical local-dev snapshot containing ciphertext only."""
+        return {"records": deepcopy(self._records), "tombstones": self.tombstones()}
+
+    def restore(
+        self, snapshot: dict[str, object], *, tombstones: tuple[dict[str, str], ...] = ()
+    ) -> int:
+        """Restore ciphertext then reapply deletion ledger before exposing records."""
+        records = snapshot.get("records")
+        if not isinstance(records, dict):
+            raise ValueError("invalid backup snapshot")
+        ledger = (*self.tombstones(), *tombstones)
+        for entry in ledger:
+            owner, memory_id, deleted_at = (
+                entry.get("owner_id"),
+                entry.get("memory_id"),
+                entry.get("deleted_at"),
+            )
+            if (
+                not isinstance(owner, str)
+                or not isinstance(memory_id, str)
+                or not isinstance(deleted_at, str)
+            ):
+                raise ValueError("invalid deletion tombstone")
+            self._tombstones[(owner, memory_id)] = deleted_at
+        restored = deepcopy(records)
+        for owner, memory_id in self._tombstones:
+            candidate = restored.get(memory_id)
+            if isinstance(candidate, dict) and candidate.get("owner_id") == owner:
+                restored.pop(memory_id, None)
+        self._records = restored
+        replayed_keys: dict[tuple[str, str], str] = {}
+        for (owner, key), memory_id in self._write_keys.items():
+            record = self._records.get(memory_id)
+            if record is not None and str(record["owner_id"]) == owner:
+                replayed_keys[(owner, key)] = memory_id
+        self._write_keys = replayed_keys
+        return len(self._records)
 
     def rotate(self, version: int) -> None:
         if version < 1:

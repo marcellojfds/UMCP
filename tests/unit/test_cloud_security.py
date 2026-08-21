@@ -108,6 +108,32 @@ def test_cloud_memory_rewrap_rotates_fields_without_plaintext_persistence() -> N
     assert "ROTATION-CANARY" not in service.raw_dump()
 
 
+def test_cloud_backup_restore_reapplies_content_free_tombstone() -> None:
+    tenant, subject = uuid4(), uuid4()
+    owner = f"cloud:{tenant}:{subject}"
+    service = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    created = service.write(
+        {
+            "owner_id": owner,
+            "content": "BACKUP-DELETE-CANARY",
+            "type": "fact",
+            "provenance": {"source_type": "user"},
+            "idempotency_key": "backup-1",
+        }
+    )
+    snapshot = service.backup()
+    memory_id = created["memory"]["id"]
+    assert service.forget({"owner_id": owner, "id": memory_id, "idempotency_key": "forget-1"})[
+        "status"
+    ] == "forgotten"
+    ledger = service.tombstones()
+    assert "BACKUP-DELETE-CANARY" not in repr(ledger)
+
+    restored = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    assert restored.restore(snapshot, tombstones=ledger) == 0
+    assert restored.search({"owner_id": owner, "query": "backup"}) == []
+
+
 @pytest.mark.asyncio
 async def test_worker_is_tenant_bound_deduplicated_and_retries_to_dlq() -> None:
     secret, tenant, principal = b"s" * 32, uuid4(), uuid4()
