@@ -30,6 +30,8 @@ payloads and used synthetic data only.
   rerun after controlled integration merges.
 - Added `scripts/assert-worktree-context` and wired it into the demo so branch,
   path, SHA and clean-state checks fail closed.
+- Added `scripts/assert-m00-handoffs`, which exits with `WAITING` until Core,
+  Experience and Verification M00 handoffs are all present on their branches.
 - Added a demo/worktree equality check so a demo cannot validate one worktree
   while executing tests from another.
 - Added the G00 contract and evidence heartbeat in `GOAL-PROGRESS.md`.

@@ -34,6 +34,7 @@ must print no plaintext secrets and must identify external/unsupported gates as
 
 - `scripts/demo-local-integration`
 - `scripts/assert-worktree-context`
+- `scripts/assert-m00-handoffs`
 - `scripts/gate-postgres` (G00 gate reliability fix)
 - `GOAL-PROGRESS.md`
 - `docs/handoffs/roadmap/M00-CORE-DONE.md`
