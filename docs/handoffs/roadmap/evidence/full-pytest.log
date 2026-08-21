@@ -3,7 +3,7 @@ ss............................................                           [100%]
 =================================== FAILURES ===================================
 __________ test_cloud_http_calls_tools_with_verified_tenant_principal __________
 
-tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-290/test_cloud_http_calls_tools_wi0')
+tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-295/test_cloud_http_calls_tools_wi0')
 
     @pytest.mark.asyncio
     async def test_cloud_http_calls_tools_with_verified_tenant_principal(tmp_path) -> None:
@@ -30,7 +30,7 @@ E           PermissionError: [Errno 1] Operation not permitted
 tests/contract/test_cloud_http.py:252: PermissionError
 __________ test_conformance_runner_executes_against_local_mcp_gateway __________
 
-tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-290/test_conformance_runner_execut0')
+tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-295/test_conformance_runner_execut0')
 
     @pytest.mark.asyncio
     async def test_conformance_runner_executes_against_local_mcp_gateway(tmp_path) -> None:
@@ -119,4 +119,4 @@ FAILED tests/contract/test_cloud_http.py::test_cloud_http_calls_tools_with_verif
 FAILED tests/contract/test_cloud_http.py::test_conformance_runner_executes_against_local_mcp_gateway
 FAILED tests/evals/test_semantic_harness.py::test_semantic_configs_are_versioned_and_development_threshold_is_frozen
 FAILED tests/evals/test_semantic_harness.py::test_e5_promotion_configuration_is_frozen_by_adr_0008
-4 failed, 95 passed, 19 skipped, 1 warning in 11.96s
+4 failed, 95 passed, 19 skipped, 1 warning in 12.31s
