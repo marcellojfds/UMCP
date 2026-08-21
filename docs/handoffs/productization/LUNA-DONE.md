@@ -80,3 +80,14 @@ against an authorized environment.
 
 Deployment/staging, email sending, external client testing, dependencies for
 browser E2E, and any publication remain separately unauthorized.
+
+## Follow-up local UX pass
+
+After the initial preview commit, the landing was expanded with the shared-memory
+example, Community/self-hosted explanation, FAQ, and explicit lifecycle copy.
+Dependency-free hash routes now cover `/dashboard`, `/memories`, `/connections`,
+`/agents`, `/settings/security`, `/docs`, and `/status`. They intentionally show
+server-adapter-gated empty states instead of fabricated account data. Desktop and
+390px mobile browser inspection passed; reduced-motion and keyboard-visible
+structure remain covered by the CSS/semantic markup. The follow-up is local-only
+and does not enable any new security or compatibility claim.
