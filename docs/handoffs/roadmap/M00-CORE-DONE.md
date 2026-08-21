@@ -26,6 +26,8 @@ payloads and used synthetic data only.
 ## Changes
 
 - Added `scripts/demo-local-integration` as the single G00 entrypoint.
+  It accepts an explicit branch/worktree context so the same journey can be
+  rerun after controlled integration merges.
 - Added `scripts/assert-worktree-context` and wired it into the demo so branch,
   path, SHA and clean-state checks fail closed.
 - Added the G00 contract and evidence heartbeat in `GOAL-PROGRESS.md`.
