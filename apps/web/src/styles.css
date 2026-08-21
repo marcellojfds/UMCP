@@ -63,6 +63,7 @@ footer { border-top: 0; flex-wrap: wrap; font: 12px var(--mono); }
 .faq summary { cursor: pointer; font-size: 1.15rem; font-weight: 700; } .faq p { max-width: 650px; color: var(--muted); }
 .route-page { min-height: 75vh; } .route-page h1 { max-width: 880px; font-size: clamp(3rem, 8vw, 7rem); line-height: .92; letter-spacing: -.07em; margin: .2em 0; }
 .data-list { list-style: none; padding: 0; margin: 1rem 0 0; } .data-list li { display: grid; gap: .2rem; padding: .8rem 0; border-top: 1px solid var(--line); } .data-list small { color: var(--muted); }
+.control-card form { margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem; } .control-card textarea { display: block; width: 100%; min-height: 8rem; padding: .75rem; margin: .4rem 0 1rem; border: 1px solid var(--ink); font: inherit; }
 .empty-state { max-width: 720px; margin-top: 3rem; } .empty-state p { font-size: 1.15rem; max-width: 580px; } .empty-state .mono { color: var(--orange); }
 #login-status[data-state="success"] { color: #256b45; } #login-status[data-state="error"], #login-status[data-state="unavailable"] { color: #9c3e25; }
 @media (max-width: 760px) {

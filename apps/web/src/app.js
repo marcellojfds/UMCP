@@ -47,6 +47,10 @@ function memoryItems(result) {
   return Array.isArray(result.memories) ? result.memories.map((item) => item.memory || item) : [];
 }
 
+function idempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() || `web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 async function renderAuthenticatedRoute(path) {
   const adapter = getAdminAdapter();
   const staticPage = routePages[path];
@@ -91,10 +95,45 @@ async function renderMemoryDetail(memoryId) {
   renderRoutePage("/memories", `<div class="empty-state"><span class="mono">LOADING MEMORY</span></div>`);
   try {
     const memory = await adapter.getMemory(memoryId);
-    return renderRoutePage("/memories", `<div class="control-card"><p class="mono">MEMORY / v${escapeHtml(memory.version)}</p><p>${escapeHtml(memory.content)}</p><dl><div><dt>Type</dt><dd>${escapeHtml(memory.type)}</dd></div><div><dt>State</dt><dd>${escapeHtml(memory.state)}</dd></div></dl><a class="button button--dark" href="#/memories">Back to memories</a></div>`);
+    renderRoutePage("/memories", `<div class="control-card"><p class="mono">MEMORY / v${escapeHtml(memory.version)}</p><p>${escapeHtml(memory.content)}</p><dl><div><dt>Type</dt><dd>${escapeHtml(memory.type)}</dd></div><div><dt>State</dt><dd>${escapeHtml(memory.state)}</dd></div></dl><form id="memory-edit-form"><label for="memory-content">Content</label><textarea id="memory-content" name="content" required>${escapeHtml(memory.content)}</textarea><div class="card-actions"><button class="button" type="submit">Save version</button><button class="button button--dark" id="forget-memory" type="button">Forget memory</button></div><p id="memory-action-status" role="status"></p></form><a class="text-link" href="#/memories">Back to memories</a></div>`);
+    wireMemoryActions(adapter, memory);
+    return true;
   } catch {
     return renderRoutePage("/memories", `<div class="empty-state"><span class="mono">NOT AVAILABLE</span><p>This memory is no longer available in the current session.</p><a class="button button--dark" href="#/memories">Back to memories</a></div>`);
   }
+}
+
+function wireMemoryActions(adapter, memory) {
+  const form = document.querySelector("#memory-edit-form");
+  const forget = document.querySelector("#forget-memory");
+  const status = document.querySelector("#memory-action-status");
+  if (!form || !forget || !status) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    status.textContent = "Saving a new version…";
+    try {
+      await adapter.updateMemory(memory.id, {
+        expected_version: memory.version,
+        patch: { content: new FormData(form).get("content") },
+        idempotency_key: idempotencyKey(),
+      });
+      status.textContent = "Saved. Refreshing the verified version…";
+      await renderMemoryDetail(memory.id);
+    } catch {
+      status.textContent = "We could not save this version. It may have changed; refresh and try again.";
+    }
+  });
+  forget.addEventListener("click", async () => {
+    if (!globalThis.confirm("Forget this memory? This cannot be undone from this screen.")) return;
+    status.textContent = "Forgetting memory…";
+    try {
+      await adapter.forgetMemory(memory.id, idempotencyKey());
+      location.hash = "#/memories";
+    } catch {
+      status.textContent = "We could not forget this memory. Please try again.";
+    }
+  });
 }
 
 function restoreLanding() {
@@ -131,6 +170,22 @@ function wireLogin() {
 }
 
 async function route() {
+  const callbackToken = new URLSearchParams(location.search).get("token");
+  if (callbackToken) {
+    const adapter = getAdminAdapter();
+    try {
+      await adapter.completeMagicLink(callbackToken);
+      history.replaceState({}, "", `${location.pathname}${location.hash || "#/dashboard"}`);
+      if (!location.hash) location.hash = "#/dashboard";
+    } catch {
+      history.replaceState({}, "", `${location.pathname}${location.hash || "#login"}`);
+      const loginStatus = document.querySelector("#login-status");
+      if (loginStatus) {
+        loginStatus.dataset.state = "error";
+        loginStatus.textContent = "This sign-in link is invalid, expired, or has already been used.";
+      }
+    }
+  }
   const path = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
   const detail = path.match(/^\/memories\/([^/]+)$/);
   if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]));

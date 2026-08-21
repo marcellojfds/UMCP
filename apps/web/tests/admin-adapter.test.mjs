@@ -30,11 +30,20 @@ test("HTTP adapter exposes only server-owned control-plane paths", async () => {
   await adapter.completeMagicLink("single-use-token");
   await adapter.createConnection({ name: "agent", scopes: ["memory:read"] });
   await adapter.revokeConnection("conn/id");
+  await adapter.updateMemory("memory/id", {
+    expected_version: 2,
+    patch: { content: "updated" },
+    idempotency_key: "update-1",
+  });
+  await adapter.forgetMemory("memory/id", "forget-1");
   await adapter.exportTenant();
   assert.deepEqual(requests.slice(1).map(({ url }) => url), [
     "/api/connections",
     "/api/connections/conn%2Fid/revoke",
+    "/api/memories/memory%2Fid",
+    "/api/memories/memory%2Fid?idempotency_key=forget-1",
     "/api/exports",
   ]);
   assert.equal(requests[1].options.headers["x-umcp-csrf"], "csrf-1");
+  assert.equal(requests[3].options.headers["x-umcp-csrf"], "csrf-1");
 });
