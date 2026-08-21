@@ -1,0 +1,8 @@
+{
+  "name": "@umcp/sdk",
+  "version": "0.0.0-experimental",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./src/index.d.ts", "default": "./src/client.js" } },
+  "scripts": { "test": "node --test tests/*.test.mjs" }
+}
