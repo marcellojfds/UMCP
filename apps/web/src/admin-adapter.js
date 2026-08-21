@@ -35,8 +35,18 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
     completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; return result; },
     session: () => request("/api/session", { method: "GET" }),
     listMemories: (query = "memory") => request(`/api/memories?query=${encodeURIComponent(query)}`, { method: "GET" }),
+    getMemory: (id) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "GET" }),
     createMemory: (memory) => request("/api/memories", { method: "POST", body: JSON.stringify(memory) }),
+    updateMemory: (id, update) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(update) }),
     forgetMemory: (id, idempotencyKey) => request(`/api/memories/${encodeURIComponent(id)}?idempotency_key=${encodeURIComponent(idempotencyKey)}`, { method: "DELETE" }),
+    listConnections: () => request("/api/connections", { method: "GET" }),
+    createConnection: (connection) => request("/api/connections", { method: "POST", body: JSON.stringify(connection) }),
+    revokeConnection: (id) => request(`/api/connections/${encodeURIComponent(id)}/revoke`, { method: "POST" }),
+    createAgentCredential: (credential) => request("/api/agent-credentials", { method: "POST", body: JSON.stringify(credential) }),
+    revokeAgentCredential: (id) => request(`/api/agent-credentials/${encodeURIComponent(id)}/revoke`, { method: "POST" }),
+    exportTenant: () => request("/api/exports", { method: "POST" }),
+    requestAccountDeletion: () => request("/api/account-deletions", { method: "POST" }),
+    operationStatus: (id) => request(`/api/operations/${encodeURIComponent(id)}`, { method: "GET" }),
     logout: () => request("/api/logout", { method: "POST" }),
   });
 }
