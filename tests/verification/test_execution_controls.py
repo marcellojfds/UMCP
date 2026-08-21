@@ -47,6 +47,8 @@ def test_gate_freshness_manifest_is_machine_checkable() -> None:
     assert completed.returncode == 0, completed.stderr
     assert "| Gate | SHA | Freshness | Result | Artifact |" in completed.stdout
     assert "environment-blocked" in completed.stdout
+    assert "| mcp-http |" in completed.stdout
+    assert "| root-pytest |" in completed.stdout
 
 
 def test_capability_report_records_prohibitions_and_environment_classification() -> None:
