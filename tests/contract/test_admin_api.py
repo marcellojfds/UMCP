@@ -1,9 +1,11 @@
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
 from omp.cloud.admin import LocalAgentCredentialVerifier, LocalMailboxAuth, create_admin_app
+from omp.cloud.security import Scope
 from omp.config import OMPSettings
 from omp.server.composition import create_demo_runtime
 
@@ -70,6 +72,30 @@ def test_completed_local_tenant_deletion_invalidates_every_session() -> None:
     auth.delete_tenant(principal)
     assert auth.session(first[0]) is None
     assert auth.session(second[0]) is None
+
+
+def test_admin_scope_failure_is_a_safe_403_not_an_internal_error(tmp_path) -> None:
+    auth = LocalMailboxAuth()
+    runtime = create_demo_runtime(OMPSettings(demo_data_file=str(tmp_path / "scopes.json")))
+    with TestClient(create_admin_app(auth, runtime)) as client:
+        client.post("/api/auth/magic-link", json={"email": "person@example.test"})
+        callback = client.get("/api/auth/callback", params={"token": auth.outbox[-1]["token"]})
+        session_digest = next(iter(auth._sessions))
+        auth._sessions[session_digest] = replace(
+            auth._sessions[session_digest], scopes=frozenset({Scope.MEMORY_READ})
+        )
+        response = client.post(
+            "/api/memories",
+            headers={"x-umcp-csrf": callback.json()["csrf"]},
+            json={
+                "content": "not authorized",
+                "type": "fact",
+                "provenance": {"source_type": "user", "captured_at": "2026-01-01T00:00:00Z"},
+                "idempotency_key": "scope-denied",
+            },
+        )
+    assert response.status_code == 403
+    assert response.json() == {"detail": "request rejected"}
 
 
 def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:

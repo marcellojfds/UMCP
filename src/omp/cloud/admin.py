@@ -11,6 +11,7 @@ from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from mcp.server.auth.provider import AccessToken
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -247,6 +248,11 @@ class LocalAgentCredentialVerifier:
 
 def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> FastAPI:
     app = FastAPI(title="UMCP Admin API", docs_url=None, redoc_url=None)
+
+    @app.exception_handler(PermissionError)
+    async def authorization_denied(_: Request, __: PermissionError) -> JSONResponse:
+        """Never turn a missing scope into an internal error or a detail leak."""
+        return JSONResponse(status_code=403, content={"detail": "request rejected"})
 
     def principal(request: Request) -> Principal:
         value = auth.session(request.cookies.get("umcp_session"))
