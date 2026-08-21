@@ -3,7 +3,7 @@
 **Milestone:** M00 / G00 — Integration Recovery
 **Branch:** `roadmap/luna-core`
 **Worktree:** `/private/tmp/umcp-roadmap-core`
-**SHA:** `9efbc9c1ac85aa20a77032af20a3768716e29320`
+**Implementation SHA:** `7d798cbe3efb5eab16df5c9f7d931c1dfa9db537`
 **Status:** Core lane complete; integration pending other lanes and verification
 
 ## Capability
@@ -26,6 +26,8 @@ payloads and used synthetic data only.
 ## Changes
 
 - Added `scripts/demo-local-integration` as the single G00 entrypoint.
+- Added `scripts/assert-worktree-context` and wired it into the demo so branch,
+  path, SHA and clean-state checks fail closed.
 - Added the G00 contract and evidence heartbeat in `GOAL-PROGRESS.md`.
 - Fixed `scripts/gate-postgres` so teardown that leaves the disposable database
   at Alembic `base` is upgraded to `head` before cleanup truncation.
@@ -36,18 +38,18 @@ payloads and used synthetic data only.
 
 | Gate | SHA | Freshness | Result | Artifact/evidence |
 | --- | --- | --- | --- | --- |
-| worktree/branch/SHA | `9efbc9c` | current | pass, clean | `/private/tmp/umcp-roadmap-core` |
-| G00 demo | `9efbc9c` | current | pass | `scripts/demo-local-integration` |
-| Ruff/mypy/unit/contract | `9efbc9c` | current | 73 passed, 1 deprecation warning | `./scripts/gate-fast` |
-| PostgreSQL/migrations | `9efbc9c` | current | 19 passed; zero→head and downgrade/re-upgrade pass | `./scripts/gate-postgres`, PG 16.15 + pgvector 0.8.6 |
-| MCP stdio/HTTP and auth negative | `9efbc9c` | current | pass in demo and contract suite | `tests/contract`, `gate-fast` |
-| cross-owner/tenant and encryption paths | `9efbc9c` | current | pass in current unit/PostgreSQL suites | `tests/unit`, `tests/integration`, `gate-postgres` |
-| workers | `9efbc9c` | current | covered by current fast suite | `./scripts/gate-fast` |
-| TypeScript SDK | `9efbc9c` | current | 2 passed | `npm test --prefix packages/sdk-typescript` |
-| Web tests/check/build | `9efbc9c` | current | 3 passed; check/build pass | `npm test/check/build --prefix apps/web` |
-| secret/PII and CI safety | `9efbc9c` | current | pass | `scan-ci-safety`; runtime scan on generated `apps/web/dist` |
-| SBOM | `9efbc9c` | current | generated | `/private/tmp/umcp-roadmap-core-sbom-9efbc9c.json` |
-| dependency audit | `9efbc9c` | environment-blocked | pip bootstrap requires unavailable network | `./scripts/audit-dependencies` |
+| worktree/branch/SHA | `7d798cb` | current | pass, clean | `/private/tmp/umcp-roadmap-core` |
+| G00 demo and preflight | `7d798cb` | current | pass | `scripts/demo-local-integration`, `scripts/assert-worktree-context` |
+| Ruff/mypy/unit/contract | `7d798cb` | current | 73 passed, 1 deprecation warning | `./scripts/gate-fast` |
+| PostgreSQL/migrations | `7d798cb` | current | 19 passed; zero→head and downgrade/re-upgrade pass | `./scripts/gate-postgres`, PG 16.15 + pgvector 0.8.6 |
+| MCP stdio/HTTP and auth negative | `7d798cb` | current | pass in demo and contract suite | `tests/contract`, `gate-fast` |
+| cross-owner/tenant and encryption paths | `7d798cb` | current | pass in current unit/PostgreSQL suites | `tests/unit`, `tests/integration`, `gate-postgres` |
+| workers | `7d798cb` | current | covered by current fast suite | `./scripts/gate-fast` |
+| TypeScript SDK | `7d798cb` | current | 2 passed | `npm test --prefix packages/sdk-typescript` |
+| Web tests/check/build | `7d798cb` | current | 3 passed; check/build pass | `npm test/check/build --prefix apps/web` |
+| secret/PII and CI safety | `7d798cb` | current | pass | `scan-ci-safety`; runtime scan on generated `apps/web/dist` |
+| SBOM | `7d798cb` | current | generated | `/private/tmp/umcp-roadmap-core-sbom-7d798cb.json` |
+| dependency audit | `7d798cb` | environment-blocked | pip bootstrap requires unavailable network | `./scripts/audit-dependencies` |
 | browser visual/keyboard/reduced-motion E2E | — | not run | loopback/browser limitation | post-mortem evidence |
 | hosted providers, real data, holdout, deploy, release | — | not run | outside authorization | explicit scope boundary |
 

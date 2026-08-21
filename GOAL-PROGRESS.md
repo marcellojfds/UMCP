@@ -43,7 +43,10 @@
 
 ### Final G00 evidence
 
-- **Implementation SHA:** `9efbc9c1ac85aa20a77032af20a3768716e29320`.
+- **Implementation SHA:** `7d798cbe3efb5eab16df5c9f7d931c1dfa9db537`.
+- **Preflight:** `scripts/assert-worktree-context` now fails closed on path,
+  branch, optional full/abbreviated SHA and dirty state; both valid and
+  wrong-branch cases were exercised.
 - **Acceptance:** `./scripts/demo-local-integration` passed; synthetic
   write→search→update→forget, cross-owner isolation, owner-boundary and
   fail-closed auth all passed.
