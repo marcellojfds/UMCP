@@ -143,6 +143,14 @@ class EncryptedCloudMemoryService:
             return None
         return self._read(stored)
 
+    def list_records(self, *, owner_id: str) -> list[dict[str, Any]]:
+        self._tenant(owner_id)
+        return [
+            self._read(stored)
+            for stored in self._records.values()
+            if stored["owner_id"] == owner_id and stored["state"] == "active"
+        ]
+
     def update(self, payload: dict[str, Any]) -> dict[str, Any]:
         stored = self._records.get(str(payload["id"]))
         if stored is None or stored["owner_id"] != payload["owner_id"]:

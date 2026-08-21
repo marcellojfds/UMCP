@@ -43,7 +43,7 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
     completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; return result; },
     session: () => request("/api/session", { method: "GET" }),
     capabilities: () => request("/api/capabilities", { method: "GET" }),
-    listMemories: (query = "memory") => request(`/api/memories?query=${encodeURIComponent(query)}`, { method: "GET" }),
+    listMemories: (query = "") => request(`/api/memories?query=${encodeURIComponent(query)}`, { method: "GET" }),
     getMemory: (id) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "GET" }),
     createMemory: (memory) => request("/api/memories", { method: "POST", body: JSON.stringify(memory) }),
     updateMemory: (id, update) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(update) }),

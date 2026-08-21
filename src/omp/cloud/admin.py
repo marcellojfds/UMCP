@@ -339,17 +339,23 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
 
     @app.get("/api/memories")
     async def list_memories(
-        request: Request, query: str = "memory", limit: int = 20, cursor: int = 0
+        request: Request, query: str = "", limit: int = 20, cursor: int = 0
     ) -> dict[str, object]:
         value = principal(request)
         value.requires(Scope.MEMORY_READ)
         if cursor < 0:
             raise HTTPException(status_code=400, detail="invalid request")
         page_size = min(max(limit, 1), 50)
-        result = await call(value, "memory.search", {"query": query, "limit": 50})
-        memories = result.get("memories")
-        if not isinstance(memories, list):
-            raise HTTPException(status_code=500, detail="service response invalid")
+        service = getattr(runtime, "service", None) if runtime is not None else None
+        lister = getattr(service, "list_records", None)
+        if not query and callable(lister):
+            memories: list[object] = [{"memory": item} for item in lister(owner_id=owner(value))]
+        else:
+            result = await call(value, "memory.search", {"query": query, "limit": 50})
+            response_memories = result.get("memories")
+            if not isinstance(response_memories, list):
+                raise HTTPException(status_code=500, detail="service response invalid")
+            memories = response_memories
         page = memories[cursor : cursor + page_size]
         return {
             "memories": page,

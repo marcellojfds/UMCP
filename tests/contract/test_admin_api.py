@@ -121,6 +121,7 @@ def test_session_scoped_memory_lifecycle_has_no_owner_input(tmp_path) -> None:
         detail = client.get(f"/api/memories/{memory['id']}")
         assert detail.status_code == 200
         assert detail.json()["content"] == "tenant scoped detail"
+        assert client.get("/api/memories").json()["count"] == 1
         listed = client.get("/api/memories", params={"query": "tenant"})
         assert listed.json()["count"] == 1
         forgotten = client.delete(

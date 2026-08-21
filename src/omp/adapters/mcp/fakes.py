@@ -104,6 +104,13 @@ class InMemoryMemoryService:
             return None
         return dict(record)
 
+    def list_records(self, *, owner_id: str) -> list[dict[str, Any]]:
+        return [
+            dict(record)
+            for record in self.records.values()
+            if record["owner_id"] == owner_id and record["state"] == "active"
+        ]
+
     def update(self, payload: dict[str, Any]) -> dict[str, Any]:
         memory_id = payload["id"]
         record = self.records.get(memory_id)
