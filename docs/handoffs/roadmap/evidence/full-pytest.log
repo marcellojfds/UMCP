@@ -1,9 +1,9 @@
 ...................FF.....................s..........FF.ssssssssssssssss [ 61%]
-ss.......................................F....                           [100%]
+ss............................................                           [100%]
 =================================== FAILURES ===================================
 __________ test_cloud_http_calls_tools_with_verified_tenant_principal __________
 
-tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-289/test_cloud_http_calls_tools_wi0')
+tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-290/test_cloud_http_calls_tools_wi0')
 
     @pytest.mark.asyncio
     async def test_cloud_http_calls_tools_with_verified_tenant_principal(tmp_path) -> None:
@@ -30,7 +30,7 @@ E           PermissionError: [Errno 1] Operation not permitted
 tests/contract/test_cloud_http.py:252: PermissionError
 __________ test_conformance_runner_executes_against_local_mcp_gateway __________
 
-tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-289/test_conformance_runner_execut0')
+tmp_path = PosixPath('/private/var/folders/81/jdsdpzhn0kvdgdh66f4tdypc0000gn/T/pytest-of-marcellojunqueirafranco/pytest-290/test_conformance_runner_execut0')
 
     @pytest.mark.asyncio
     async def test_conformance_runner_executes_against_local_mcp_gateway(tmp_path) -> None:
@@ -89,19 +89,6 @@ E         + query:
 E         ?       +
 
 tests/evals/test_semantic_harness.py:72: AssertionError
-______________ test_gate_freshness_manifest_is_machine_checkable _______________
-
-    def test_gate_freshness_manifest_is_machine_checkable() -> None:
-        manifest = ROOT / "docs/handoffs/roadmap/GATE-FRESHNESS.json"
-        completed = run_script("check-gate-freshness", str(manifest), "--markdown")
->       assert completed.returncode == 0, completed.stderr
-E       AssertionError: gates[12]: current gate sha=4ecab259942be0b173d3d01fff1399ca8cde8452 does not match HEAD=cd7b3a045d158b7b4e6b503e803aeddba8b9e65c and its scoped paths changed
-E         gates[17]: current gate sha=e6c77d2ffd85e78b1b05747a34f6843f428e5117 does not match HEAD=cd7b3a045d158b7b4e6b503e803aeddba8b9e65c and its scoped paths changed
-E
-E       assert 1 == 0
-E        +  where 1 = CompletedProcess(args=['/private/tmp/umcp-roadmap-verification/scripts/check-gate-freshness', '/private/tmp/umcp-roadm...b1b05747a34f6843f428e5117 does not match HEAD=cd7b3a045d158b7b4e6b503e803aeddba8b9e65c and its scoped paths changed\n').returncode
-
-tests/verification/test_execution_controls.py:47: AssertionError
 =============================== warnings summary ===============================
 ../../../opt/anaconda3/lib/python3.11/site-packages/fastapi/testclient.py:1
   /opt/anaconda3/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
@@ -132,5 +119,4 @@ FAILED tests/contract/test_cloud_http.py::test_cloud_http_calls_tools_with_verif
 FAILED tests/contract/test_cloud_http.py::test_conformance_runner_executes_against_local_mcp_gateway
 FAILED tests/evals/test_semantic_harness.py::test_semantic_configs_are_versioned_and_development_threshold_is_frozen
 FAILED tests/evals/test_semantic_harness.py::test_e5_promotion_configuration_is_frozen_by_adr_0008
-FAILED tests/verification/test_execution_controls.py::test_gate_freshness_manifest_is_machine_checkable
-5 failed, 94 passed, 19 skipped, 1 warning in 11.83s
+4 failed, 95 passed, 19 skipped, 1 warning in 11.96s

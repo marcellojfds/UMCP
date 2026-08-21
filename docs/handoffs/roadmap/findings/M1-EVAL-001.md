@@ -8,7 +8,7 @@ Owner lane: `Core`
 
 - Worktree/branch/SHA: `/private/tmp/umcp-roadmap-verification`,
   `roadmap/luna-verification`,
-  `cd7b3a045d158b7b4e6b503e803aeddba8b9e65c`
+  `d9ad3958edc382adbd6d93a803c1f376e6ab6f10`
 - Command: `pytest -q` from a clean worktree.
 - Expected: the versioned semantic E5 configuration and its ADR-0008 frozen
   promotion configuration satisfy the conformance assertions.
