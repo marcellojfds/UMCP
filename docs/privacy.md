@@ -20,6 +20,7 @@ boundary de identidade que ainda não existe neste projeto.
 | histórico de versões | PostgreSQL | alta | apagado pelo forget online |
 | provenance/evidence | PostgreSQL | alta | plaintext para o operador |
 | embeddings `hash/v1` | PostgreSQL/pgvector | alta | sensíveis; não são anônimos |
+| embeddings semânticos experimentais | PostgreSQL/pgvector paralelo 384d | alta | local-only, revisão pinada; E5 e BGE S08 quality NO-GO |
 | relações, type, state, space e timestamps | PostgreSQL | média/alta | metadata pesquisável |
 | owner e IDs | PostgreSQL/requests | média/alta | owner não deve entrar em logs |
 | ledger de update/forget | PostgreSQL | média | metadata-only, sem conteúdo |
@@ -35,7 +36,7 @@ boundary de identidade que ainda não existe neste projeto.
 cliente local
   -> MCP stdio (conteúdo, query, owner_id)
   -> adapter/gateway/application service
-  -> embedding hash local
+  -> embedding local selecionado (hash/v1; E5 experimental sem fallback; BGE não integrado)
   -> PostgreSQL + pgvector
 
 CLI administrativo

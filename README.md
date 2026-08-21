@@ -7,16 +7,20 @@ adapters`; MCP, the Python SDK, and the CLI are thin interfaces over that core.
 
 ## Status
 
-This repository is preparing the documentation for `open-memory-protocol`
-`0.1.0a1`, an unreleased Alpha release candidate. The planned publication
-channel is a GitHub Release only. No tag, GitHub Release, or PyPI publication
-has been created by this session.
+This repository contains the unreleased `open-memory-protocol` `0.1.0a1`
+engineering preview. It is not an audited release candidate: the corrected
+semantic development gate is currently NO-GO, and no tag, GitHub Release, or
+PyPI publication has been created.
 
 The supported path is local/self-hosted PostgreSQL 16 with pgvector and MCP
-over stdio. The current embedding profile is local deterministic `hash/v1`
-(dimension 64), but retrieval quality has not been established by the
-available S04 evidence. The file-backed backend is an explicitly labelled demo
-harness, not release or production evidence.
+over stdio. The default embedding profile is local deterministic `hash/v1`
+(dimension 64) for compatibility and rollback. The experimental E5 profile
+uses a parallel 384-dimensional store, but the corrected S08 development gate
+returned `precision@5=0.756` against `0.800`. The separately authorized BGE
+S08-R3 development experiment also returned NO-GO (`precision@5=0.000`) with
+the same frozen threshold; BGE is not in the runtime or package. The
+file-backed backend is an explicitly labelled demo harness, not release or
+production evidence.
 
 ## What is available
 
@@ -49,9 +53,9 @@ Forget removes the tested online database records transactionally, but does
 not revoke copies already exported or retained in backups. The project makes
 no scale claim.
 
-The S04 retrieval report and S05 privacy/operations handoff are missing from
-this checkout, so this RC is documented but not publication-ready. See the
-[known issues](docs/known-issues.md).
+The corrected S08 handoff is a formal NO-GO and the holdout has not been
+executed. See the [known issues](docs/known-issues.md) and [Alpha progress
+handoff](docs/handoffs/alpha/GOAL-PROGRESS.md).
 
 ## Quickstart: supported PostgreSQL path
 
