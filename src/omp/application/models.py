@@ -6,7 +6,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from omp.domain import Memory, MemoryState, MemoryType, MemoryVersion, Provenance, Relation
+from omp.domain import (
+    CaptureConsent,
+    Memory,
+    MemoryState,
+    MemoryType,
+    MemoryVersion,
+    Provenance,
+    Relation,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +28,7 @@ class WriteMemoryCommand:
     space: str | None = None
     occurred_at: datetime | None = None
     idempotency_key: str | None = None
+    tenant_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,12 +61,146 @@ class ForgetMemoryCommand:
     owner_id: str
     memory_id: UUID
     idempotency_key: str | None = None
+    reason_code: str = "user_requested_memory"
+    tenant_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class ForgetMemoryResult:
     memory_id: UUID
     forgotten: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SpacePolicy:
+    default_recall: str = "same_space_only"
+    allowed_spaces: frozenset[str] = frozenset()
+    allow_global: bool = False
+    allow_mental_notes_cross_space: bool = False
+
+    def allows(self, space: str | None, *, context_space: str | None) -> bool:
+        if space == context_space:
+            return True
+        if space is None and self.allow_global:
+            return True
+        return self.default_recall == "explicit_allowlist" and space in self.allowed_spaces
+
+
+@dataclass(frozen=True, slots=True)
+class CaptureMemoryCommand:
+    tenant_id: str
+    owner_id: str
+    connection_id: str
+    content: str
+    memory_type: MemoryType
+    space: str | None
+    provenance: Provenance
+    consent: CaptureConsent
+    idempotency_key: str
+    importance: float = 0.5
+    confidence: float = 0.5
+    capture_policy: str = "assisted"
+    connection_revoked: bool = False
+    scopes: frozenset[str] = frozenset({"memory:write"})
+
+
+@dataclass(frozen=True, slots=True)
+class CaptureMemoryResult:
+    memory: Memory
+    created: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ListInboxCommand:
+    tenant_id: str
+    owner_id: str
+    connection_id: str
+    space: str | None = None
+    limit: int = 50
+    cursor: str | None = None
+    connection_revoked: bool = False
+    scopes: frozenset[str] = frozenset({"memory:read"})
+
+
+@dataclass(frozen=True, slots=True)
+class InboxResult:
+    candidates: tuple[Memory, ...]
+    next_cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmCandidateCommand:
+    tenant_id: str
+    owner_id: str
+    connection_id: str
+    memory_id: UUID
+    expected_version: int
+    idempotency_key: str
+    content: str | None = None
+    memory_type: MemoryType | None = None
+    space: str | None = None
+    actor_reason: str = "user_confirmed_inbox"
+    connection_revoked: bool = False
+    scopes: frozenset[str] = frozenset({"memory:write"})
+
+
+@dataclass(frozen=True, slots=True)
+class PinMemoryCommand:
+    tenant_id: str
+    owner_id: str
+    connection_id: str
+    memory_id: UUID
+    expected_version: int
+    pinned: bool
+    idempotency_key: str
+    connection_revoked: bool = False
+    scopes: frozenset[str] = frozenset({"memory:write"})
+
+
+@dataclass(frozen=True, slots=True)
+class DiscardCandidateCommand:
+    tenant_id: str
+    owner_id: str
+    connection_id: str
+    memory_id: UUID
+    expected_version: int
+    idempotency_key: str
+    reason_code: str = "user_requested_memory"
+    connection_revoked: bool = False
+    scopes: frozenset[str] = frozenset({"memory:delete"})
+
+
+@dataclass(frozen=True, slots=True)
+class DiscardResult:
+    memory_id: UUID
+    forgotten: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RecallMemoryCommand:
+    tenant_id: str
+    owner_id: str
+    connection_id: str
+    query: str
+    context_space: str | None
+    include_spaces: tuple[str, ...] = ()
+    memory_types: frozenset[MemoryType] | None = None
+    states: frozenset[MemoryState] = frozenset({MemoryState.CONFIRMED, MemoryState.PINNED})
+    allow_mental_notes: bool = False
+    limit: int = 5
+    candidate_limit: int = 50
+    threshold: float = 0.78
+    space_policy: SpacePolicy = field(default_factory=SpacePolicy)
+    connection_revoked: bool = False
+    scopes: frozenset[str] = frozenset({"memory:read"})
+
+
+@dataclass(frozen=True, slots=True)
+class RecallResult:
+    items: tuple[SearchMemoryItem, ...]
+    count: int
+    profile_id: str
+    profile_version: str
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from .errors import InvalidStateTransitionError, ValidationError
 from .types import (
+    CaptureConsent,
     EmbeddingDescriptor,
     MemoryState,
     MemoryType,
@@ -40,6 +41,7 @@ class MemoryVersion:
     provenance: Provenance
     changed_at: datetime
     change_reason: str
+    capture_consent: CaptureConsent | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,13 +61,18 @@ class Memory:
     provenance: Provenance
     embedding: EmbeddingDescriptor | None = None
     idempotency_key: str | None = None
+    tenant_id: str | None = None
+    capture_consent: CaptureConsent | None = None
 
     def __post_init__(self) -> None:
         validate_owner_id(self.owner_id)
+        if self.tenant_id is not None:
+            validate_owner_id(self.tenant_id)
         if not isinstance(self.id, UUID):
             raise ValidationError("memory id must be a UUID")
         if not isinstance(self.content, str) or not self.content.strip():
             raise ValidationError("content must be non-empty")
+        object.__setattr__(self, "content", " ".join(self.content.split()))
         if len(self.content) > 100_000:
             raise ValidationError("content exceeds the maximum length")
         validate_unit_interval(self.importance, "importance")
@@ -93,10 +100,13 @@ class Memory:
         importance: float,
         confidence: float,
         provenance: Provenance,
+        capture_consent: CaptureConsent | None = None,
+        tenant_id: str | None = None,
         space: str | None = None,
         occurred_at: datetime | None = None,
         embedding: EmbeddingDescriptor | None = None,
         idempotency_key: str | None = None,
+        initial_state: MemoryState = MemoryState.ACTIVE,
         memory_id: UUID | None = None,
         now: datetime | None = None,
     ) -> Memory:
@@ -108,7 +118,7 @@ class Memory:
             memory_type=memory_type,
             importance=importance,
             confidence=confidence,
-            state=MemoryState.ACTIVE,
+            state=initial_state,
             version=1,
             created_at=timestamp,
             updated_at=timestamp,
@@ -117,6 +127,8 @@ class Memory:
             provenance=provenance,
             embedding=embedding,
             idempotency_key=idempotency_key,
+            tenant_id=tenant_id,
+            capture_consent=capture_consent,
         )
 
     def snapshot(self, *, change_reason: str) -> MemoryVersion:
@@ -133,6 +145,7 @@ class Memory:
             provenance=self.provenance,
             changed_at=self.updated_at,
             change_reason=change_reason,
+            capture_consent=self.capture_consent,
         )
 
     def evolve(
@@ -170,20 +183,42 @@ class Memory:
             "version": self.version + 1,
             "updated_at": ensure_aware(now, "now"),
         }
+        if "capture_consent" not in values:
+            values["capture_consent"] = self.capture_consent
         return replace(self, **values)
 
     def _assert_transition(self, target: MemoryState, related_memory_id: UUID | None) -> None:
-        if target == self.state == MemoryState.ACTIVE:
+        if target == self.state:
             return
         allowed: dict[MemoryState, set[MemoryState]] = {
+            MemoryState.CANDIDATE: {MemoryState.CONFIRMED, MemoryState.PINNED},
+            MemoryState.CONFIRMED: {
+                MemoryState.CONFIRMED,
+                MemoryState.PINNED,
+                MemoryState.ACTIVE,
+                MemoryState.STALE,
+                MemoryState.SUPERSEDED,
+                MemoryState.CONTRADICTED,
+                MemoryState.ARCHIVED,
+            },
+            MemoryState.PINNED: {
+                MemoryState.PINNED,
+                MemoryState.CONFIRMED,
+                MemoryState.ACTIVE,
+                MemoryState.STALE,
+                MemoryState.SUPERSEDED,
+                MemoryState.CONTRADICTED,
+                MemoryState.ARCHIVED,
+            },
+            MemoryState.STALE: {MemoryState.CONFIRMED, MemoryState.PINNED},
             MemoryState.ACTIVE: {
                 MemoryState.ACTIVE,
                 MemoryState.SUPERSEDED,
                 MemoryState.CONTRADICTED,
                 MemoryState.ARCHIVED,
             },
-            MemoryState.CONTRADICTED: {MemoryState.ACTIVE},
-            MemoryState.ARCHIVED: {MemoryState.ACTIVE},
+            MemoryState.CONTRADICTED: {MemoryState.ACTIVE, MemoryState.CONFIRMED},
+            MemoryState.ARCHIVED: {MemoryState.ACTIVE, MemoryState.CONFIRMED},
             MemoryState.SUPERSEDED: set(),
         }
         if target not in allowed[self.state]:

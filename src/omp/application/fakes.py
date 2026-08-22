@@ -14,10 +14,12 @@ from omp.domain import (
     IdempotencyInProgressError,
     ImportConflictError,
     Memory,
+    MemoryState,
     MemoryVersion,
     NotFoundError,
     Relation,
     RelationConflictError,
+    RestoreBlockedByTombstoneError,
     VersionConflictError,
 )
 
@@ -52,6 +54,7 @@ class InMemoryStore:
     idempotency_operations: dict[tuple[str, str, str], StoredIdempotencyOperation] = field(
         default_factory=dict
     )
+    tombstones: set[tuple[str, str | None, UUID]] = field(default_factory=set)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     transaction_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
@@ -133,14 +136,20 @@ class InMemoryMemoryRepository:
     def __init__(self, store: InMemoryStore) -> None:
         self._store = store
 
-    async def get(self, *, owner_id: str, memory_id: UUID) -> Memory | None:
+    async def get(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> Memory | None:
         memory = self._store.memories.get(memory_id)
         if memory is None or memory.owner_id != owner_id:
             return None
+        if tenant_id is not None and memory.tenant_id != tenant_id:
+            return None
         return deepcopy(memory)
 
-    async def get_version(self, *, owner_id: str, memory_id: UUID, version: int) -> Memory | None:
-        current = await self.get(owner_id=owner_id, memory_id=memory_id)
+    async def get_version(
+        self, *, owner_id: str, memory_id: UUID, version: int, tenant_id: str | None = None
+    ) -> Memory | None:
+        current = await self.get(owner_id=owner_id, memory_id=memory_id, tenant_id=tenant_id)
         if current is None:
             return None
         if current.version == version:
@@ -231,10 +240,13 @@ class InMemoryMemoryRepository:
         profile: EmbeddingProfile,
         filters: SearchFilters,
         limit: int,
+        tenant_id: str | None = None,
     ) -> Sequence[MemorySearchCandidate]:
         candidates: list[MemorySearchCandidate] = []
         for memory_id, memory in self._store.memories.items():
             if memory.owner_id != owner_id:
+                continue
+            if tenant_id is not None and memory.tenant_id != tenant_id:
                 continue
             if memory.state not in filters.states:
                 continue
@@ -261,10 +273,12 @@ class InMemoryMemoryRepository:
         candidates.sort(key=lambda candidate: (-candidate.similarity, str(candidate.memory.id)))
         return candidates[:limit]
 
-    async def forget(self, *, owner_id: str, memory_id: UUID) -> bool:
+    async def forget(self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None) -> bool:
         async with self._store.lock:
             memory = self._store.memories.get(memory_id)
             if memory is None or memory.owner_id != owner_id:
+                return False
+            if tenant_id is not None and memory.tenant_id != tenant_id:
                 return False
             del self._store.memories[memory_id]
             self._store.vectors.pop(memory_id, None)
@@ -276,7 +290,22 @@ class InMemoryMemoryRepository:
                 for key, relation in self._store.relations.items()
                 if relation.source_id != memory_id and relation.target_id != memory_id
             }
+            self._store.tombstones.add((owner_id, memory.tenant_id, memory_id))
             return True
+
+    async def list_candidates(
+        self, *, owner_id: str, tenant_id: str | None, space: str | None, limit: int
+    ) -> Sequence[Memory]:
+        values = [
+            deepcopy(memory)
+            for memory in self._store.memories.values()
+            if memory.owner_id == owner_id
+            and (tenant_id is None or memory.tenant_id == tenant_id)
+            and memory.state == MemoryState.CANDIDATE
+            and (space is None or memory.space == space)
+        ]
+        values.sort(key=lambda item: (item.created_at, str(item.id)))
+        return tuple(values[:limit])
 
     async def add_relation(self, *, relation: Relation) -> Relation:
         source = await self.get(owner_id=relation.owner_id, memory_id=relation.source_id)
@@ -356,6 +385,12 @@ class InMemoryMemoryAdminRepository:
         async with self._store.lock:
             for record in records:
                 current = self._store.memories.get(record.memory.id)
+                if (
+                    record.memory.owner_id,
+                    record.memory.tenant_id,
+                    record.memory.id,
+                ) in self._store.tombstones:
+                    raise RestoreBlockedByTombstoneError("memory restore is blocked by a tombstone")
                 if current is not None:
                     if current != record.memory:
                         raise ImportConflictError("import conflicts with existing memory")
@@ -384,6 +419,11 @@ class InMemoryMemoryAdminRepository:
                         self._store.relations[key] = deepcopy(relation)
         return ImportResult(imported=imported, replayed=replayed)
 
+    async def is_tombstoned(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> bool:
+        return (owner_id, tenant_id, memory_id) in self._store.tombstones
+
 
 class InMemoryUnitOfWork:
     def __init__(self, store: InMemoryStore | None = None) -> None:
@@ -399,6 +439,7 @@ class InMemoryUnitOfWork:
                 dict[UUID, list[MemoryVersion]],
                 dict[tuple[str, UUID, UUID, str], Relation],
                 dict[tuple[str, str, str], StoredIdempotencyOperation],
+                set[tuple[str, str | None, UUID]],
             ]
             | None
         ) = None
@@ -412,6 +453,7 @@ class InMemoryUnitOfWork:
             deepcopy(self.store.history_by_memory),
             deepcopy(self.store.relations),
             deepcopy(self.store.idempotency_operations),
+            deepcopy(self.store.tombstones),
         )
         return self
 
@@ -425,6 +467,7 @@ class InMemoryUnitOfWork:
                     self.store.history_by_memory,
                     self.store.relations,
                     self.store.idempotency_operations,
+                    self.store.tombstones,
                 ) = self._snapshot
         finally:
             self.store.transaction_lock.release()

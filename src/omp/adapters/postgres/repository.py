@@ -37,6 +37,9 @@ from omp.cloud.tenant import (
 )
 from omp.config import OMPSettings
 from omp.domain import (
+    CaptureConsent,
+    ConsentMode,
+    ConsentReason,
     EmbeddingDescriptor,
     IdempotencyConflictError,
     IdempotencyInProgressError,
@@ -62,6 +65,7 @@ from .schema import (
     memory_embeddings,
     memory_embeddings_semantic,
     memory_relations,
+    memory_tombstones,
     memory_versions,
 )
 
@@ -71,6 +75,10 @@ def _provenance_to_json(provenance: Provenance) -> dict[str, object]:
         "source_type": provenance.source_type.value,
         "source_id": provenance.source_id,
         "source_model": provenance.source_model,
+        "source_client": provenance.source_client,
+        "source_connection_id": provenance.source_connection_id,
+        "conversation_id": provenance.conversation_id,
+        "message_id": provenance.message_id,
         "captured_at": provenance.captured_at.isoformat(),
         "evidence": list(provenance.evidence),
     }
@@ -82,8 +90,38 @@ def _provenance_from_json(payload: dict[str, object]) -> Provenance:
         source_type=SourceType(str(payload["source_type"])),
         source_id=str(payload["source_id"]) if payload.get("source_id") else None,
         source_model=str(payload["source_model"]) if payload.get("source_model") else None,
+        source_client=str(payload["source_client"]) if payload.get("source_client") else None,
+        source_connection_id=str(payload["source_connection_id"])
+        if payload.get("source_connection_id")
+        else None,
+        conversation_id=str(payload["conversation_id"]) if payload.get("conversation_id") else None,
+        message_id=str(payload["message_id"]) if payload.get("message_id") else None,
         captured_at=datetime.fromisoformat(str(payload["captured_at"])),
         evidence=tuple(str(item) for item in evidence) if isinstance(evidence, list) else (),
+    )
+
+
+def _consent_to_json(consent: CaptureConsent | None) -> dict[str, object] | None:
+    if consent is None:
+        return None
+    return {
+        "mode": consent.mode.value,
+        "consent_id": consent.consent_id,
+        "reason_code": consent.reason_code.value,
+        "policy_version": consent.policy_version,
+        "granted_at": consent.granted_at.isoformat(),
+    }
+
+
+def _consent_from_json(payload: dict[str, object] | None) -> CaptureConsent | None:
+    if not payload:
+        return None
+    return CaptureConsent(
+        mode=ConsentMode(str(payload["mode"])),
+        consent_id=str(payload["consent_id"]),
+        reason_code=ConsentReason(str(payload["reason_code"])),
+        policy_version=str(payload["policy_version"]),
+        granted_at=datetime.fromisoformat(str(payload["granted_at"])),
     )
 
 
@@ -109,6 +147,8 @@ def _memory_from_row_values(mapping: Any, *, content: str, provenance: dict[str,
             metric=mapping["embedding_metric"],
         ),
         idempotency_key=mapping["idempotency_key"],
+        tenant_id=str(mapping["tenant_id"]) if mapping.get("tenant_id") is not None else None,
+        capture_consent=_consent_from_json(mapping.get("capture_consent")),
     )
 
 
@@ -292,16 +332,24 @@ class PostgresMemoryRepository:
             if self._encryptor is None or tenant_id is None:
                 raise TenantContextError("Cloud ciphertext cannot be read without an encryptor")
             content = self._encryptor.decrypt(
-                tenant_id=tenant_id, record_id=mapping["id"], field="content",
+                tenant_id=tenant_id,
+                record_id=mapping["id"],
+                field="content",
                 value=EnvelopeCiphertext.decode(mapping["content_ciphertext"]),
             )
-            provenance = json.loads(self._encryptor.decrypt(
-                tenant_id=tenant_id, record_id=mapping["id"], field="provenance",
-                value=EnvelopeCiphertext.decode(mapping["provenance_ciphertext"]),
-            ))
+            provenance = json.loads(
+                self._encryptor.decrypt(
+                    tenant_id=tenant_id,
+                    record_id=mapping["id"],
+                    field="provenance",
+                    value=EnvelopeCiphertext.decode(mapping["provenance_ciphertext"]),
+                )
+            )
         return _memory_from_row_values(mapping, content=content, provenance=provenance)
 
-    async def get(self, *, owner_id: str, memory_id: UUID) -> Memory | None:
+    async def get(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> Memory | None:
         stmt = select(memories).where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
         result = await self._session.execute(stmt)
         row = result.first()
@@ -361,7 +409,9 @@ class PostgresMemoryRepository:
             )
         return migrated
 
-    async def get_version(self, *, owner_id: str, memory_id: UUID, version: int) -> Memory | None:
+    async def get_version(
+        self, *, owner_id: str, memory_id: UUID, version: int, tenant_id: str | None = None
+    ) -> Memory | None:
         current = await self.get(owner_id=owner_id, memory_id=memory_id)
         if current is None:
             return None
@@ -504,6 +554,7 @@ class PostgresMemoryRepository:
         self,
         *,
         owner_id: str,
+        tenant_id: str | None = None,
         query_embedding: Sequence[float],
         profile: EmbeddingProfile,
         filters: SearchFilters,
@@ -558,7 +609,7 @@ class PostgresMemoryRepository:
             )
         return candidates
 
-    async def forget(self, *, owner_id: str, memory_id: UUID) -> bool:
+    async def forget(self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None) -> bool:
         statement = (
             delete(memories)
             .where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
@@ -568,6 +619,17 @@ class PostgresMemoryRepository:
         deleted_id = result.scalar_one_or_none()
         if deleted_id is None:
             return False
+        await self._session.execute(
+            pg_insert(memory_tombstones)
+            .values(
+                owner_id=owner_id,
+                tenant_id=current_tenant_or_none(),
+                memory_id=deleted_id,
+                deleted_at=datetime.now(UTC),
+                reason="memory.forget",
+            )
+            .on_conflict_do_nothing()
+        )
         tenant_id = current_tenant_or_none()
         if tenant_id is not None:
             # Keep only the tenant binding, memory reference and reason.  A
@@ -585,6 +647,23 @@ class PostgresMemoryRepository:
             )
             await self._audit(action="memory.forget", owner_id=owner_id, memory_id=deleted_id)
         return True
+
+    async def list_candidates(
+        self, *, owner_id: str, tenant_id: str | None, space: str | None, limit: int
+    ) -> Sequence[Memory]:
+        conditions = [
+            memories.c.owner_id == owner_id,
+            memories.c.state == MemoryState.CANDIDATE.value,
+        ]
+        if space is not None:
+            conditions.append(memories.c.space == space)
+        result = await self._session.execute(
+            select(memories)
+            .where(*conditions)
+            .order_by(memories.c.created_at.asc(), memories.c.id.asc())
+            .limit(limit)
+        )
+        return tuple(self._memory_from_row(row) for row in result)
 
     async def add_relation(self, *, relation: Relation) -> Relation:
         source = await self.get(owner_id=relation.owner_id, memory_id=relation.source_id)
@@ -746,10 +825,13 @@ class PostgresMemoryRepository:
             "embedding_metric": memory.embedding.metric,
             "idempotency_key": memory.idempotency_key,
             "idempotency_fingerprint": fingerprint,
+            "capture_consent": _consent_to_json(memory.capture_consent),
         }
-        values.update(self._cloud_fields(
-            record_id=memory.id, content=memory.content, provenance=memory.provenance
-        ))
+        values.update(
+            self._cloud_fields(
+                record_id=memory.id, content=memory.content, provenance=memory.provenance
+            )
+        )
         return values
 
     @staticmethod
@@ -796,10 +878,13 @@ class PostgresMemoryRepository:
             "occurred_at": version.occurred_at,
             "changed_at": version.changed_at,
             "change_reason": version.change_reason,
+            "capture_consent": _consent_to_json(version.capture_consent),
         }
-        values.update(self._cloud_fields(
-            record_id=version.memory_id, content=version.content, provenance=version.provenance
-        ))
+        values.update(
+            self._cloud_fields(
+                record_id=version.memory_id, content=version.content, provenance=version.provenance
+            )
+        )
         return values
 
     @staticmethod
@@ -822,13 +907,19 @@ class PostgresMemoryRepository:
             if self._encryptor is None or tenant_id is None:
                 raise TenantContextError("Cloud ciphertext cannot be read without an encryptor")
             content = self._encryptor.decrypt(
-                tenant_id=tenant_id, record_id=mapping["memory_id"], field="content",
+                tenant_id=tenant_id,
+                record_id=mapping["memory_id"],
+                field="content",
                 value=EnvelopeCiphertext.decode(mapping["content_ciphertext"]),
             )
-            provenance = json.loads(self._encryptor.decrypt(
-                tenant_id=tenant_id, record_id=mapping["memory_id"], field="provenance",
-                value=EnvelopeCiphertext.decode(mapping["provenance_ciphertext"]),
-            ))
+            provenance = json.loads(
+                self._encryptor.decrypt(
+                    tenant_id=tenant_id,
+                    record_id=mapping["memory_id"],
+                    field="provenance",
+                    value=EnvelopeCiphertext.decode(mapping["provenance_ciphertext"]),
+                )
+            )
         return MemoryVersion(
             memory_id=mapping["memory_id"],
             version=mapping["version"],
@@ -842,6 +933,7 @@ class PostgresMemoryRepository:
             provenance=_provenance_from_json(provenance),
             changed_at=mapping["changed_at"],
             change_reason=mapping["change_reason"],
+            capture_consent=_consent_from_json(mapping.get("capture_consent")),
         )
 
 
@@ -870,6 +962,17 @@ class PostgresMemoryAdminRepository:
             if record is not None:
                 records.append(record)
         return tuple(records)
+
+    async def is_tombstoned(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> bool:
+        result = await self._session.execute(
+            select(memory_tombstones.c.memory_id).where(
+                memory_tombstones.c.owner_id == owner_id,
+                memory_tombstones.c.memory_id == memory_id,
+            )
+        )
+        return result.first() is not None
 
     async def export_memory(
         self, *, owner_id: str, memory_id: UUID, include_embeddings: bool
@@ -907,6 +1010,14 @@ class PostgresMemoryAdminRepository:
         replayed = 0
         relation_keys: set[tuple[str, UUID, UUID, str]] = set()
         for record in records:
+            if await self.is_tombstoned(
+                owner_id=record.memory.owner_id,
+                memory_id=record.memory.id,
+                tenant_id=record.memory.tenant_id,
+            ):
+                from omp.domain import RestoreBlockedByTombstoneError
+
+                raise RestoreBlockedByTombstoneError("memory restore is blocked by a tombstone")
             statement = (
                 pg_insert(memories)
                 .values(
@@ -943,10 +1054,7 @@ class PostgresMemoryAdminRepository:
                 )
                 await self._session.execute(
                     insert(memory_versions).values(
-                        [
-                            self._memories._version_values(snapshot)
-                            for snapshot in record.history
-                        ]
+                        [self._memories._version_values(snapshot) for snapshot in record.history]
                     )
                 )
             except IntegrityError as exc:
@@ -990,8 +1098,11 @@ class PostgresMemoryAdminRepository:
 
 class PostgresUnitOfWork:
     def __init__(
-        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool,
-        encryptor: TenantEnvelopeEncryptor | None = None
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        community_mode: bool,
+        encryptor: TenantEnvelopeEncryptor | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._community_mode = community_mode
@@ -1027,8 +1138,11 @@ class PostgresUnitOfWork:
 
 class PostgresUnitOfWorkFactory:
     def __init__(
-        self, session_factory: async_sessionmaker[AsyncSession], *, community_mode: bool,
-        encryptor: TenantEnvelopeEncryptor | None = None
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        community_mode: bool,
+        encryptor: TenantEnvelopeEncryptor | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._community_mode = community_mode

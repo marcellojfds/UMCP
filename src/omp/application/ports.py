@@ -34,6 +34,9 @@ class IdempotencyLookup:
 class IdempotencyOperationType(StrEnum):
     UPDATE = "update"
     FORGET = "forget"
+    CONFIRM = "confirm"
+    PIN = "pin"
+    DISCARD = "discard"
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,10 +72,12 @@ class EmbeddingProvider(Protocol):
 
 
 class MemoryRepository(Protocol):
-    async def get(self, *, owner_id: str, memory_id: UUID) -> Memory | None: ...
+    async def get(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> Memory | None: ...
 
     async def get_version(
-        self, *, owner_id: str, memory_id: UUID, version: int
+        self, *, owner_id: str, memory_id: UUID, version: int, tenant_id: str | None = None
     ) -> Memory | None: ...
 
     async def find_by_idempotency_key(
@@ -100,13 +105,20 @@ class MemoryRepository(Protocol):
         self,
         *,
         owner_id: str,
+        tenant_id: str | None = None,
         query_embedding: Sequence[float],
         profile: EmbeddingProfile,
         filters: SearchFilters,
         limit: int,
     ) -> Sequence[MemorySearchCandidate]: ...
 
-    async def forget(self, *, owner_id: str, memory_id: UUID) -> bool: ...
+    async def forget(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> bool: ...
+
+    async def list_candidates(
+        self, *, owner_id: str, tenant_id: str | None, space: str | None, limit: int
+    ) -> Sequence[Memory]: ...
 
     async def add_relation(self, *, relation: Relation) -> Relation: ...
 
@@ -166,6 +178,10 @@ class MemoryAdminRepository(Protocol):
     ) -> MemoryExportRecord | None: ...
 
     async def import_memories(self, *, records: Sequence[MemoryImportRecord]) -> ImportResult: ...
+
+    async def is_tombstoned(
+        self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
+    ) -> bool: ...
 
 
 class UnitOfWork(Protocol):

@@ -23,9 +23,14 @@ class MemoryType(StrEnum):
     CONCEPT = "concept"
     RELATIONSHIP = "relationship"
     OPEN_QUESTION = "open_question"
+    MENTAL_NOTE = "mental_note"
 
 
 class MemoryState(StrEnum):
+    CANDIDATE = "candidate"
+    CONFIRMED = "confirmed"
+    PINNED = "pinned"
+    STALE = "stale"
     ACTIVE = "active"
     SUPERSEDED = "superseded"
     CONTRADICTED = "contradicted"
@@ -50,9 +55,25 @@ class SourceType(StrEnum):
     UNKNOWN = "unknown"
 
 
+class ConsentMode(StrEnum):
+    MANUAL = "manual"
+    ASSISTED = "assisted"
+    AUTOMATIC = "automatic"
+    LEGACY_UNVERIFIED = "legacy_unverified"
+
+
+class ConsentReason(StrEnum):
+    USER_REQUESTED_MEMORY = "user_requested_memory"
+    USER_CONFIRMED_INBOX = "user_confirmed_inbox"
+    CONNECTION_POLICY_AUTOMATIC = "connection_policy_automatic"
+    IMPORT_AUTHORIZED = "import_authorized"
+
+
 MAX_OWNER_ID_LENGTH: Final = 256
 MAX_SPACE_LENGTH: Final = 256
 MAX_IDEMPOTENCY_KEY_LENGTH: Final = 256
+MAX_OPAQUE_ID_LENGTH: Final = 256
+MAX_EVIDENCE_ITEM_LENGTH: Final = 512
 
 
 def utc_now() -> datetime:
@@ -107,8 +128,17 @@ class Provenance:
     source_id: str | None = None
     source_model: str | None = None
     evidence: tuple[str, ...] = ()
+    source_client: str | None = None
+    source_connection_id: str | None = None
+    conversation_id: str | None = None
+    message_id: str | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.source_type, SourceType):
+            try:
+                object.__setattr__(self, "source_type", SourceType(str(self.source_type)))
+            except ValueError as exc:
+                raise ValidationError("invalid provenance source_type") from exc
         object.__setattr__(self, "captured_at", ensure_aware(self.captured_at, "captured_at"))
         if self.source_id is not None and not self.source_id.strip():
             raise ValidationError("source_id cannot be blank")
@@ -116,6 +146,49 @@ class Provenance:
             raise ValidationError("source_model cannot be blank")
         if any(not item.strip() for item in self.evidence):
             raise ValidationError("provenance evidence cannot contain blank items")
+        for field_name in (
+            "source_client",
+            "source_connection_id",
+            "conversation_id",
+            "message_id",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                if not isinstance(value, str) or not value.strip():
+                    raise ValidationError(f"{field_name} cannot be blank")
+                if len(value) > MAX_OPAQUE_ID_LENGTH:
+                    raise ValidationError(f"{field_name} exceeds the maximum length")
+        if any(len(item) > MAX_EVIDENCE_ITEM_LENGTH for item in self.evidence):
+            raise ValidationError("provenance evidence item exceeds the maximum length")
+
+
+@dataclass(frozen=True, slots=True)
+class CaptureConsent:
+    mode: ConsentMode
+    consent_id: str
+    reason_code: ConsentReason
+    policy_version: str
+    granted_at: datetime
+
+    def __post_init__(self) -> None:
+        try:
+            if not isinstance(self.mode, ConsentMode):
+                object.__setattr__(self, "mode", ConsentMode(str(self.mode)))
+            if not isinstance(self.reason_code, ConsentReason):
+                object.__setattr__(self, "reason_code", ConsentReason(str(self.reason_code)))
+        except ValueError as exc:
+            raise ValidationError("invalid consent mode or reason") from exc
+        for field_name in ("consent_id", "policy_version"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValidationError(f"{field_name} must be non-empty")
+            if len(value) > MAX_OPAQUE_ID_LENGTH:
+                raise ValidationError(f"{field_name} exceeds the maximum length")
+        if not isinstance(self.mode, ConsentMode):
+            raise ValidationError("invalid consent mode")
+        if not isinstance(self.reason_code, ConsentReason):
+            raise ValidationError("invalid consent reason")
+        ensure_aware(self.granted_at, "granted_at")
 
 
 @dataclass(frozen=True, slots=True)

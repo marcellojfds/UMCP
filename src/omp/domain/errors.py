@@ -53,3 +53,27 @@ class RelationConflictError(OMPError):
 
 class StorageError(OMPError):
     code = "storage_error"
+
+
+class ConsentRequiredError(OMPError):
+    code = "consent_required"
+
+
+class CaptureDisabledError(OMPError):
+    code = "capture_disabled"
+
+
+class ConnectionRevokedError(OMPError):
+    code = "connection_revoked"
+
+
+class ScopeDeniedError(OMPError):
+    code = "scope_denied"
+
+
+class SpaceForbiddenError(OMPError):
+    code = "space_forbidden"
+
+
+class RestoreBlockedByTombstoneError(OMPError):
+    code = "restore_blocked_by_tombstone"

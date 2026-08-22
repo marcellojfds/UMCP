@@ -9,7 +9,16 @@ from uuid import UUID
 
 from .errors import ValidationError
 from .memory import Memory
-from .types import EmbeddingDescriptor, MemoryState, MemoryType, Provenance, SourceType
+from .types import (
+    CaptureConsent,
+    ConsentMode,
+    ConsentReason,
+    EmbeddingDescriptor,
+    MemoryState,
+    MemoryType,
+    Provenance,
+    SourceType,
+)
 
 SCHEMA_VERSION = 1
 
@@ -39,9 +48,25 @@ def memory_to_dict(memory: Memory) -> dict[str, object]:
             "source_type": provenance.source_type.value,
             "source_id": provenance.source_id,
             "source_model": provenance.source_model,
+            "source_client": provenance.source_client,
+            "source_connection_id": provenance.source_connection_id,
+            "conversation_id": provenance.conversation_id,
+            "message_id": provenance.message_id,
             "captured_at": provenance.captured_at.isoformat(),
             "evidence": list(provenance.evidence),
         },
+        "capture_consent": (
+            {
+                "mode": memory.capture_consent.mode.value,
+                "consent_id": memory.capture_consent.consent_id,
+                "reason_code": memory.capture_consent.reason_code.value,
+                "policy_version": memory.capture_consent.policy_version,
+                "granted_at": memory.capture_consent.granted_at.isoformat(),
+            }
+            if memory.capture_consent
+            else None
+        ),
+        "tenant_id": memory.tenant_id,
         "embedding": (
             {
                 "profile_id": embedding.profile_id,
@@ -105,11 +130,45 @@ def memory_from_dict(payload: Mapping[str, Any]) -> Memory:
                 ),
                 captured_at=datetime.fromisoformat(str(provenance_payload["captured_at"])),
                 evidence=tuple(str(item) for item in provenance_payload.get("evidence", [])),
+                source_client=(
+                    str(provenance_payload["source_client"])
+                    if provenance_payload.get("source_client")
+                    else None
+                ),
+                source_connection_id=(
+                    str(provenance_payload["source_connection_id"])
+                    if provenance_payload.get("source_connection_id")
+                    else None
+                ),
+                conversation_id=(
+                    str(provenance_payload["conversation_id"])
+                    if provenance_payload.get("conversation_id")
+                    else None
+                ),
+                message_id=(
+                    str(provenance_payload["message_id"])
+                    if provenance_payload.get("message_id")
+                    else None
+                ),
             ),
             embedding=embedding,
             idempotency_key=(
                 str(payload["idempotency_key"])
                 if payload.get("idempotency_key") is not None
+                else None
+            ),
+            tenant_id=str(payload["tenant_id"]) if payload.get("tenant_id") is not None else None,
+            capture_consent=(
+                CaptureConsent(
+                    mode=ConsentMode(str(payload["capture_consent"]["mode"])),
+                    consent_id=str(payload["capture_consent"]["consent_id"]),
+                    reason_code=ConsentReason(str(payload["capture_consent"]["reason_code"])),
+                    policy_version=str(payload["capture_consent"]["policy_version"]),
+                    granted_at=datetime.fromisoformat(
+                        str(payload["capture_consent"]["granted_at"])
+                    ),
+                )
+                if isinstance(payload.get("capture_consent"), Mapping)
                 else None
             ),
         )

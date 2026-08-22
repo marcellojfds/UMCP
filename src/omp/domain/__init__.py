@@ -1,6 +1,9 @@
 """Pure domain model for OMP."""
 
 from .errors import (
+    CaptureDisabledError,
+    ConnectionRevokedError,
+    ConsentRequiredError,
     EmbeddingProfileMismatchError,
     IdempotencyConflictError,
     IdempotencyInProgressError,
@@ -10,6 +13,9 @@ from .errors import (
     OMPError,
     OwnerAccessError,
     RelationConflictError,
+    RestoreBlockedByTombstoneError,
+    ScopeDeniedError,
+    SpaceForbiddenError,
     StorageError,
     ValidationError,
     VersionConflictError,
@@ -17,6 +23,9 @@ from .errors import (
 from .memory import Memory, MemoryVersion
 from .serialization import SCHEMA_VERSION, memory_from_dict, memory_to_dict
 from .types import (
+    CaptureConsent,
+    ConsentMode,
+    ConsentReason,
     EmbeddingDescriptor,
     MemoryState,
     MemoryType,
@@ -29,6 +38,12 @@ from .types import (
 
 __all__ = [
     "EmbeddingDescriptor",
+    "CaptureDisabledError",
+    "ConnectionRevokedError",
+    "ConsentRequiredError",
+    "CaptureConsent",
+    "ConsentMode",
+    "ConsentReason",
     "EmbeddingProfileMismatchError",
     "IdempotencyConflictError",
     "IdempotencyInProgressError",
@@ -48,6 +63,9 @@ __all__ = [
     "SCHEMA_VERSION",
     "SourceType",
     "StorageError",
+    "ScopeDeniedError",
+    "SpaceForbiddenError",
+    "RestoreBlockedByTombstoneError",
     "ValidationError",
     "VersionConflictError",
     "memory_from_dict",

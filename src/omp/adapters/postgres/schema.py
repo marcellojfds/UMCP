@@ -45,6 +45,7 @@ memories = Table(
     Column("occurred_at", DateTime(timezone=True), nullable=True),
     Column("provenance", JSONB, nullable=True),
     Column("provenance_ciphertext", Text, nullable=True),
+    Column("capture_consent", JSONB, nullable=True),
     Column("embedding_profile_id", String(128), nullable=False),
     Column("embedding_profile_version", String(128), nullable=False),
     Column("embedding_dimension", Integer, nullable=False),
@@ -53,6 +54,18 @@ memories = Table(
     Column("idempotency_fingerprint", String(64), nullable=True),
     CheckConstraint("importance >= 0 AND importance <= 1", name="ck_memories_importance"),
     CheckConstraint("confidence >= 0 AND confidence <= 1", name="ck_memories_confidence"),
+    CheckConstraint(
+        "memory_type IN ("
+        "'fact', 'preference', 'decision', 'insight', 'hypothesis', 'lesson', 'goal', "
+        "'project_context', 'concept', 'relationship', 'open_question', 'mental_note')",
+        name="ck_memories_memory_type_m1",
+    ),
+    CheckConstraint(
+        "state IN ("
+        "'active', 'candidate', 'confirmed', 'pinned', 'stale', 'superseded', "
+        "'contradicted', 'archived')",
+        name="ck_memories_state_m1",
+    ),
     CheckConstraint("version >= 1", name="ck_memories_version_positive"),
     CheckConstraint(
         "(content IS NOT NULL AND length(trim(content)) > 0) OR content_ciphertext IS NOT NULL",
@@ -86,9 +99,22 @@ memory_versions = Table(
     Column("occurred_at", DateTime(timezone=True), nullable=True),
     Column("provenance", JSONB, nullable=True),
     Column("provenance_ciphertext", Text, nullable=True),
+    Column("capture_consent", JSONB, nullable=True),
     Column("changed_at", DateTime(timezone=True), nullable=False),
     Column("change_reason", String(256), nullable=False),
     CheckConstraint("version >= 1", name="ck_memory_versions_version_positive"),
+    CheckConstraint(
+        "memory_type IN ("
+        "'fact', 'preference', 'decision', 'insight', 'hypothesis', 'lesson', 'goal', "
+        "'project_context', 'concept', 'relationship', 'open_question', 'mental_note')",
+        name="ck_memory_versions_memory_type_m1",
+    ),
+    CheckConstraint(
+        "state IN ("
+        "'active', 'candidate', 'confirmed', 'pinned', 'stale', 'superseded', "
+        "'contradicted', 'archived')",
+        name="ck_memory_versions_state_m1",
+    ),
     CheckConstraint(
         "(content IS NOT NULL AND length(trim(content)) > 0) OR content_ciphertext IS NOT NULL",
         name="ck_memory_versions_content_or_ciphertext",
@@ -218,7 +244,10 @@ idempotency_operations = Table(
     PrimaryKeyConstraint(
         "owner_id", "operation_type", "idempotency_key", name="pk_idempotency_operations"
     ),
-    CheckConstraint("operation_type IN ('update', 'forget')", name="ck_idempotency_operation_type"),
+    CheckConstraint(
+        "operation_type IN ('update', 'forget', 'confirm', 'pin', 'discard')",
+        name="ck_idempotency_operation_type",
+    ),
     CheckConstraint("status IN ('in_progress', 'completed')", name="ck_idempotency_status"),
     CheckConstraint("length(trim(idempotency_key)) > 0", name="ck_idempotency_key_nonempty"),
     CheckConstraint("length(fingerprint) = 64", name="ck_idempotency_fingerprint_sha256"),
@@ -236,6 +265,18 @@ deletion_tombstones = Table(
     Column("subject_id", UUID(as_uuid=True), nullable=True),
     Column("deleted_at", DateTime(timezone=True), nullable=False),
     Column("reason", String(128), nullable=False),
+)
+
+memory_tombstones = Table(
+    "memory_tombstones",
+    metadata,
+    Column("owner_id", String(256), nullable=False),
+    Column("tenant_id", UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True),
+    Column("memory_id", UUID(as_uuid=True), nullable=False),
+    Column("deleted_at", DateTime(timezone=True), nullable=False),
+    Column("reason", String(128), nullable=False),
+    PrimaryKeyConstraint("owner_id", "memory_id", name="pk_memory_tombstones"),
+    CheckConstraint("length(trim(owner_id)) > 0", name="ck_memory_tombstones_owner_nonempty"),
 )
 
 # Audit metadata is intentionally structural only.  Content, provenance,
@@ -256,6 +297,7 @@ Index("ix_memories_owner_state", memories.c.owner_id, memories.c.state)
 Index("ix_memories_owner_space", memories.c.owner_id, memories.c.space)
 Index("ix_memories_owner_type", memories.c.owner_id, memories.c.memory_type)
 Index("ix_memory_versions_memory", memory_versions.c.memory_id, memory_versions.c.version)
+Index("ix_memory_tombstones_tenant", memory_tombstones.c.tenant_id, memory_tombstones.c.memory_id)
 Index("ix_memory_relations_owner_source", memory_relations.c.owner_id, memory_relations.c.source_id)
 Index("ix_memory_relations_owner_target", memory_relations.c.owner_id, memory_relations.c.target_id)
 Index(
