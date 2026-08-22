@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+"""Run the frozen M1 portable-memory journey without printing memory data."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from tests.fixtures.m1_http import M1HarnessError, run_m1_acceptance  # noqa: E402
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--transport", choices=("http",), required=True)
+    parser.parse_args()
+    scenario_id = f"m1-portable-memory-{hashlib.sha256(b'm1-http').hexdigest()[:12]}"
+    try:
+        report = asyncio.run(run_m1_acceptance(scenario_id=scenario_id))
+    except M1HarnessError:
+        print(
+            f"synthetic-scenario={scenario_id} status=RED "
+            "counts=candidate:0,recall:0,tenant_b:0,forgotten:0,restored:0"
+        )
+        return 1
+    print(
+        f"synthetic-scenario={report.scenario_id} status=PASS "
+        f"counts=candidate:{report.counts['candidate']},recall:{report.counts['recall']},"
+        f"tenant_b:{report.counts['tenant_b']},forgotten:{report.counts['forgotten']},"
+        f"restored:{report.counts['restored']}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
