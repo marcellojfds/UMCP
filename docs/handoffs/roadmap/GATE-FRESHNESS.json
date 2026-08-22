@@ -2,11 +2,11 @@
   "schema_version": 1,
   "repository": {
     "path": "/private/tmp/umcp-roadmap-integration",
-    "branch": "roadmap/integration",
+    "branch": "",
     "sha": "9c61c58"
   },
   "gates": [
-    {"name": "gate-fast", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "Ruff, mypy and 73 tests passed; loopback MCP tests passed with local gate permissions"},
+    {"name": "gate-fast", "sha": "eb09d4795419aa2848103635fee690165483e537", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "Ruff/mypy passed and 73 tests passed at the tested candidate; initial sandbox loopback bind was blocked, then the exact gate rerun with approved local loopback permission passed"},
     {"name": "unit-contract", "sha": "325faf32544e17c896ace07b8c712508c3ed7cce", "freshness": "historical", "result": "pass", "artifact": "docs/handoffs/productization/SESSION-POSTMORTEM-2026-08-21.md", "reason": "baseline evidence predates Verification-owned paths"},
     {"name": "postgres-migrations", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-postgres", "reason": "PostgreSQL 16.15/pgvector 0.8.6; 19 tests and zero-to-head/downgrade/re-upgrade passed"},
     {"name": "mcp-stdio-conformance", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "tests/conformance", "reason": "14 focused conformance/verification/development tests passed; M1 harness remains fixture-only"},
@@ -19,7 +19,7 @@
     {"name": "worker-retry-restart", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/gate-fast", "reason": "tenant-bound retry/DLQ and restart recovery tests passed"},
     {"name": "sdk", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "npm test --prefix packages/sdk-typescript", "reason": "TypeScript SDK tests passed"},
     {"name": "web", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "npm test/check/build --prefix apps/web", "reason": "web tests, syntax checks and build passed"},
-    {"name": "secret-pii", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "./scripts/scan-ci-safety; ./scripts/scan-runtime-output apps/web/dist", "reason": "tracked-source and synthetic runtime-output scans passed"},
+    {"name": "secret-pii", "sha": "eb09d4795419aa2848103635fee690165483e537", "freshness": "current", "result": "pass", "artifact": "./scripts/scan-ci-safety; ./scripts/scan-runtime-output apps/web/dist", "reason": "tracked-source CI safety scan and apps/web/dist runtime-output scan passed at the tested candidate"},
     {"name": "dependency-vulnerability", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "environment-blocked", "result": "blocked", "artifact": "./scripts/audit-dependencies", "reason": "pip-audit could not bootstrap pip/wheel/setuptools in the restricted network environment"},
     {"name": "sbom", "sha": "22f866ab31210a0e9a741e4c17c85d363b72b288", "freshness": "current", "result": "pass", "artifact": "/private/tmp/umcp-roadmap-integration-sbom-22f866a.json", "reason": "local SBOM generated and verified non-empty"},
     {"name": "links-claims", "sha": "2c305ed1d339bec1252a087df60d38e2741235c7", "freshness": "historical", "result": "pass", "artifact": "evidence/links-claims.log", "reason": "local Markdown files checked before later handoff-document changes; rerun on the integrated candidate"},
