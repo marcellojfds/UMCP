@@ -33,7 +33,19 @@ def main() -> None:
     parser.add_argument("--admin-import", help=argparse.SUPPRESS)
     parser.add_argument("--owner-id", help=argparse.SUPPRESS)
     parser.add_argument("--include-embeddings", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--m1-http", action="store_true", help="run the authenticated local M1 HTTP boundary"
+    )
+    parser.add_argument("--host", default="127.0.0.1", help=argparse.SUPPRESS)
+    parser.add_argument("--port", type=int, default=8000, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.m1_http:
+        import uvicorn
+
+        from .official import create_m1_http_app
+
+        uvicorn.run(create_m1_http_app(), host=args.host, port=args.port, log_level="warning")
+        return
     settings = OMPSettings(demo_data_file=args.data_file) if args.data_file else None
     runtime = create_runtime(settings, demo_backend=args.demo_backend)
     if args.admin_export or args.admin_import:

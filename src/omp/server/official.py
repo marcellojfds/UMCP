@@ -16,6 +16,12 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import AnyHttpUrl, Field
 
+from omp.adapters.mcp.http import (
+    M1LocalAuth,
+    create_m1_http_app,
+    create_m1_server,
+    create_m1_service,
+)
 from omp.adapters.mcp.schemas import (
     DEFAULT_TIMEOUT_MS,
     MAX_CONTENT_LENGTH,
@@ -265,6 +271,16 @@ def create_cloud_http_app(
 
     app.mount("/", server.streamable_http_app())
     return app
+
+
+__all__ = [
+    "create_cloud_http_app",
+    "create_cloud_server",
+    "create_m1_http_app",
+    "create_m1_server",
+    "create_m1_service",
+    "M1LocalAuth",
+]
 
 
 async def _call(runtime: ServerRuntime, name: str, values: dict[str, object]) -> str:
