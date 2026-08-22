@@ -1,4 +1,7 @@
 import { getAdminAdapter } from "./admin-adapter.js";
+import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
+import { renderMemoryInbox } from "./memory-inbox-view.js";
+import { M1_FIXTURE_MEMORY_ID } from "./memory-inbox-contract.js";
 
 const surfaces = [
   ["ChatGPT developer mode", "Remote /mcp or private test tunnel", "Unverified"],
@@ -11,6 +14,7 @@ const surfaces = [
 ];
 
 const routePages = {
+  "/inbox": ["Memory Inbox", "Review what is waiting for your consent.", "The M1 Inbox fixture is available without a server session. A deployed adapter can replace it through the frozen M1 MCP boundary."],
   "/dashboard": ["Dashboard", "A calm overview of your memory layer.", "Start by connecting an authenticated Cloud adapter. Your dashboard will appear here once the server-side session is verified."],
   "/memories": ["Memories", "Review what your agents remember.", "No memories are loaded in this preview. The administrative adapter will provide paginated, tenant-scoped results without browser database access."],
   "/connections": ["Connections", "Choose which clients can use your memory.", "Connection scopes and revocation are server operations. Nothing is connected in this preview."],
@@ -97,6 +101,118 @@ async function renderAuthenticatedRoute(path) {
     return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ERROR</span><p>We could not load this account data. Please try again later.</p></div>`);
   }
   return unavailableRoute(path, staticPage[2]);
+}
+
+let inboxSnapshot = { restore: null, recall: null };
+
+function inboxActionStatus(message, state = "") {
+  const target = document.querySelector("#inbox-action-status");
+  if (!target) return;
+  target.dataset.state = state;
+  target.textContent = message;
+}
+
+async function renderInboxRoute() {
+  const adapter = getMemoryInboxAdapter();
+  renderRoutePage("/inbox", renderMemoryInbox({ state: "loading", mode: adapter.status }));
+  try {
+    const [inbox, memories, connections] = await Promise.all([adapter.listInbox({ space: "MBA" }), adapter.listMemories(), adapter.listConnections()]);
+    renderRoutePage("/inbox", renderMemoryInbox({
+      state: "success",
+      mode: adapter.status,
+      candidates: inbox.candidates || [],
+      memories: memories.memories || [],
+      connections: connections.connections || [],
+      recall: inboxSnapshot.recall,
+      restore: inboxSnapshot.restore,
+    }));
+    wireInboxActions(adapter);
+    return true;
+  } catch {
+    renderRoutePage("/inbox", renderMemoryInbox({ state: "error", mode: adapter.status }));
+    wireInboxActions(adapter);
+    return true;
+  }
+}
+
+function inboxTarget(button) {
+  return { id: button.dataset.memoryId, expected_version: Number(button.dataset.expectedVersion) };
+}
+
+function wireInboxActions(adapter) {
+  document.querySelectorAll("[data-action='retry-inbox']").forEach((button) => button.addEventListener("click", () => { void renderInboxRoute(); }));
+  document.querySelectorAll("[data-action='confirm']").forEach((button) => button.addEventListener("click", async () => {
+    const target = inboxTarget(button);
+    const edit = document.querySelector(`[data-memory-edit="${CSS.escape(target.id)}"]`);
+    button.disabled = true;
+    inboxActionStatus("Confirming candidate and creating version…", "loading");
+    try {
+      const patch = edit?.value ? { content: edit.value } : undefined;
+      await adapter.confirmCandidate({ ...target, patch, idempotency_key: idempotencyKey() });
+      inboxSnapshot = { ...inboxSnapshot, recall: null };
+      await renderInboxRoute();
+      inboxActionStatus("Candidate confirmed. It is now eligible for policy-filtered recall.", "success");
+    } catch (error) { button.disabled = false; inboxActionStatus(`Confirmation failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='discard']").forEach((button) => button.addEventListener("click", async () => {
+    if (!globalThis.confirm("Discard this candidate? Its content will be forgotten and cannot be restored.")) return;
+    const target = inboxTarget(button);
+    button.disabled = true;
+    inboxActionStatus("Forgetting candidate…", "loading");
+    try {
+      await adapter.discardCandidate({ ...target, idempotency_key: idempotencyKey() });
+      inboxSnapshot = { recall: null, restore: null };
+      await renderInboxRoute();
+      inboxActionStatus("Candidate forgotten. Restore/import is blocked by its tombstone.", "success");
+    } catch (error) { button.disabled = false; inboxActionStatus(`Discard failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='pin'], [data-action='unpin']").forEach((button) => button.addEventListener("click", async () => {
+    const target = inboxTarget(button);
+    const pinned = button.dataset.action === "pin";
+    button.disabled = true;
+    inboxActionStatus(`${pinned ? "Pinning" : "Unpinning"} memory…`, "loading");
+    try { await adapter.pinMemory({ ...target, pinned, idempotency_key: idempotencyKey() }); inboxSnapshot = { ...inboxSnapshot, recall: null }; await renderInboxRoute(); inboxActionStatus(`Memory ${pinned ? "pinned" : "unpinned"}.`, "success"); }
+    catch (error) { button.disabled = false; inboxActionStatus(`Pin update failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='stale'], [data-action='review']").forEach((button) => button.addEventListener("click", async () => {
+    const target = inboxTarget(button);
+    const nextState = button.dataset.action === "stale" ? "stale" : "confirmed";
+    button.disabled = true;
+    inboxActionStatus(`${nextState === "stale" ? "Marking memory stale" : "Reviewing stale memory"}…`, "loading");
+    try { await adapter.updateMemory({ ...target, state: nextState, idempotency_key: idempotencyKey() }); inboxSnapshot = { ...inboxSnapshot, recall: null }; await renderInboxRoute(); inboxActionStatus(`Memory is now ${nextState}.`, "success"); }
+    catch (error) { button.disabled = false; inboxActionStatus(`Lifecycle update failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='forget']").forEach((button) => button.addEventListener("click", async () => {
+    if (!globalThis.confirm("Forget this memory? This is terminal for the memory ID.")) return;
+    const target = inboxTarget(button);
+    button.disabled = true;
+    inboxActionStatus("Forgetting memory…", "loading");
+    try {
+      await adapter.forgetMemory({ id: target.id, idempotency_key: idempotencyKey() });
+      inboxSnapshot = { recall: null, restore: null };
+      await renderInboxRoute();
+      inboxActionStatus("Memory forgotten. Restore/import is blocked by its tombstone.", "success");
+    } catch (error) { button.disabled = false; inboxActionStatus(`Forget failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='recall']").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    inboxActionStatus("Running explicit Work → MBA recall…", "loading");
+    try { inboxSnapshot = { ...inboxSnapshot, recall: await adapter.recall({ query: "incentives outcome", context_space: "Work", include_spaces: ["MBA"], limit: 10 }) }; await renderInboxRoute(); inboxActionStatus("Recall completed with a bounded reason, not a hidden reasoning trace.", "success"); }
+    catch (error) { button.disabled = false; inboxActionStatus(`Recall failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='restore']").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    inboxActionStatus("Attempting fixture restore/import…", "loading");
+    try { inboxSnapshot = { ...inboxSnapshot, restore: await adapter.restoreMemory({ id: M1_FIXTURE_MEMORY_ID }) }; await renderInboxRoute(); inboxActionStatus("Restore result received; no forgotten content was recreated.", "success"); }
+    catch (error) { button.disabled = false; inboxActionStatus(`Restore check failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
+  document.querySelectorAll("[data-action='revoke']").forEach((button) => button.addEventListener("click", async () => {
+    if (!globalThis.confirm("Revoke this connection? Its access will stop without revoking other clients.")) return;
+    button.disabled = true;
+    inboxActionStatus("Revoking connection…", "loading");
+    try { await adapter.revokeConnection(button.dataset.connectionId); await renderInboxRoute(); inboxActionStatus("Connection revoked independently.", "success"); }
+    catch (error) { button.disabled = false; inboxActionStatus(`Revoke failed: ${String(error.message || "safe application error")}.`, "error"); }
+  }));
 }
 
 function scopeFields() {
@@ -285,6 +401,7 @@ async function route() {
     }
   }
   const path = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
+  if (path === "/inbox") return renderInboxRoute();
   const detail = path.match(/^\/memories\/([^/]+)$/);
   if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]));
   if (path && await renderAuthenticatedRoute(path)) return;

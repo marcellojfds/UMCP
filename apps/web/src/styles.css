@@ -67,9 +67,42 @@ footer { border-top: 0; flex-wrap: wrap; font: 12px var(--mono); }
 .control-card fieldset { display: grid; gap: .35rem; margin: 0 0 1rem; border: 0; padding: 0; } .control-card fieldset label { display: flex; align-items: center; gap: .45rem; } .control-card fieldset input { width: auto; margin: 0; }
 .empty-state { max-width: 720px; margin-top: 3rem; } .empty-state p { font-size: 1.15rem; max-width: 580px; } .empty-state .mono { color: var(--orange); }
 #login-status[data-state="success"] { color: #256b45; } #login-status[data-state="error"], #login-status[data-state="unavailable"] { color: #9c3e25; }
+.inbox-experience { display: grid; gap: 1.25rem; max-width: 1120px; }
+.fixture-banner { border: 1px solid var(--orange); padding: 1rem 1.2rem; background: #fff5ef; }
+.fixture-banner p { margin: .35rem 0; max-width: 760px; }
+.inbox-toolbar, .inbox-panel__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; }
+.inbox-toolbar h2, .inbox-panel h2 { margin: .15rem 0 .5rem; font-size: clamp(1.8rem, 4vw, 3.4rem); line-height: .95; letter-spacing: -.06em; }
+.inbox-toolbar .lede { margin: 0; max-width: 700px; }
+.inbox-summary { min-width: 130px; padding: 1rem; border: 1px solid var(--ink); background: var(--orange); color: #fff; display: grid; }
+.inbox-summary strong { font: 2.5rem var(--serif); line-height: 1; }
+.inbox-panel { padding: 1.5rem; border: 1px solid var(--ink); background: rgba(255,255,255,.62); }
+.inbox-list { display: grid; gap: 1rem; margin-top: 1rem; }
+.inbox-card { padding: 1.3rem; border: 1px solid var(--line); background: #fff; }
+.inbox-card__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.inbox-card h3 { max-width: 720px; margin: .2rem 0 1rem; font-size: clamp(1.35rem, 3vw, 2rem); line-height: 1.05; letter-spacing: -.03em; }
+.inbox-detail { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; }
+.inbox-detail p { margin: .25rem 0; }
+.metadata-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin: 1rem 0 0; }
+.metadata-grid div { border-top: 1px solid var(--line); padding-top: .5rem; }
+.metadata-grid dt { font: 11px var(--mono); text-transform: uppercase; color: var(--muted); }
+.metadata-grid dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.inbox-card textarea { display: block; width: 100%; min-height: 5rem; padding: .7rem; margin: .4rem 0 1rem; border: 1px solid var(--ink); font: inherit; }
+.button--quiet { background: transparent; color: var(--ink); }
+.connection-list { list-style: none; padding: 0; margin: 1rem 0 0; }
+.connection-list li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .8rem 0; border-top: 1px solid var(--line); }
+.connection-list span { display: grid; gap: .15rem; } .connection-list small { color: var(--muted); }
+.recall-result { margin-top: 1rem; padding: 1rem; border: 1px solid var(--orange); background: #fff; }
+.recall-result > p { font-size: 1.15rem; margin-top: 0; }
+.restore-panel { background: #f7f3eb; }
+.action-result { min-height: 1.6rem; margin: 0; color: var(--muted); }
+.action-result[data-state="success"] { color: #256b45; } .action-result[data-state="error"] { color: #9c3e25; }
+.status--candidate { color: #9c3e25; } .status--confirmed { color: #256b45; } .status--pinned { color: #6c4b9e; } .status--stale { color: #9a6a00; }
+code { font: .9em var(--mono); background: rgba(54,55,53,.08); padding: .1rem .25rem; }
 @media (max-width: 760px) {
   .site-header nav { display: none; } .site-header { padding: 1rem; } .orbit { opacity: .35; right: -20vw; }
   .lifecycle, .split, .login, .memory-demo { grid-template-columns: 1fr; } .lifecycle li { border-bottom: 1px solid var(--line); }
+  .inbox-toolbar, .inbox-panel__header, .connection-list li, .inbox-card__header { display: grid; grid-template-columns: 1fr; }
+  .metadata-grid { grid-template-columns: repeat(2, 1fr); }
   .hero, .section { padding: 4rem 6vw; } .memory-node { box-shadow: 6px 6px 0 var(--orange); }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .orbit { transform: none; } }
