@@ -2,7 +2,11 @@
 
 **Status:** `integration-ready`
 **Lane:** M1-C Experience / Luna
-**Commit:** `7b1f302`
+**Commit:** `f214e08ef166bb443b9bb240709a789f1c795467`
+
+The SHA above is the delivery/artifact commit described by this handoff. This
+documentation-only remediation is a distinct follow-up commit; it corrects
+the handoff record and does not replace the artifact SHA or alter the product.
 **Contract:** `docs/handoffs/roadmap/M01-CORE-CONTRACT.md` (read in full before implementation)
 
 This is a bounded lane delivery. It does not declare M1 ready, integrated, or
