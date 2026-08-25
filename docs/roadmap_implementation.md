@@ -930,7 +930,7 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 - [x] R01 | model=luna | depends=R00 | checkpoint=- | title=Integrar documentação e playbooks pós-M1
 - [x] R02 | model=terra | depends=R00 | checkpoint=- | title=Integrar lanes locais válidas de M2 e M3
 - [x] H01 | model=terra | depends=R01,R02 | checkpoint=- | title=Reconciliar decisão GCP e congelar arquitetura
-- [ ] H02 | model=terra | depends=H01 | checkpoint=- | title=Endurecer IaC e pipeline GCP
+- [x] H02 | model=terra | depends=H01 | checkpoint=- | title=Endurecer IaC e pipeline GCP
 - [ ] H03 | model=terra | depends=R02,H01 | checkpoint=- | title=Compor MCP Streamable HTTP hosted
 - [ ] H04 | model=terra | depends=H01,H03 | checkpoint=- | title=Implementar OAuth OIDC consentimento e revogação
 - [ ] H05 | model=luna | depends=H04 | checkpoint=- | title=Entregar login e consent UX
