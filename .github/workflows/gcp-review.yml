@@ -1,0 +1,32 @@
+name: GCP local policy review
+
+on:
+  pull_request:
+    paths:
+      - "ops/terraform/gcp/**"
+      - ".github/workflows/gcp-review.yml"
+      - "scripts/validate-gcp-local"
+      - "scripts/deploy-gcp.sh"
+      - "Dockerfile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify local GCP guardrails
+        run: ./scripts/validate-gcp-local
+      - name: Check Terraform formatting without provider initialization
+        run: terraform fmt -check -recursive ops/terraform/gcp
+
+# This workflow intentionally has no authentication, provider, deploy, or
+# migration step. CP-1 and CP-3 are required before a separately approved
+# promotion pipeline can be introduced.

@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""Fail-closed structural policy check for the H02 local-only GCP design."""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+IAC = ROOT / "ops" / "terraform" / "gcp"
+WORKFLOW = ROOT / ".github" / "workflows" / "gcp-review.yml"
+DEPLOY = ROOT / "scripts" / "deploy-gcp.sh"
+DOCKERFILE = ROOT / "Dockerfile"
+REVIEW_PLAN = IAC / "REVIEW-PLAN-REDACTED.md"
+
+
+def fail(message: str) -> None:
+    print(f"FAIL: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def text(path: Path) -> str:
+    if not path.is_file():
+        fail(f"required path is missing: {path.relative_to(ROOT)}")
+    return path.read_text(encoding="utf-8")
+
+
+def require(source: str, token: str, label: str) -> None:
+    if token not in source:
+        fail(f"missing required {label}: {token}")
+
+
+def forbid(source: str, pattern: str, label: str) -> None:
+    if re.search(pattern, source, flags=re.IGNORECASE):
+        fail(f"forbidden {label}: {pattern}")
+
+
+def main() -> None:
+    files = sorted(IAC.glob("*.tf"))
+    if not files:
+        fail("no Terraform files found")
+    source = "\n".join(text(path) for path in files)
+    workflow = text(WORKFLOW)
+    deploy = text(DEPLOY)
+    dockerfile = text(DOCKERFILE)
+    review_plan = text(REVIEW_PLAN)
+
+    forbidden = {
+        r"allUsers": "public Cloud Run invoker",
+        r"--allow-unauthenticated": "unauthenticated deployment",
+        r"GCP_SA_KEY|credentials_json|service_account_key": "static CI credential",
+        r"ipv4_enabled\s*=\s*true": "public Cloud SQL IPv4",
+        r"authorized_networks": "public Cloud SQL authorized network",
+        r"localhost(?::\d+)?": "local database endpoint",
+        r"secret_version\s*=\s*[\"']latest[\"']": "mutable secret version",
+        r"terraform\s+(?:apply|destroy)": "provider mutation command",
+        r"gcloud\s+(?:run|sql|projects|iam|kms|secrets)": "imperative provider command",
+    }
+    for pattern, label in forbidden.items():
+        forbid(source + "\n" + workflow + "\n" + deploy + "\n" + review_plan, pattern, label)
+
+    required = {
+        "var.cp1_approved && var.cp3_approved": "CP-1/CP-3 precondition",
+        "backend \"gcs\" {}": "remote state backend without local target",
+        "versioning { enabled = true }": "state versioning",
+        "retention_policy": "state retention",
+        "public_access_prevention": "state public-access prevention",
+        "google_iam_workload_identity_pool_provider": "GitHub WIF provider",
+        "assertion.repository": "WIF repository constraint",
+        "assertion.ref": "WIF ref constraint",
+        "assertion.environment": "WIF environment constraint",
+        "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER": "private Cloud Run ingress",
+        "service_account = google_service_account.workload[\"runtime\"].email": "explicit runtime service account",
+        "ipv4_enabled    = false": "private-only Cloud SQL",
+        "google_service_networking_connection": "Private Service Access",
+        "google_vpc_access_connector": "Cloud Run private connector",
+        "roles/secretmanager.secretAccessor": "named Secret Manager access",
+        "roles/cloudkms.cryptoKeyEncrypterDecrypter": "narrow KMS permission",
+        "secret_key_ref": "runtime secret reference",
+        "version = var.secret_version": "immutable runtime secret version",
+        "@sha256:": "immutable image-digest validation",
+        "google_billing_budget": "budget resource",
+        "google_monitoring_alert_policy": "monitoring alert",
+        "google_logging_project_sink": "logging sink",
+        "google_logging_project_bucket_config": "logging retention bucket",
+        "retention_days = 30": "logging retention",
+    }
+    for token, label in required.items():
+        require(source, token, label)
+
+    require(workflow, "id-token: write", "GitHub OIDC permission")
+    require(workflow, "terraform fmt -check", "offline Terraform formatting check")
+    if "auth@" in workflow or "gcloud" in workflow:
+        fail("review workflow must not authenticate or contact a provider")
+    require(dockerfile, "EXPOSE 8080", "container port")
+    require(dockerfile, '"8080"', "runtime port")
+    if "USER root" in dockerfile:
+        fail("container must not run as root")
+    if "exit 78" not in deploy:
+        fail("deploy wrapper must fail closed")
+    require(review_plan, "not a Terraform provider plan", "redacted plan boundary")
+    require(review_plan, "No destructive operations accepted", "redacted destructive-change gate")
+
+    print("PASS: H02 local GCP IaC and pipeline guardrails are fail-closed")
+
+
+if __name__ == "__main__":
+    main()
