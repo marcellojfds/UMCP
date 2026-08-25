@@ -23,13 +23,14 @@ available, OAuth completed, an endpoint deployed, or a release approved.
 
 ## Verification
 
-The delivery snapshot was committed locally as
-`1148362490ad3ce722222c77bbbfb9496c644f69`; the handoff update is an amend of
-that same single local delivery commit.
+The delivered artifact commit is
+`7f77314eb5e5268f041f28bae712b05b2c8a616b`, based directly on
+`faeadafef8589e2f3ef17de88f04114a3e02b742`. This file is being corrected in a
+single follow-up commit; no artifact files are changed by the correction.
 
 | Check | Result |
 | --- | --- |
-| `git rev-parse HEAD` and base comparison | PASS — `1148362490ad3ce722222c77bbbfb9496c644f69`; based on `faeadafef8589e2f3ef17de88f04114a3e02b742` |
+| `git rev-parse HEAD` and base comparison | PASS — artifact `7f77314eb5e5268f041f28bae712b05b2c8a616b`; base `faeadafef8589e2f3ef17de88f04114a3e02b742` |
 | `pytest -q tests/conformance/test_m03_connector_contract.py` | PASS — 3 passed |
 | `python -m json.tool` for v1 JSON files | PASS — capabilities, requests and events |
 | `ruff check examples/connectors tests/conformance/test_m03_connector_contract.py` | PASS |
