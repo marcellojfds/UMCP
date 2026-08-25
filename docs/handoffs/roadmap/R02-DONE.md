@@ -2,9 +2,9 @@
 
 **Status:** `DONE — local integration only`
 **Base SHA:** `ab0dbc3c68ba71463c06860fcb2c57d7adef3247`
-**Final delivery SHA:** recorded by the immediately following local
-reconciliation commit; this handoff deliberately contains no self-referential
-commit hash.
+**Final functional delivery SHA:** `7dbb63e48b505c046f5aef2747bbfdadb6c4c465`
+**Reconciliation:** this documentation-only commit records the immutable
+functional delivery SHA; the final candidate `HEAD` is reported at completion.
 
 ## Acceptance frozen before implementation
 
