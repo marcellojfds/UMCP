@@ -928,7 +928,7 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 <!-- roadmap-manager:start -->
 - [x] R00 | model=terra | depends=- | checkpoint=- | title=Criar candidato canônico M0 e M1
 - [x] R01 | model=luna | depends=R00 | checkpoint=- | title=Integrar documentação e playbooks pós-M1
-- [ ] R02 | model=terra | depends=R00 | checkpoint=- | title=Integrar lanes locais válidas de M2 e M3
+- [x] R02 | model=terra | depends=R00 | checkpoint=- | title=Integrar lanes locais válidas de M2 e M3
 - [ ] H01 | model=terra | depends=R01,R02 | checkpoint=- | title=Reconciliar decisão GCP e congelar arquitetura
 - [ ] H02 | model=terra | depends=H01 | checkpoint=- | title=Endurecer IaC e pipeline GCP
 - [ ] H03 | model=terra | depends=R02,H01 | checkpoint=- | title=Compor MCP Streamable HTTP hosted
