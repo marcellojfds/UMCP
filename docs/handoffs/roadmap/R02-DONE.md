@@ -3,8 +3,11 @@
 **Status:** `DONE — local integration only`
 **Base SHA:** `ab0dbc3c68ba71463c06860fcb2c57d7adef3247`
 **Final functional delivery SHA:** `7dbb63e48b505c046f5aef2747bbfdadb6c4c465`
-**Reconciliation:** this documentation-only commit records the immutable
-functional delivery SHA; the final candidate `HEAD` is reported at completion.
+**Handoff/reconciliation commit SHA:** `ae9bd685e27d0d9e3f7c6a8d08ddf4e427ede0f5`
+**Final candidate SHA at original delivery:** `ae9bd685e27d0d9e3f7c6a8d08ddf4e427ede0f5`
+**Remediation note:** this subsequent documentation-only commit corrects the
+handoff record; its resulting candidate `HEAD` is reported separately at its
+completion.
 
 ## Acceptance frozen before implementation
 
