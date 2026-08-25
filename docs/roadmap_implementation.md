@@ -59,6 +59,29 @@ canônica no primeiro bloco de integração:
 - `docs/handoffs/roadmap/M02-GCP-ADOPTION-GAP-REPORT.md` no commit `106ec89`;
 - `docs/handoffs/roadmap/M02-HOSTED-CONTRACT.md` no commit `ef949f3`.
 
+### Navegação do candidato R01
+
+Os artefatos documentais integrados por R01 estão disponíveis em:
+
+- [plano de execução M03–M08](handoffs/roadmap/M03-M08-PRODUCT-EXECUTION-PLAN.md);
+- [índice de readiness MCP local](execution/mcp-readiness/01-BASELINE-LOCAL-MCP.md);
+- [transporte MCP remoto](execution/mcp-readiness/02-REMOTE-MCP-TRANSPORT.md);
+- [auth, consentimento e revogação](execution/mcp-readiness/03-AUTH-CONSENT-REVOCATION.md);
+- [multitenancy e segurança](execution/mcp-readiness/04-MULTITENANCY-SECURITY.md);
+- [conectores de clientes reais](execution/mcp-readiness/05-REAL-CLIENT-CONNECTORS.md);
+- [UX e landing](execution/mcp-readiness/06-PRODUCT-UX-AND-LANDING.md);
+- [trusted recall](execution/mcp-readiness/07-TRUSTED-RECALL.md);
+- [beta e release readiness](execution/mcp-readiness/08-BETA-RELEASE-READINESS.md);
+- [gap report da adoção GCP](handoffs/roadmap/M02-GCP-ADOPTION-GAP-REPORT.md).
+
+R01 integra somente documentação e links. Os playbooks e o plano são
+`integrated-current` como artefatos documentais no SHA final; seus gates de
+produto permanecem `not-run` até os pacotes que os implementarem. O gap report
+é a classificação vigente dos artefatos GCP: proposta local, `PARTIAL /
+NOT-READY`, sem evidência de deploy, billing, URL, OAuth, RLS, KMS, restore ou
+produção. Nenhum claim `DONE`, `VERIFIED` ou `PRODUCTION-READY` de GCP é
+promovido por R01.
+
 ## 3. Regra de evidência
 
 ### 3.1 Rótulos obrigatórios
@@ -904,7 +927,7 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 
 <!-- roadmap-manager:start -->
 - [x] R00 | model=terra | depends=- | checkpoint=- | title=Criar candidato canônico M0 e M1
-- [ ] R01 | model=luna | depends=R00 | checkpoint=- | title=Integrar documentação e playbooks pós-M1
+- [x] R01 | model=luna | depends=R00 | checkpoint=- | title=Integrar documentação e playbooks pós-M1
 - [ ] R02 | model=terra | depends=R00 | checkpoint=- | title=Integrar lanes locais válidas de M2 e M3
 - [ ] H01 | model=terra | depends=R01,R02 | checkpoint=- | title=Reconciliar decisão GCP e congelar arquitetura
 - [ ] H02 | model=terra | depends=H01 | checkpoint=- | title=Endurecer IaC e pipeline GCP
