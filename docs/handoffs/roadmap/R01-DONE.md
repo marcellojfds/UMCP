@@ -3,7 +3,8 @@
 **Status:** `DONE — local documentation integration`
 **Branch:** `codex/roadmap-implementation`
 **Base SHA:** `337efa5eba528e3635b1c36e5584732ea37763aa`
-**Final SHA:** `b64f33c` (commit local de entrega; SHA completo confirmado após amend)
+**Delivery SHA:** `b64f33c` (commit local de entrega)
+**Final SHA:** `017c60e268a6922409a533f98e9414b0f9e35911` (SHA após registrar este handoff)
 
 ## Acceptance test congelado antes da implementação
 
