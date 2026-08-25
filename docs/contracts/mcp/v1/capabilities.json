@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-memory.protocol/contracts/mcp/v1/capabilities.json",
+  "contract_version": "omp.mcp.v1.connector-preflight",
+  "status": "local-synthetic-preflight",
+  "transport": "adapter-neutral",
+  "capabilities": [
+    {
+      "operation": "consent.grant",
+      "required_scopes": ["consent:grant"],
+      "preconditions": ["connection exists", "connection is not revoked"],
+      "result": "consent record with opaque consent_id",
+      "negative_cases": ["missing consent:grant", "revoked connection"]
+    },
+    {
+      "operation": "memory.capture",
+      "required_scopes": ["memory:write"],
+      "preconditions": ["explicit consent exists", "provenance is supplied"],
+      "result": "captured memory with provenance",
+      "negative_cases": ["missing consent", "missing memory:write", "revoked connection"]
+    },
+    {
+      "operation": "memory.recall",
+      "required_scopes": ["memory:read"],
+      "preconditions": ["connection is not revoked"],
+      "result": "matching memories with bounded reason_retrieved",
+      "negative_cases": ["missing memory:read", "cross-tenant request", "revoked connection"]
+    },
+    {
+      "operation": "memory.update",
+      "required_scopes": ["memory:write"],
+      "preconditions": ["memory belongs to the tenant/owner scope"],
+      "result": "versioned memory; same idempotency key replays the same result",
+      "negative_cases": ["missing memory:write", "unknown memory", "revoked connection"]
+    },
+    {
+      "operation": "memory.forget",
+      "required_scopes": ["memory:delete"],
+      "preconditions": ["memory belongs to the tenant/owner scope"],
+      "result": "forgotten or already_absent; repeats are idempotent",
+      "negative_cases": ["missing memory:delete", "unknown memory", "revoked connection"]
+    },
+    {
+      "operation": "connection.revoke",
+      "required_scopes": ["connection:revoke"],
+      "preconditions": ["actor is authorized by the local fixture"],
+      "result": "connection.revoked event",
+      "negative_cases": ["missing connection:revoke", "unknown connection"]
+    }
+  ],
+  "scope_vocabulary": [
+    "consent:grant",
+    "memory:read",
+    "memory:write",
+    "memory:delete",
+    "connection:revoke"
+  ],
+  "compatibility": {
+    "tested": [
+      "typed synthetic fixtures",
+      "deterministic local adapter",
+      "same-tenant cross-client recall",
+      "scope denial",
+      "tenant isolation",
+      "idempotent update and forget",
+      "connection.revoked event shape"
+    ],
+    "not-tested": [
+      "real ChatGPT compatibility",
+      "real Claude compatibility",
+      "real Gemini compatibility",
+      "OAuth or hosted authentication",
+      "hosted endpoint or network transport",
+      "M02 implementation compatibility",
+      "production authorization, deployment, or release"
+    ]
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-memory.protocol/contracts/mcp/v1/requests.json",
+  "$defs": {
+    "Scope": {
+      "type": "string",
+      "enum": ["consent:grant", "memory:read", "memory:write", "memory:delete", "connection:revoke"]
+    },
+    "Consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consent_id", "mode", "reason_code", "granted_at"],
+      "properties": {
+        "consent_id": {"type": "string", "pattern": "^consent-[a-z0-9-]+$"},
+        "mode": {"type": "string", "enum": ["explicit"]},
+        "reason_code": {"type": "string", "enum": ["user_requested_memory"]},
+        "granted_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_client", "source_type", "source_connection_id", "captured_at"],
+      "properties": {
+        "source_client": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "source_type": {"type": "string", "enum": ["conversation", "user"]},
+        "source_connection_id": {"type": "string", "pattern": "^conn-[a-z0-9-]+$"},
+        "captured_at": {"type": "string", "format": "date-time"},
+        "evidence_ref": {"type": "string", "pattern": "^evidence-[a-z0-9-]+$"}
+      }
+    },
+    "CaptureRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "consent_id", "provenance", "idempotency_key"],
+      "properties": {
+        "content": {"type": "string", "minLength": 1, "maxLength": 512},
+        "consent_id": {"type": "string", "pattern": "^consent-[a-z0-9-]+$"},
+        "provenance": {"$ref": "#/$defs/Provenance"},
+        "idempotency_key": {"type": "string", "pattern": "^idem-[a-z0-9-]+$"}
+      }
+    },
+    "RecallResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memory_id", "content", "provenance", "reason_retrieved"],
+      "properties": {
+        "memory_id": {"type": "string", "pattern": "^memory-[a-z0-9-]+$"},
+        "content": {"type": "string"},
+        "provenance": {"$ref": "#/$defs/Provenance"},
+        "reason_retrieved": {"type": "string", "minLength": 1, "maxLength": 160}
+      }
+    },
+    "UpdateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memory_id", "content", "idempotency_key"],
+      "properties": {
+        "memory_id": {"type": "string", "pattern": "^memory-[a-z0-9-]+$"},
+        "content": {"type": "string", "minLength": 1, "maxLength": 512},
+        "idempotency_key": {"type": "string", "pattern": "^idem-[a-z0-9-]+$"}
+      }
+    },
+    "ForgetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memory_id", "status"],
+      "properties": {
+        "memory_id": {"type": "string", "pattern": "^memory-[a-z0-9-]+$"},
+        "status": {"type": "string", "enum": ["forgotten", "already_absent"]}
+      }
+    }
+  }
+}

@@ -11,3 +11,7 @@ Alpha transport is MCP stdio via the official `mcp` package; the negotiated
 SDK protocol is `2025-11-25`. HTTP is health/readiness only, not MCP
 Streamable HTTP. Public responses use the OMP protocol version and request ID;
 `min_relevance` defaults to `0.78`.
+
+For the local, transport-neutral connector conformance preflight, see
+[`../v1/`](../v1/). It is synthetic evidence only and does not add hosted
+endpoint, OAuth, or real-client compatibility claims to v0.
