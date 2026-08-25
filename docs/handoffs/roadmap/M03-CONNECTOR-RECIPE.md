@@ -10,9 +10,10 @@ readiness.
 
 - Requested/base SHA: `e6071ebbb69cc40c903f101f438af19c06d73a0a`
   (`codex/m03-connector-contract`).
-- Delivery: one final commit containing this recipe and this handoff; the
-  exact delivery SHA is reported by `git rev-parse HEAD` in the parent task
-  after commit creation. The handoff is intentionally not self-referential.
+- Delivery artifact SHA: `79c559d7ea63d2ec0868871f5432b0901aa857d6`.
+- Correction: the new commit changes only this handoff to record the factual
+  delivery SHA; no recipe, fixture, adapter, test, or contract semantics
+  change.
 - Prior W0 handoff: [`M03-W0-CONNECTOR-CONTRACT.md`](M03-W0-CONNECTOR-CONTRACT.md).
 - Roadmap boundary: M3 still requires real-client evidence; the roadmap order
   starts with a controlled project agent, then real client surfaces.
