@@ -34,8 +34,16 @@ from omp.adapters.mcp.schemas import (
 )
 from omp.cloud import OIDCTokenVerifier, Scope, principal_from_access_token
 from omp.cloud.tenant import tenant_scope
+from omp.config import OMPSettings
 
-from .composition import ServerRuntime
+from .composition import ServerRuntime, create_fail_closed_cloud_runtime
+
+
+class RejectUnconfiguredOIDCVerifier:
+    """Fail closed until deployment injects an approved hosted verifier."""
+
+    async def verify_token(self, token: str) -> None:
+        return None
 
 
 def create_official_server(runtime: ServerRuntime) -> FastMCP:
@@ -281,8 +289,21 @@ def create_cloud_http_app(
     return app
 
 
+def create_fail_closed_cloud_http_app(settings: OMPSettings | None = None) -> object:
+    """Compose the image entrypoint as hosted MCP, never as local M1.
+
+    This is intentionally non-serving for credentials until an approved OIDC
+    verifier is wired outside this local remediation.  Its public surface is
+    still the hosted ``/mcp`` composition, including exact-path handling.
+    """
+    return create_cloud_http_app(
+        create_fail_closed_cloud_runtime(settings), RejectUnconfiguredOIDCVerifier()
+    )
+
+
 __all__ = [
     "create_cloud_http_app",
+    "create_fail_closed_cloud_http_app",
     "create_cloud_server",
     "create_m1_http_app",
     "create_m1_server",
