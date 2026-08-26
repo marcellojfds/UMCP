@@ -320,7 +320,10 @@ def create_m1_server(
             resource_server_url="https://m1.local.invalid/mcp",
             required_scopes=[],
         ),
-        streamable_http_path="/mcp",
+        # The outer ASGI application owns the public route.  Keeping the
+        # Streamable HTTP app at its mount root avoids the SDK/router adding a
+        # trailing-slash redirect to the official ``/mcp`` endpoint.
+        streamable_http_path="/",
         stateless_http=True,
         max_request_body_size=64 * 1024,
         transport_security=TransportSecuritySettings(
@@ -582,7 +585,12 @@ def create_m1_http_app(
             yield
 
     app = FastAPI(
-        title="UMCP M1 local", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+        title="UMCP M1 local",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+        redirect_slashes=False,
     )
     app.state.m1_server = server
     app.state.m1_control = control
@@ -594,6 +602,15 @@ def create_m1_http_app(
     @app.get("/readyz")
     async def readyz() -> dict[str, str]:
         return {"status": "ready"}
+
+    @app.middleware("http")
+    async def exact_mcp_path(request: Request, call_next: Any) -> Any:
+        # ``/mcp`` is the one supported MCP origin.  Do not let a framework
+        # turn a typo into a redirect, particularly behind a TLS-terminating
+        # proxy where the router may otherwise construct an incorrect scheme.
+        if request.url.path == "/mcp/":
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return await call_next(request)
 
     async def revoke(request: Request) -> JSONResponse:
         principal = selected_auth.principal_from_request(request)
@@ -632,7 +649,7 @@ def create_m1_http_app(
     for path in ("/local/restore", "/m1/restore"):
         app.add_api_route(path, restore, methods=["POST"], include_in_schema=False)
 
-    app.mount("/", server.streamable_http_app())
+    app.mount("/mcp", server.streamable_http_app())
     return app
 
 

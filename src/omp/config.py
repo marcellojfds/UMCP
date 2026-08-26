@@ -34,8 +34,10 @@ class OMPSettings(BaseSettings):
     retrieval_default_threshold: float = 0.78
     retrieval_default_candidate_limit: int = 50
     retrieval_default_limit: int = 5
-    migration_head: str = "0007_tenant_fks"
+    migration_head: str = "0009_h06_security_recovery"
     log_content: bool = False
+    image_digest: str = ""
+    image_source_sha: str = ""
 
     def safe_summary(self) -> dict[str, str | int | float | bool]:
         """Return configuration suitable for diagnostics without secrets."""

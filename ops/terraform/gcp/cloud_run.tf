@@ -11,6 +11,9 @@ resource "google_cloud_run_v2_service" "api" {
   template {
     service_account = google_service_account.workload["runtime"].email
     timeout         = "30s"
+    labels = {
+      source-sha = var.image_source_sha
+    }
 
     vpc_access {
       connector = google_vpc_access_connector.run.id

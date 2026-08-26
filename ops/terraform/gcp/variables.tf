@@ -48,6 +48,16 @@ variable "image_digest" {
   }
 }
 
+variable "image_source_sha" {
+  type        = string
+  description = "Lowercase full Git commit SHA recorded by the image promotion evidence."
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{40}$", var.image_source_sha))
+    error_message = "image_source_sha must be a lowercase, full 40-character Git commit SHA."
+  }
+}
+
 variable "deploy_repository" {
   type        = string
   description = "Exact GitHub owner/repository allowed to exchange OIDC tokens."

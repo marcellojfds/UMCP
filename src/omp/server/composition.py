@@ -15,7 +15,7 @@ from omp.adapters.mcp.local import PersistentLocalMemoryService
 from omp.adapters.postgres.repository import create_postgres_uow_factory
 from omp.application.services import MemoryApplicationService
 from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
-from omp.cloud.security import LocalDevelopmentKMS, TenantEnvelopeEncryptor
+from omp.cloud.security import HostedKMSUnavailable, LocalDevelopmentKMS, TenantEnvelopeEncryptor
 from omp.config import OMPSettings, get_settings
 from omp.domain import utc_now
 
@@ -160,4 +160,20 @@ def create_cloud_postgres_runtime(
     return create_runtime(
         selected,
         encryptor=TenantEnvelopeEncryptor(LocalDevelopmentKMS(kms_master_key)),
+    )
+
+
+def create_fail_closed_cloud_runtime(settings: OMPSettings | None = None) -> ServerRuntime:
+    """Build the container's hosted runtime without a local-development KMS.
+
+    A real hosted KMS adapter is deliberately outside this repository's local
+    scope.  The unavailable implementation ensures a misconfigured image
+    cannot silently fall back to plaintext or the synthetic M1 composition.
+    """
+    selected = settings or get_settings()
+    if selected.environment != "cloud":
+        selected = selected.model_copy(update={"environment": "cloud"})
+    return create_runtime(
+        selected,
+        encryptor=TenantEnvelopeEncryptor(HostedKMSUnavailable()),
     )

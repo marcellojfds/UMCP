@@ -14,6 +14,7 @@ from omp.domain import (
     ImportConflictError,
     NotFoundError,
     OMPError,
+    RestoreBlockedByTombstoneError,
     ValidationError,
 )
 from omp.sdk.export import ExportDocument
@@ -36,9 +37,26 @@ def main() -> None:
     parser.add_argument(
         "--m1-http", action="store_true", help="run the authenticated local M1 HTTP boundary"
     )
+    parser.add_argument(
+        "--cloud-http", action="store_true", help="run the fail-closed hosted HTTP boundary"
+    )
     parser.add_argument("--host", default="127.0.0.1", help=argparse.SUPPRESS)
     parser.add_argument("--port", type=int, default=8000, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.m1_http and args.cloud_http:
+        parser.error("--m1-http and --cloud-http are mutually exclusive")
+    if args.cloud_http:
+        import uvicorn
+
+        from .official import create_fail_closed_cloud_http_app
+
+        uvicorn.run(
+            create_fail_closed_cloud_http_app(),
+            host=args.host,
+            port=args.port,
+            log_level="warning",
+        )
+        return
     if args.m1_http:
         import uvicorn
 
@@ -117,6 +135,10 @@ async def _run_admin(runtime: Any, args: argparse.Namespace) -> dict[str, Any]:
         raise AdminFailure("validation_error", "export package is not acceptable", 2) from None
     except NotFoundError:
         raise AdminFailure("not_found", "export reference was not found", 3) from None
+    except RestoreBlockedByTombstoneError:
+        raise AdminFailure(
+            "restore_blocked_by_tombstone", "memory restore is blocked by a tombstone", 4
+        ) from None
     except RuntimeError:
         raise AdminFailure("dependency_unavailable", "Postgres is not ready", 7) from None
     except OMPError:

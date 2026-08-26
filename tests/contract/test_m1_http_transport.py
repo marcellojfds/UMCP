@@ -69,6 +69,36 @@ def test_m1_local_controls_are_authenticated_and_connection_scoped() -> None:
         assert denied.status_code == 403
 
 
+def test_m1_official_mcp_path_does_not_redirect_or_downgrade_https() -> None:
+    """Freeze the Cloud Run TLS-termination regression with synthetic headers."""
+    app = create_m1_http_app()
+    request = {
+        "jsonrpc": "2.0",
+        "id": "initialize-over-https",
+        "method": "initialize",
+        "params": {},
+    }
+    headers = {
+        "authorization": "Bearer m1-fixture-chatgpt-sim",
+        "accept": "application/json, text/event-stream",
+        "x-forwarded-proto": "https",
+        "origin": "https://synthetic-client.invalid",
+    }
+    # A TLS terminator forwards the application request over HTTP while
+    # preserving the external scheme in a trusted forwarding header.
+    with TestClient(
+        app, base_url="http://mcp.synthetic.invalid", follow_redirects=False
+    ) as client:
+        response = client.post("/mcp", headers=headers, json=request)
+        assert response.status_code == 200
+        assert "location" not in response.headers
+        assert response.headers["mcp-session-id"]
+
+        trailing = client.post("/mcp/", headers=headers, json=request)
+        assert trailing.status_code == 404
+        assert "location" not in trailing.headers
+
+
 @pytest.mark.asyncio
 async def test_m1_streamable_http_core_lifecycle_is_rerunnable() -> None:
     app = create_m1_http_app()

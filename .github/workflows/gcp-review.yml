@@ -22,6 +22,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
       - name: Verify local GCP guardrails
         run: ./scripts/validate-gcp-local
       - name: Check Terraform formatting without provider initialization

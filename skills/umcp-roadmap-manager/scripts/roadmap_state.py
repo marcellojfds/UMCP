@@ -87,7 +87,11 @@ def parse(text: str) -> list[Item]:
 
 def snapshot(items: list[Item]) -> dict[str, object]:
     completed = {item.id for item in items if item.complete}
-    ready = [item for item in items if not item.complete and all(dep in completed for dep in item.depends)]
+    ready = [
+        item
+        for item in items
+        if not item.complete and all(dep in completed for dep in item.depends)
+    ]
     return {
         "total": len(items),
         "completed": len(completed),
@@ -111,7 +115,10 @@ def main() -> int:
         result = snapshot(parse(read_text(args.file, args.repo, args.git_ref)))
     except (ChecklistError, OSError) as exc:
         parser.error(str(exc))
-    print(json.dumps(result, ensure_ascii=False, separators=(",", ":")) if args.json else f"completed={result['completed']}/{result['total']}")
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+    else:
+        print(f"completed={result['completed']}/{result['total']}")
     return 0
 
 

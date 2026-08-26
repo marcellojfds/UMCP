@@ -34,8 +34,16 @@ from omp.adapters.mcp.schemas import (
 )
 from omp.cloud import OIDCTokenVerifier, Scope, principal_from_access_token
 from omp.cloud.tenant import tenant_scope
+from omp.config import OMPSettings
 
-from .composition import ServerRuntime
+from .composition import ServerRuntime, create_fail_closed_cloud_runtime
+
+
+class RejectUnconfiguredOIDCVerifier:
+    """Fail closed until deployment injects an approved hosted verifier."""
+
+    async def verify_token(self, token: str) -> None:
+        return None
 
 
 def create_official_server(runtime: ServerRuntime) -> FastMCP:
@@ -119,7 +127,10 @@ def create_cloud_server(
             resource_server_url=cast(AnyHttpUrl, "https://local.umcp.invalid/mcp"),
             required_scopes=[],
         ),
-        streamable_http_path="/mcp",
+        # ``create_cloud_http_app`` mounts this ASGI application at the one
+        # public MCP route.  The transport itself must therefore be rooted at
+        # the mount point rather than declare a second ``/mcp`` segment.
+        streamable_http_path="/",
         stateless_http=True,
         max_request_body_size=64 * 1024,
         transport_security=TransportSecuritySettings(
@@ -218,11 +229,25 @@ def create_cloud_http_app(
         redoc_url=None,
         openapi_url=None,
         lifespan=lifespan,
+        redirect_slashes=False,
     )
+
+    @app.middleware("http")
+    async def add_provenance_headers(request: Request, call_next: object) -> object:
+        response: Any = await cast(Any, call_next)(request)
+        if runtime.settings.image_digest:
+            response.headers["X-UMCP-Image-Digest"] = runtime.settings.image_digest
+        if runtime.settings.image_source_sha:
+            response.headers["X-UMCP-Image-Source-SHA"] = runtime.settings.image_source_sha
+        return response
 
     @app.middleware("http")
     async def reject_client_owner_id(request: Request, call_next: object) -> object:
         """Reject, rather than silently discard, a hosted authorization boundary."""
+        if request.url.path == "/mcp/":
+            return JSONResponse(
+                {"error": "not found"}, status_code=404, headers={"cache-control": "no-store"}
+            )
         if request.method == "POST" and request.url.path == "/mcp":
             try:
                 payload = json.loads((await request.body()).decode("utf-8"))
@@ -269,12 +294,25 @@ def create_cloud_http_app(
 
         app.mount("/web", StaticFiles(directory=str(web_directory), html=True), name="web")
 
-    app.mount("/", server.streamable_http_app())
+    app.mount("/mcp", server.streamable_http_app())
     return app
+
+
+def create_fail_closed_cloud_http_app(settings: OMPSettings | None = None) -> object:
+    """Compose the image entrypoint as hosted MCP, never as local M1.
+
+    This is intentionally non-serving for credentials until an approved OIDC
+    verifier is wired outside this local remediation.  Its public surface is
+    still the hosted ``/mcp`` composition, including exact-path handling.
+    """
+    return create_cloud_http_app(
+        create_fail_closed_cloud_runtime(settings), RejectUnconfiguredOIDCVerifier()
+    )
 
 
 __all__ = [
     "create_cloud_http_app",
+    "create_fail_closed_cloud_http_app",
     "create_cloud_server",
     "create_m1_http_app",
     "create_m1_server",
