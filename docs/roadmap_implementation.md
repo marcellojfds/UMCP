@@ -933,7 +933,7 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 - [x] H02 | model=terra | depends=H01 | checkpoint=- | title=Endurecer IaC e pipeline GCP
 - [x] H03 | model=terra | depends=R02,H01 | checkpoint=- | title=Compor MCP Streamable HTTP hosted
 - [x] H04 | model=terra | depends=H01,H03 | checkpoint=- | title=Implementar OAuth OIDC consentimento e revogação
-- [ ] H05 | model=luna | depends=H04 | checkpoint=- | title=Entregar login e consent UX
+- [x] H05 | model=luna | depends=H04 | checkpoint=- | title=Entregar login e consent UX
 - [ ] H06 | model=terra | depends=H01,H04 | checkpoint=- | title=Fechar tenancy RLS KMS e recuperação hosted
 - [ ] H07 | model=audit | depends=H02,H05,H06 | checkpoint=CP-1,CP-2,CP-3 | title=Integrar e auditar M2 em staging
 - [ ] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
