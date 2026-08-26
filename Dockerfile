@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY migrations ./migrations
 RUN pip install --no-cache-dir .
 
 USER 65532:65532
