@@ -4,15 +4,26 @@ from uuid import uuid4
 import pytest
 
 from omp.cloud import (
+    HostedKMSUnavailable,
     JobState,
+    KMSUnavailableError,
     LocalDevelopmentKMS,
+    LocalRecoveryFixture,
     LocalTenantWorker,
+    Principal,
+    RecoveryUnavailableError,
+    Scope,
     TenantEnvelopeEncryptor,
     WorkerEnvelope,
     reembed_memory,
 )
 from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
-from omp.cloud.tenant import TenantContextError, current_tenant, tenant_scope
+from omp.cloud.tenant import (
+    TenantContextError,
+    current_tenant,
+    tenant_scope,
+    verified_principal_scope,
+)
 
 
 def test_tenant_scope_is_request_local_and_fails_closed_when_absent() -> None:
@@ -23,6 +34,36 @@ def test_tenant_scope_is_request_local_and_fails_closed_when_absent() -> None:
         assert current_tenant() == tenant
     with pytest.raises(TenantContextError):
         current_tenant()
+
+
+def test_tenant_scope_requires_an_immutable_verified_principal_for_hosted_binding() -> None:
+    tenant = uuid4()
+    principal = Principal(
+        subject_id=uuid4(),
+        tenant_id=tenant,
+        membership_id=uuid4(),
+        scopes=frozenset({Scope.MEMORY_READ}),
+        credential_id=uuid4(),
+        auth_method="local-development",
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+    )
+    with verified_principal_scope(principal):
+        assert current_tenant() == tenant
+    with pytest.raises(TenantContextError):
+        with verified_principal_scope(object()):
+            pass
+
+
+def test_hosted_kms_seam_fails_closed_without_a_plaintext_fallback() -> None:
+    encryptor = TenantEnvelopeEncryptor(HostedKMSUnavailable())
+    with pytest.raises(KMSUnavailableError):
+        encryptor.encrypt(
+            tenant_id=uuid4(),
+            record_id=uuid4(),
+            field="content",
+            plaintext="must never be persisted",
+            key_version=1,
+        )
 
 
 def test_envelope_ciphertext_is_tenant_and_record_bound() -> None:
@@ -49,10 +90,12 @@ def test_envelope_ciphertext_is_tenant_and_record_bound() -> None:
 def test_envelope_ciphertext_storage_round_trip_rejects_malformed_value() -> None:
     from omp.cloud.security import EnvelopeCiphertext
 
-    value = EnvelopeCiphertext(1, b"wrapped", b"nonce", b"ciphertext")
+    value = EnvelopeCiphertext(1, b"w" * 28, b"n" * 12, b"c" * 16)
     assert EnvelopeCiphertext.decode(value.encode()) == value
     with pytest.raises(PermissionError):
         EnvelopeCiphertext.decode('{"v":1}')
+    with pytest.raises(PermissionError):
+        EnvelopeCiphertext.decode('{"c":"YQ==","k":1,"n":"YQ==","v":1,"w":"YQ=="}')
 
 
 def test_worker_envelope_fails_closed_for_tamper_and_expiry() -> None:
@@ -123,9 +166,12 @@ def test_cloud_memory_rewrap_rotates_fields_without_plaintext_persistence() -> N
     assert service._records[memory_id]["content_ciphertext"]["key_version"] == 1
     assert service.rewrap(2) == 2
     assert service._records[memory_id]["content_ciphertext"]["key_version"] == 2
-    assert service.search({"owner_id": f"cloud:{tenant}:{subject}", "query": "rotation"})[0][
-        "memory"
-    ]["content"] == "ROTATION-CANARY"
+    assert (
+        service.search({"owner_id": f"cloud:{tenant}:{subject}", "query": "rotation"})[0]["memory"][
+            "content"
+        ]
+        == "ROTATION-CANARY"
+    )
     assert "ROTATION-CANARY" not in service.raw_dump()
 
 
@@ -144,9 +190,12 @@ def test_cloud_backup_restore_reapplies_content_free_tombstone() -> None:
     )
     snapshot = service.backup()
     memory_id = created["memory"]["id"]
-    assert service.forget({"owner_id": owner, "id": memory_id, "idempotency_key": "forget-1"})[
-        "status"
-    ] == "forgotten"
+    assert (
+        service.forget({"owner_id": owner, "id": memory_id, "idempotency_key": "forget-1"})[
+            "status"
+        ]
+        == "forgotten"
+    )
     ledger = service.tombstones()
     assert "BACKUP-DELETE-CANARY" not in repr(ledger)
 
@@ -177,6 +226,34 @@ def test_cloud_account_deletion_is_owner_scoped_and_leaves_content_free_tombston
     assert service.search({"owner_id": owner, "query": "account"}) == []
     assert len(service.search({"owner_id": other_owner, "query": "other"})) == 1
     assert "ACCOUNT-DELETE-CANARY" not in repr(service.tombstones())
+
+
+def test_local_recovery_inventory_measures_only_an_isolated_ciphertext_restore() -> None:
+    tenant, subject = uuid4(), uuid4()
+    owner = f"cloud:{tenant}:{subject}"
+    service = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    service.write(
+        {
+            "owner_id": owner,
+            "content": "RECOVERY-CANARY",
+            "type": "fact",
+            "provenance": {"source_type": "user"},
+            "idempotency_key": "recovery-1",
+        }
+    )
+    fixture = LocalRecoveryFixture(migration_head="0009_h06_security_recovery")
+    snapshot, inventory = fixture.backup(service)
+    assert "RECOVERY-CANARY" not in repr(snapshot)
+    restored = EncryptedCloudMemoryService(TenantEnvelopeEncryptor(LocalDevelopmentKMS(b"k" * 32)))
+    receipt = fixture.restore_isolated(restored, snapshot, inventory)
+    assert receipt.target == "isolated"
+    assert receipt.rpo_seconds >= 0
+    assert receipt.rto_seconds >= 0
+
+    with pytest.raises(RecoveryUnavailableError):
+        from omp.cloud.recovery import HostedRecoveryAdapter
+
+        HostedRecoveryAdapter().inventory()
 
 
 @pytest.mark.asyncio
@@ -231,6 +308,35 @@ async def test_worker_restart_restores_signed_retryable_job_without_payload() ->
     tampered = [dict(snapshot[0], signature="bad")]
     with pytest.raises(PermissionError):
         LocalTenantWorker(signing_secret=secret).restore(tuple(tampered))
+
+
+@pytest.mark.asyncio
+async def test_worker_rejects_nonce_replay_and_snapshot_field_tampering() -> None:
+    secret, tenant, principal = b"s" * 32, uuid4(), uuid4()
+    envelope = WorkerEnvelope.sign(
+        job_id=uuid4(),
+        tenant_id=tenant,
+        principal_id=principal,
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+        nonce="one-time-nonce",
+        secret=secret,
+    )
+    worker = LocalTenantWorker(signing_secret=secret)
+    worker.enqueue(envelope, dedupe_key="job:one", payload_ref="memory-1:1")
+    replay = WorkerEnvelope.sign(
+        job_id=uuid4(),
+        tenant_id=tenant,
+        principal_id=principal,
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+        nonce="one-time-nonce",
+        secret=secret,
+    )
+    with pytest.raises(PermissionError):
+        worker.enqueue(replay, dedupe_key="job:two", payload_ref="memory-2:1")
+    snapshot = list(worker.snapshot())
+    snapshot[0]["payload_ref"] = "plaintext-content"
+    with pytest.raises(PermissionError):
+        LocalTenantWorker(signing_secret=secret).restore(tuple(snapshot))
 
 
 @pytest.mark.asyncio

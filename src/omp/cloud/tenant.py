@@ -21,11 +21,33 @@ _tenant_context: ContextVar[UUID | None] = ContextVar("omp_cloud_tenant", defaul
 @contextmanager
 def tenant_scope(tenant_id: UUID) -> Iterator[None]:
     """Bind a verified tenant to the current async request context only."""
+    if not isinstance(tenant_id, UUID):
+        raise TenantContextError("tenant context must be a UUID")
     token: Token[UUID | None] = _tenant_context.set(tenant_id)
     try:
         yield
     finally:
         _tenant_context.reset(token)
+
+
+@contextmanager
+def verified_principal_scope(principal: object) -> Iterator[None]:
+    """Bind a tenant only from the immutable, already-verified H04 principal.
+
+    The local adapter keeps the UUID-only ``tenant_scope`` for compatibility
+    with existing service tests. Hosted composition should use this seam so a
+    request cannot manufacture tenancy from a transport field.
+    """
+    from .security import Principal
+
+    if not isinstance(principal, Principal):
+        raise TenantContextError("verified principal is required")
+    try:
+        principal.requires(next(iter(principal.scopes)))
+    except (PermissionError, StopIteration) as exc:
+        raise TenantContextError("verified principal is expired or has no scope") from exc
+    with tenant_scope(principal.tenant_id):
+        yield
 
 
 def current_tenant() -> UUID:
@@ -48,6 +70,8 @@ async def set_tenant_context(session: AsyncSession, tenant_id: UUID | None) -> N
     """
     if tenant_id is None:
         raise TenantContextError("tenant context is required")
+    if tenant_id != current_tenant():
+        raise TenantContextError("tenant context does not match the verified principal")
     await session.execute(
         text("SELECT set_config('app.tenant_id', :tenant_id, true)"), {"tenant_id": str(tenant_id)}
     )

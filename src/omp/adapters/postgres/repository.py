@@ -264,6 +264,25 @@ class PostgresMemoryRepository:
         self._session = session
         self._encryptor = encryptor
 
+    @staticmethod
+    def _owner_tenant(owner_id: str) -> UUID:
+        try:
+            prefix, tenant_id, subject_id = owner_id.split(":", 2)
+            if prefix != "cloud" or not subject_id:
+                raise ValueError
+            UUID(subject_id)
+            return UUID(tenant_id)
+        except ValueError as exc:
+            raise TenantContextError("Cloud owner binding is invalid") from exc
+
+    def _assert_owner_tenant(self, owner_id: str) -> UUID | None:
+        tenant_id = current_tenant_or_none()
+        if tenant_id is None:
+            return None
+        if self._owner_tenant(owner_id) != tenant_id:
+            raise TenantContextError("owner does not belong to the verified tenant")
+        return tenant_id
+
     async def _audit(self, *, action: str, owner_id: str, memory_id: UUID) -> None:
         """Write Cloud audit evidence without memory payload or credentials."""
         tenant_id = current_tenant_or_none()
@@ -325,6 +344,9 @@ class PostgresMemoryRepository:
 
     def _memory_from_row(self, row: Any) -> Memory:
         mapping = row._mapping
+        bound_tenant = current_tenant_or_none()
+        if bound_tenant is not None and mapping.get("tenant_id") != bound_tenant:
+            raise TenantContextError("database row crossed the verified tenant boundary")
         content = mapping["content"]
         provenance = mapping["provenance"]
         if mapping.get("content_ciphertext") is not None:
@@ -350,7 +372,11 @@ class PostgresMemoryRepository:
     async def get(
         self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
     ) -> Memory | None:
-        stmt = select(memories).where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
+        bound_tenant = self._assert_owner_tenant(owner_id)
+        conditions = [memories.c.owner_id == owner_id, memories.c.id == memory_id]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
+        stmt = select(memories).where(*conditions)
         result = await self._session.execute(stmt)
         row = result.first()
         return self._memory_from_row(row) if row is not None else None
@@ -448,10 +474,14 @@ class PostgresMemoryRepository:
     async def find_by_idempotency_key(
         self, *, owner_id: str, idempotency_key: str
     ) -> IdempotencyLookup | None:
-        stmt = select(memories).where(
+        bound_tenant = self._assert_owner_tenant(owner_id)
+        conditions = [
             memories.c.owner_id == owner_id,
             memories.c.idempotency_key == idempotency_key,
-        )
+        ]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
+        stmt = select(memories).where(*conditions)
         result = await self._session.execute(stmt)
         row = result.first()
         if row is None:
@@ -467,6 +497,7 @@ class PostgresMemoryRepository:
         fingerprint: str,
         embedding: Sequence[float],
     ) -> CreateMemoryResult:
+        self._assert_owner_tenant(memory.owner_id)
         values = self._memory_values(memory, fingerprint=fingerprint)
         statement: Any = pg_insert(memories).values(values)
         if memory.idempotency_key:
@@ -512,6 +543,7 @@ class PostgresMemoryRepository:
         version_snapshot: MemoryVersion,
         embedding: Sequence[float],
     ) -> Memory:
+        self._assert_owner_tenant(memory.owner_id)
         values = self._memory_values(memory, fingerprint=None)
         for immutable_field in (
             "id",
@@ -560,6 +592,7 @@ class PostgresMemoryRepository:
         filters: SearchFilters,
         limit: int,
     ) -> Sequence[MemorySearchCandidate]:
+        bound_tenant = self._assert_owner_tenant(owner_id)
         embedding_table = self._embedding_table(profile.dimension)
         query_vector = bindparam(
             "query_embedding",
@@ -580,6 +613,8 @@ class PostgresMemoryRepository:
             embedding_table.c.dimension == profile.dimension,
             memories.c.state.in_([state.value for state in filters.states]),
         ]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
         if filters.memory_types:
             conditions.append(
                 memories.c.memory_type.in_([item.value for item in filters.memory_types])
@@ -610,11 +645,11 @@ class PostgresMemoryRepository:
         return candidates
 
     async def forget(self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None) -> bool:
-        statement = (
-            delete(memories)
-            .where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
-            .returning(memories.c.id)
-        )
+        bound_tenant = self._assert_owner_tenant(owner_id)
+        conditions = [memories.c.owner_id == owner_id, memories.c.id == memory_id]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
+        statement = delete(memories).where(*conditions).returning(memories.c.id)
         result = await self._session.execute(statement)
         deleted_id = result.scalar_one_or_none()
         if deleted_id is None:
@@ -630,15 +665,15 @@ class PostgresMemoryRepository:
             )
             .on_conflict_do_nothing()
         )
-        tenant_id = current_tenant_or_none()
-        if tenant_id is not None:
+        bound_tenant_id = current_tenant_or_none()
+        if bound_tenant_id is not None:
             # Keep only the tenant binding, memory reference and reason.  A
             # restore workflow can reapply this ledger without retaining the
             # deleted memory's plaintext, provenance, or caller-owned ID.
             await self._session.execute(
                 insert(deletion_tombstones).values(
                     id=uuid4(),
-                    tenant_id=tenant_id,
+                    tenant_id=bound_tenant_id,
                     memory_id=deleted_id,
                     subject_id=None,
                     deleted_at=datetime.now(UTC),
@@ -651,10 +686,13 @@ class PostgresMemoryRepository:
     async def list_candidates(
         self, *, owner_id: str, tenant_id: str | None, space: str | None, limit: int
     ) -> Sequence[Memory]:
+        bound_tenant = self._assert_owner_tenant(owner_id)
         conditions = [
             memories.c.owner_id == owner_id,
             memories.c.state == MemoryState.CANDIDATE.value,
         ]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
         if space is not None:
             conditions.append(memories.c.space == space)
         result = await self._session.execute(
@@ -666,6 +704,7 @@ class PostgresMemoryRepository:
         return tuple(self._memory_from_row(row) for row in result)
 
     async def add_relation(self, *, relation: Relation) -> Relation:
+        self._assert_owner_tenant(relation.owner_id)
         source = await self.get(owner_id=relation.owner_id, memory_id=relation.source_id)
         target = await self.get(owner_id=relation.owner_id, memory_id=relation.target_id)
         if source is None or target is None:
@@ -689,21 +728,29 @@ class PostgresMemoryRepository:
         return relation
 
     async def list_relations(self, *, owner_id: str, memory_id: UUID) -> Sequence[Relation]:
-        statement = select(memory_relations).where(
+        bound_tenant = self._assert_owner_tenant(owner_id)
+        conditions = [
             memory_relations.c.owner_id == owner_id,
             (memory_relations.c.source_id == memory_id)
             | (memory_relations.c.target_id == memory_id),
-        )
+        ]
+        if bound_tenant is not None:
+            conditions.append(memory_relations.c.tenant_id == bound_tenant)
+        statement = select(memory_relations).where(*conditions)
         result = await self._session.execute(statement)
         return tuple(self._relation_from_row(row) for row in result)
 
     async def history(self, *, owner_id: str, memory_id: UUID) -> Sequence[MemoryVersion]:
+        bound_tenant = self._assert_owner_tenant(owner_id)
         if await self.get(owner_id=owner_id, memory_id=memory_id) is None:
             raise NotFoundError("memory was not found")
+        conditions = [memories.c.owner_id == owner_id, memory_versions.c.memory_id == memory_id]
+        if bound_tenant is not None:
+            conditions.append(memory_versions.c.tenant_id == bound_tenant)
         statement = (
             select(memory_versions)
             .join(memories, memories.c.id == memory_versions.c.memory_id)
-            .where(memories.c.owner_id == owner_id, memory_versions.c.memory_id == memory_id)
+            .where(*conditions)
             .order_by(memory_versions.c.version.asc())
         )
         result = await self._session.execute(statement)
@@ -712,7 +759,10 @@ class PostgresMemoryRepository:
     async def list_for_reembedding(
         self, *, owner_id: str, after_memory_id: UUID | None, limit: int
     ) -> Sequence[Memory]:
+        bound_tenant = self._assert_owner_tenant(owner_id)
         conditions = [memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
         if after_memory_id is not None:
             conditions.append(memories.c.id > after_memory_id)
         statement = select(memories).where(*conditions).order_by(memories.c.id.asc()).limit(limit)
@@ -727,13 +777,13 @@ class PostgresMemoryRepository:
         profile: EmbeddingProfile,
         embedding: Sequence[float],
     ) -> bool:
+        bound_tenant = current_tenant_or_none()
         if profile.dimension != 384:
             raise ValueError("re-embedding requires the semantic 384d profile")
-        current_version = await self._session.scalar(
-            select(memories.c.version).where(
-                memories.c.id == memory_id, memories.c.version == expected_version
-            )
-        )
+        conditions = [memories.c.id == memory_id, memories.c.version == expected_version]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
+        current_version = await self._session.scalar(select(memories.c.version).where(*conditions))
         if current_version is None:
             return False
         table = self._embedding_table(profile.dimension)
@@ -764,10 +814,16 @@ class PostgresMemoryRepository:
     async def semantic_coverage(
         self, *, owner_id: str, profile: EmbeddingProfile
     ) -> tuple[int, int]:
+        bound_tenant = self._assert_owner_tenant(owner_id)
+        tenant_condition = [memories.c.tenant_id == bound_tenant] if bound_tenant else []
         eligible = await self._session.scalar(
             select(func.count())
             .select_from(memories)
-            .where(memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64)
+            .where(
+                memories.c.owner_id == owner_id,
+                memories.c.embedding_dimension == 64,
+                *tenant_condition,
+            )
         )
         covered = await self._session.scalar(
             select(func.count())
@@ -780,6 +836,7 @@ class PostgresMemoryRepository:
             .where(
                 memories.c.owner_id == owner_id,
                 memories.c.embedding_dimension == 64,
+                *tenant_condition,
                 memory_embeddings_semantic.c.profile_id == profile.id,
                 memory_embeddings_semantic.c.profile_version == profile.version,
                 memory_embeddings_semantic.c.source_version == memories.c.version,
@@ -788,12 +845,16 @@ class PostgresMemoryRepository:
         return int(eligible or 0), int(covered or 0)
 
     async def cutover_embedding_profile(self, *, owner_id: str, profile: EmbeddingProfile) -> int:
+        bound_tenant = self._assert_owner_tenant(owner_id)
         eligible, covered = await self.semantic_coverage(owner_id=owner_id, profile=profile)
         if eligible != covered:
             raise RuntimeError("semantic embedding coverage is incomplete")
+        conditions = [memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
         result = await self._session.execute(
             update(memories)
-            .where(memories.c.owner_id == owner_id, memories.c.embedding_dimension == 64)
+            .where(*conditions)
             .values(
                 embedding_profile_id=profile.id,
                 embedding_profile_version=profile.version,
@@ -806,6 +867,9 @@ class PostgresMemoryRepository:
     def _memory_values(self, memory: Memory, *, fingerprint: str | None) -> dict[str, object]:
         if memory.embedding is None:
             raise ValueError("memory must have an embedding descriptor for storage")
+        bound_tenant = current_tenant_or_none()
+        if bound_tenant is not None and self._owner_tenant(memory.owner_id) != bound_tenant:
+            raise TenantContextError("memory owner does not belong to the verified tenant")
         values: dict[str, object] = {
             "id": memory.id,
             "owner_id": memory.owner_id,
@@ -900,6 +964,9 @@ class PostgresMemoryRepository:
 
     def _version_from_row(self, row: Any) -> MemoryVersion:
         mapping = row._mapping
+        bound_tenant = current_tenant_or_none()
+        if bound_tenant is not None and mapping.get("tenant_id") != bound_tenant:
+            raise TenantContextError("database version crossed the verified tenant boundary")
         content = mapping["content"]
         provenance = mapping["provenance"]
         if mapping.get("content_ciphertext") is not None:
@@ -947,10 +1014,12 @@ class PostgresMemoryAdminRepository:
     async def export_memories(
         self, *, owner_id: str, include_embeddings: bool
     ) -> Sequence[MemoryExportRecord]:
+        bound_tenant = self._memories._assert_owner_tenant(owner_id)
+        conditions = [memories.c.owner_id == owner_id]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
         result = await self._session.execute(
-            select(memories.c.id)
-            .where(memories.c.owner_id == owner_id)
-            .order_by(memories.c.id.asc())
+            select(memories.c.id).where(*conditions).order_by(memories.c.id.asc())
         )
         records: list[MemoryExportRecord] = []
         for row in result:
@@ -966,20 +1035,26 @@ class PostgresMemoryAdminRepository:
     async def is_tombstoned(
         self, *, owner_id: str, memory_id: UUID, tenant_id: str | None = None
     ) -> bool:
+        bound_tenant = self._memories._assert_owner_tenant(owner_id)
+        conditions = [
+            memory_tombstones.c.owner_id == owner_id,
+            memory_tombstones.c.memory_id == memory_id,
+        ]
+        if bound_tenant is not None:
+            conditions.append(memory_tombstones.c.tenant_id == bound_tenant)
         result = await self._session.execute(
-            select(memory_tombstones.c.memory_id).where(
-                memory_tombstones.c.owner_id == owner_id,
-                memory_tombstones.c.memory_id == memory_id,
-            )
+            select(memory_tombstones.c.memory_id).where(*conditions)
         )
         return result.first() is not None
 
     async def export_memory(
         self, *, owner_id: str, memory_id: UUID, include_embeddings: bool
     ) -> MemoryExportRecord | None:
-        result = await self._session.execute(
-            select(memories).where(memories.c.owner_id == owner_id, memories.c.id == memory_id)
-        )
+        bound_tenant = self._memories._assert_owner_tenant(owner_id)
+        conditions = [memories.c.owner_id == owner_id, memories.c.id == memory_id]
+        if bound_tenant is not None:
+            conditions.append(memories.c.tenant_id == bound_tenant)
+        result = await self._session.execute(select(memories).where(*conditions))
         row = result.first()
         if row is None:
             return None
@@ -1010,6 +1085,7 @@ class PostgresMemoryAdminRepository:
         replayed = 0
         relation_keys: set[tuple[str, UUID, UUID, str]] = set()
         for record in records:
+            self._memories._assert_owner_tenant(record.memory.owner_id)
             if await self.is_tombstoned(
                 owner_id=record.memory.owner_id,
                 memory_id=record.memory.id,

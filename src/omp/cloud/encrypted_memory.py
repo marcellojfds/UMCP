@@ -39,9 +39,10 @@ class EncryptedCloudMemoryService:
     @staticmethod
     def _tenant(owner_id: str) -> UUID:
         try:
-            prefix, tenant, _ = owner_id.split(":", 2)
-            if prefix != "cloud":
+            prefix, tenant, subject = owner_id.split(":", 2)
+            if prefix != "cloud" or not subject:
                 raise ValueError
+            UUID(subject)
             return UUID(tenant)
         except ValueError as exc:
             raise PermissionError("Cloud owner binding is invalid") from exc
@@ -253,9 +254,7 @@ class EncryptedCloudMemoryService:
             del self._records[memory_id]
             self._embeddings.pop(memory_id, None)
         self._write_keys = {
-            key: memory_id
-            for key, memory_id in self._write_keys.items()
-            if key[0] != owner_id
+            key: memory_id for key, memory_id in self._write_keys.items() if key[0] != owner_id
         }
         return len(memory_ids)
 
@@ -268,12 +267,18 @@ class EncryptedCloudMemoryService:
 
     def backup(self) -> dict[str, object]:
         """Create a logical local-dev snapshot containing ciphertext only."""
-        return {"records": deepcopy(self._records), "tombstones": self.tombstones()}
+        return {
+            "format": "omp.cloud.backup.v1",
+            "records": deepcopy(self._records),
+            "tombstones": self.tombstones(),
+        }
 
     def restore(
         self, snapshot: dict[str, object], *, tombstones: tuple[dict[str, str], ...] = ()
     ) -> int:
         """Restore ciphertext then reapply deletion ledger before exposing records."""
+        if snapshot.get("format", "omp.cloud.backup.v1") != "omp.cloud.backup.v1":
+            raise ValueError("unsupported backup snapshot")
         records = snapshot.get("records")
         if not isinstance(records, dict):
             raise ValueError("invalid backup snapshot")
@@ -290,8 +295,27 @@ class EncryptedCloudMemoryService:
                 or not isinstance(deleted_at, str)
             ):
                 raise ValueError("invalid deletion tombstone")
+            self._tenant(owner)
+            try:
+                datetime.fromisoformat(deleted_at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("invalid deletion tombstone timestamp") from exc
             self._tombstones[(owner, memory_id)] = deleted_at
         restored = deepcopy(records)
+        for memory_id, record in restored.items():
+            if not isinstance(memory_id, str) or not isinstance(record, dict):
+                raise ValueError("invalid encrypted backup record")
+            owner = record.get("owner_id")
+            if not isinstance(owner, str):
+                raise ValueError("encrypted backup record has no owner")
+            self._tenant(owner)
+            if record.get("id") != memory_id:
+                raise ValueError("encrypted backup record id mismatch")
+            for field in ("content_ciphertext", "provenance_ciphertext"):
+                value = record.get(field)
+                if not isinstance(value, dict):
+                    raise ValueError("encrypted backup record is missing ciphertext")
+                self._uncipher(value)
         for owner, memory_id in self._tombstones:
             candidate = restored.get(memory_id)
             if isinstance(candidate, dict) and candidate.get("owner_id") == owner:
@@ -313,15 +337,15 @@ class EncryptedCloudMemoryService:
         return len(self._records)
 
     def rotate(self, version: int) -> None:
-        if version < 1:
+        if version < 1 or version < self._key_version:
             raise ValueError("key version must be positive")
         self._key_version = version
 
     def rewrap(self, version: int) -> int:
         """Rotate existing encrypted fields without retaining plaintext in storage."""
-        if version < 1:
+        if version < 1 or version < self._key_version:
             raise ValueError("key version must be positive")
-        migrated = 0
+        pending: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
         for stored in self._records.values():
             tenant, record_id = self._tenant(stored["owner_id"]), UUID(stored["id"][4:])
             for field in ("content", "provenance"):
@@ -329,18 +353,18 @@ class EncryptedCloudMemoryService:
                 current = self._uncipher(stored[ciphertext_key])
                 if current.key_version == version:
                     continue
-                stored[ciphertext_key] = self._cipher(
-                    self._encryptor.rewrap(
-                        tenant_id=tenant,
-                        record_id=record_id,
-                        field=field,
-                        value=current,
-                        key_version=version,
-                    )
+                rotated = self._encryptor.rewrap(
+                    tenant_id=tenant,
+                    record_id=record_id,
+                    field=field,
+                    value=current,
+                    key_version=version,
                 )
-                migrated += 1
+                pending.append((stored, ciphertext_key, self._cipher(rotated)))
+        for stored, ciphertext_key, rotated_ciphertext in pending:
+            stored[ciphertext_key] = rotated_ciphertext
         self._key_version = version
-        return migrated
+        return len(pending)
 
     def raw_dump(self) -> str:
         return repr(self._records)

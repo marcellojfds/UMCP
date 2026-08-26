@@ -1,8 +1,17 @@
 """Cloud-only security primitives; Community transports do not import these."""
 
 from .admin import LocalAgentCredentialVerifier
+from .recovery import (
+    HostedRecoveryAdapter,
+    LocalRecoveryFixture,
+    RecoveryInventory,
+    RecoveryReceipt,
+    RecoveryUnavailableError,
+)
 from .security import (
     EnvelopeCiphertext,
+    HostedKMSUnavailable,
+    KMSUnavailableError,
     LocalDevelopmentKMS,
     LocalDevelopmentTokenVerifier,
     OIDCTokenVerifier,
@@ -16,6 +25,8 @@ from .worker import JobState, LocalTenantWorker, reembed_memory
 
 __all__ = [
     "EnvelopeCiphertext",
+    "HostedKMSUnavailable",
+    "KMSUnavailableError",
     "LocalDevelopmentKMS",
     "LocalDevelopmentTokenVerifier",
     "LocalAgentCredentialVerifier",
@@ -28,4 +39,9 @@ __all__ = [
     "JobState",
     "LocalTenantWorker",
     "reembed_memory",
+    "HostedRecoveryAdapter",
+    "LocalRecoveryFixture",
+    "RecoveryInventory",
+    "RecoveryReceipt",
+    "RecoveryUnavailableError",
 ]

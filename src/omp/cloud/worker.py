@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -47,20 +51,57 @@ class LocalTenantWorker:
     """Bounded retry worker. Payloads are refs, never content/log data."""
 
     def __init__(self, *, signing_secret: bytes, max_attempts: int = 3) -> None:
+        if not signing_secret or max_attempts < 1:
+            raise ValueError("worker signing secret and retry budget are required")
         self._secret = signing_secret
         self._max_attempts = max_attempts
         self._jobs: dict[UUID, LocalJob] = {}
         self._dedupe: dict[tuple[UUID, str], UUID] = {}
+        self._nonces: dict[tuple[UUID, str], UUID] = {}
+
+    @staticmethod
+    def _safe_ref(value: str, *, label: str) -> str:
+        if not value or len(value) > 256 or re.fullmatch(r"[A-Za-z0-9_.:/-]+", value) is None:
+            raise PermissionError(f"worker {label} is not an opaque reference")
+        return value
+
+    @staticmethod
+    def _snapshot_input(item: dict[str, object]) -> bytes:
+        return json.dumps(
+            {
+                key: item[key]
+                for key in (
+                    "job_id",
+                    "tenant_id",
+                    "principal_id",
+                    "expires_at",
+                    "nonce",
+                    "signature",
+                    "dedupe_key",
+                    "payload_ref",
+                    "state",
+                    "attempts",
+                )
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
 
     def enqueue(self, envelope: WorkerEnvelope, *, dedupe_key: str, payload_ref: str) -> LocalJob:
         envelope.verify(secret=self._secret)
+        dedupe_key = self._safe_ref(dedupe_key, label="dedupe key")
+        payload_ref = self._safe_ref(payload_ref, label="payload reference")
         key = (envelope.tenant_id, dedupe_key)
         existing = self._dedupe.get(key)
         if existing is not None:
             return self._jobs[existing]
+        nonce_key = (envelope.tenant_id, envelope.nonce)
+        if nonce_key in self._nonces:
+            raise PermissionError("worker nonce replay rejected")
         job = LocalJob(envelope=envelope, dedupe_key=dedupe_key, payload_ref=payload_ref)
         self._jobs[envelope.job_id] = job
         self._dedupe[key] = envelope.job_id
+        self._nonces[nonce_key] = envelope.job_id
         return job
 
     async def run_one(
@@ -93,8 +134,9 @@ class LocalTenantWorker:
 
     def snapshot(self) -> tuple[dict[str, object], ...]:
         """Return restart-safe job metadata; payloads remain external references."""
-        return tuple(
-            {
+        snapshot: list[dict[str, object]] = []
+        for job in self._jobs.values():
+            item: dict[str, object] = {
                 "job_id": str(job.envelope.job_id),
                 "tenant_id": str(job.envelope.tenant_id),
                 "principal_id": str(job.envelope.principal_id),
@@ -106,15 +148,25 @@ class LocalTenantWorker:
                 "state": job.state.value,
                 "attempts": job.attempts,
             }
-            for job in self._jobs.values()
-        )
+            item["snapshot_signature"] = hmac.new(
+                self._secret, self._snapshot_input(item), hashlib.sha256
+            ).hexdigest()
+            snapshot.append(item)
+        return tuple(snapshot)
 
     def restore(self, snapshot: tuple[dict[str, object], ...]) -> int:
         """Restore only signed, non-terminal jobs after a local worker restart."""
         restored: dict[UUID, LocalJob] = {}
         dedupe: dict[tuple[UUID, str], UUID] = {}
+        nonces: dict[tuple[UUID, str], UUID] = {}
         try:
             for item in snapshot:
+                snapshot_signature = str(item["snapshot_signature"])
+                expected_snapshot_signature = hmac.new(
+                    self._secret, self._snapshot_input(item), hashlib.sha256
+                ).hexdigest()
+                if not hmac.compare_digest(snapshot_signature, expected_snapshot_signature):
+                    raise PermissionError("worker snapshot integrity check failed")
                 envelope = WorkerEnvelope(
                     job_id=UUID(str(item["job_id"])),
                     tenant_id=UUID(str(item["tenant_id"])),
@@ -126,24 +178,27 @@ class LocalTenantWorker:
                 envelope.verify(secret=self._secret)
                 state = JobState(str(item["state"]))
                 attempts = int(str(item["attempts"]))
-                if attempts < 0 or state in {JobState.READY, JobState.STALE, JobState.DEAD_LETTER}:
+                dedupe_key = self._safe_ref(str(item["dedupe_key"]), label="dedupe key")
+                payload_ref = self._safe_ref(str(item["payload_ref"]), label="payload reference")
+                if attempts < 0 or state not in {JobState.PENDING, JobState.FAILED}:
                     continue
-                dedupe_key = str(item["dedupe_key"])
                 key = (envelope.tenant_id, dedupe_key)
-                if envelope.job_id in restored or key in dedupe:
+                nonce_key = (envelope.tenant_id, envelope.nonce)
+                if envelope.job_id in restored or key in dedupe or nonce_key in nonces:
                     raise ValueError("duplicate worker snapshot entry")
                 restored[envelope.job_id] = LocalJob(
                     envelope=envelope,
                     dedupe_key=dedupe_key,
-                    payload_ref=str(item["payload_ref"]),
+                    payload_ref=payload_ref,
                     state=state,
                     attempts=attempts,
                     error="worker execution failed" if state == JobState.FAILED else None,
                 )
                 dedupe[key] = envelope.job_id
-        except (KeyError, TypeError, ValueError) as exc:
+                nonces[nonce_key] = envelope.job_id
+        except (KeyError, TypeError, ValueError, PermissionError) as exc:
             raise PermissionError("worker snapshot rejected") from exc
-        self._jobs, self._dedupe = restored, dedupe
+        self._jobs, self._dedupe, self._nonces = restored, dedupe, nonces
         return len(restored)
 
 

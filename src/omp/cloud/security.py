@@ -8,6 +8,7 @@ adapter for contract tests and development only.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -163,6 +164,28 @@ class KeyManagementService(Protocol):
     def unwrap(self, *, tenant_id: UUID, key_version: int, wrapped_dek: bytes) -> bytes: ...
 
 
+class KMSUnavailableError(PermissionError):
+    """A hosted key service is unavailable; plaintext fallback is forbidden."""
+
+
+class HostedKMSUnavailable:
+    """Fail-closed seam for the future hosted KMS adapter.
+
+    CP-3 explicitly blocks wiring a real provider in this package. Keeping the
+    seam callable but unusable makes accidental hosted composition fail before
+    any ciphertext is written or decrypted.
+    """
+
+    def __init__(self, reason: str = "hosted KMS adapter is not configured") -> None:
+        self._reason = reason
+
+    def wrap(self, *, tenant_id: UUID, key_version: int, dek: bytes) -> bytes:
+        raise KMSUnavailableError(self._reason)
+
+    def unwrap(self, *, tenant_id: UUID, key_version: int, wrapped_dek: bytes) -> bytes:
+        raise KMSUnavailableError(self._reason)
+
+
 class LocalDevelopmentKMS:
     """Process-local development KMS; never configure this in hosted staging/prod."""
 
@@ -175,18 +198,23 @@ class LocalDevelopmentKMS:
         return f"umcp/dek/v1/{tenant_id}/{key_version}".encode()
 
     def wrap(self, *, tenant_id: UUID, key_version: int, dek: bytes) -> bytes:
+        if key_version < 1 or len(dek) != 32:
+            raise KMSUnavailableError("invalid envelope key request")
         nonce = os.urandom(12)
         return nonce + self._cipher.encrypt(nonce, dek, self._aad(tenant_id, key_version))
 
     def unwrap(self, *, tenant_id: UUID, key_version: int, wrapped_dek: bytes) -> bytes:
-        if len(wrapped_dek) < 13:
-            raise PermissionError("key unwrap failed")
+        if key_version < 1 or len(wrapped_dek) < 12 + 16:
+            raise KMSUnavailableError("key unwrap failed")
         try:
-            return self._cipher.decrypt(
+            dek = self._cipher.decrypt(
                 wrapped_dek[:12], wrapped_dek[12:], self._aad(tenant_id, key_version)
             )
+            if len(dek) != 32:
+                raise ValueError("invalid DEK")
+            return dek
         except Exception as exc:
-            raise PermissionError("key unwrap failed") from exc
+            raise KMSUnavailableError("key unwrap failed") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,15 +239,34 @@ class EnvelopeCiphertext:
         """Parse the compact envelope persisted by Cloud repositories."""
         try:
             payload = json.loads(value)
-            if payload["v"] != 1 or not isinstance(payload["k"], int):
+            if (
+                not isinstance(payload, dict)
+                or payload["v"] != 1
+                or not isinstance(payload["k"], int)
+                or payload["k"] < 1
+            ):
                 raise ValueError("unsupported envelope")
-            return cls(
+            decoded = cls(
                 key_version=payload["k"],
                 wrapped_dek=base64.urlsafe_b64decode(str(payload["w"])),
                 nonce=base64.urlsafe_b64decode(str(payload["n"])),
                 ciphertext=base64.urlsafe_b64decode(str(payload["c"])),
             )
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            if (
+                len(decoded.wrapped_dek) < 12 + 16
+                or len(decoded.nonce) != 12
+                or len(decoded.ciphertext) < 16
+            ):
+                raise ValueError("invalid envelope lengths")
+            return decoded
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+            UnicodeError,
+            binascii.Error,
+            json.JSONDecodeError,
+        ) as exc:
             raise PermissionError("ciphertext envelope is invalid") from exc
 
 
@@ -234,6 +281,8 @@ class TenantEnvelopeEncryptor:
     def encrypt(
         self, *, tenant_id: UUID, record_id: UUID, field: str, plaintext: str, key_version: int
     ) -> EnvelopeCiphertext:
+        if key_version < 1 or not field or "/" in field:
+            raise ValueError("invalid envelope field or key version")
         dek, nonce = os.urandom(32), os.urandom(12)
         ciphertext = AESGCM(dek).encrypt(
             nonce,
@@ -242,19 +291,25 @@ class TenantEnvelopeEncryptor:
                 tenant_id=tenant_id, record_id=record_id, field=field, key_version=key_version
             ),
         )
-        return EnvelopeCiphertext(
-            key_version,
-            self._kms.wrap(tenant_id=tenant_id, key_version=key_version, dek=dek),
-            nonce,
-            ciphertext,
-        )
+        try:
+            wrapped_dek = self._kms.wrap(tenant_id=tenant_id, key_version=key_version, dek=dek)
+        except Exception as exc:
+            raise KMSUnavailableError("key wrap failed") from exc
+        return EnvelopeCiphertext(key_version, wrapped_dek, nonce, ciphertext)
 
     def decrypt(
         self, *, tenant_id: UUID, record_id: UUID, field: str, value: EnvelopeCiphertext
     ) -> str:
-        dek = self._kms.unwrap(
-            tenant_id=tenant_id, key_version=value.key_version, wrapped_dek=value.wrapped_dek
-        )
+        if value.key_version < 1 or len(value.nonce) != 12 or len(value.ciphertext) < 16:
+            raise PermissionError("ciphertext envelope is invalid")
+        try:
+            dek = self._kms.unwrap(
+                tenant_id=tenant_id, key_version=value.key_version, wrapped_dek=value.wrapped_dek
+            )
+        except Exception as exc:
+            raise KMSUnavailableError("key unwrap failed") from exc
+        if len(dek) != 32:
+            raise KMSUnavailableError("key unwrap returned an invalid DEK")
         try:
             return (
                 AESGCM(dek)
@@ -339,5 +394,11 @@ class WorkerEnvelope:
     def verify(self, *, secret: bytes, now: datetime | None = None) -> None:
         now = now or datetime.now(UTC)
         expected = hmac.new(secret, self.signing_input(), hashlib.sha256).hexdigest()
-        if self.expires_at <= now or not hmac.compare_digest(expected, self.signature):
+        if (
+            self.expires_at.tzinfo is None
+            or not self.nonce
+            or len(self.nonce) > 256
+            or self.expires_at <= now
+            or not hmac.compare_digest(expected, self.signature)
+        ):
             raise PermissionError("worker envelope rejected")
