@@ -233,6 +233,15 @@ def create_cloud_http_app(
     )
 
     @app.middleware("http")
+    async def add_provenance_headers(request: Request, call_next: object) -> object:
+        response: Any = await cast(Any, call_next)(request)
+        if runtime.settings.image_digest:
+            response.headers["X-UMCP-Image-Digest"] = runtime.settings.image_digest
+        if runtime.settings.image_source_sha:
+            response.headers["X-UMCP-Image-Source-SHA"] = runtime.settings.image_source_sha
+        return response
+
+    @app.middleware("http")
     async def reject_client_owner_id(request: Request, call_next: object) -> object:
         """Reject, rather than silently discard, a hosted authorization boundary."""
         if request.url.path == "/mcp/":

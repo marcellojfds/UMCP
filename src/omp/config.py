@@ -36,6 +36,8 @@ class OMPSettings(BaseSettings):
     retrieval_default_limit: int = 5
     migration_head: str = "0007_tenant_fks"
     log_content: bool = False
+    image_digest: str = ""
+    image_source_sha: str = ""
 
     def safe_summary(self) -> dict[str, str | int | float | bool]:
         """Return configuration suitable for diagnostics without secrets."""
