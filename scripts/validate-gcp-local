@@ -81,6 +81,10 @@ def main() -> None:
         "secret_key_ref": "runtime secret reference",
         "version = var.secret_version": "immutable runtime secret version",
         "@sha256:": "immutable image-digest validation",
+        "variable \"image_source_sha\"": "image source-SHA variable",
+        "^[0-9a-f]{40}$": "full source-SHA validation",
+        "source-sha = var.image_source_sha": "Cloud Run revision source-SHA audit label",
+        "var.image_digest)) && can(regex(\"^[0-9a-f]{40}$\", var.image_source_sha))": "digest/source-SHA promotion guard",
         "google_billing_budget": "budget resource",
         "google_monitoring_alert_policy": "monitoring alert",
         "google_logging_project_sink": "logging sink",
@@ -100,6 +104,9 @@ def main() -> None:
         fail("container must not run as root")
     if "exit 78" not in deploy:
         fail("deploy wrapper must fail closed")
+    require(deploy, "IMAGE_DIGEST", "deploy image-digest input")
+    require(deploy, "IMAGE_SOURCE_SHA", "deploy source-SHA input")
+    require(deploy, "does not match the checked-out source commit", "deploy source-SHA consistency check")
     require(review_plan, "not a Terraform provider plan", "redacted plan boundary")
     require(review_plan, "No destructive operations accepted", "redacted destructive-change gate")
 
