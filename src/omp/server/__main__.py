@@ -14,6 +14,7 @@ from omp.domain import (
     ImportConflictError,
     NotFoundError,
     OMPError,
+    RestoreBlockedByTombstoneError,
     ValidationError,
 )
 from omp.sdk.export import ExportDocument
@@ -49,7 +50,12 @@ def main() -> None:
 
         from .official import create_fail_closed_cloud_http_app
 
-        uvicorn.run(create_fail_closed_cloud_http_app(), host=args.host, port=args.port, log_level="warning")
+        uvicorn.run(
+            create_fail_closed_cloud_http_app(),
+            host=args.host,
+            port=args.port,
+            log_level="warning",
+        )
         return
     if args.m1_http:
         import uvicorn
@@ -129,6 +135,10 @@ async def _run_admin(runtime: Any, args: argparse.Namespace) -> dict[str, Any]:
         raise AdminFailure("validation_error", "export package is not acceptable", 2) from None
     except NotFoundError:
         raise AdminFailure("not_found", "export reference was not found", 3) from None
+    except RestoreBlockedByTombstoneError:
+        raise AdminFailure(
+            "restore_blocked_by_tombstone", "memory restore is blocked by a tombstone", 4
+        ) from None
     except RuntimeError:
         raise AdminFailure("dependency_unavailable", "Postgres is not ready", 7) from None
     except OMPError:

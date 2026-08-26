@@ -355,9 +355,11 @@ async def test_cloud_postgres_blocks_cross_tenant_forged_owner_operations(runtim
             written = await app.write(write_command(owner_a, "tenant a private memory"))
         with tenant_scope(tenant_b):
             async with factory() as uow:
-                assert await uow.memories.get(owner_id=owner_a, memory_id=written.memory.id) is None
-            assert await app.export_memories(owner_id=owner_a) == ()
-            with pytest.raises(NotFoundError):
+                with pytest.raises(TenantContextError):
+                    await uow.memories.get(owner_id=owner_a, memory_id=written.memory.id)
+            with pytest.raises(TenantContextError):
+                await app.export_memories(owner_id=owner_a)
+            with pytest.raises(TenantContextError):
                 await app.update(
                     UpdateMemoryCommand(
                         owner_id=owner_a,
@@ -367,14 +369,14 @@ async def test_cloud_postgres_blocks_cross_tenant_forged_owner_operations(runtim
                         idempotency_key="forged-update",
                     )
                 )
-            forged_forget = await app.forget(
-                ForgetMemoryCommand(
-                    owner_id=owner_a,
-                    memory_id=written.memory.id,
-                    idempotency_key="forged-forget",
+            with pytest.raises(TenantContextError):
+                await app.forget(
+                    ForgetMemoryCommand(
+                        owner_id=owner_a,
+                        memory_id=written.memory.id,
+                        idempotency_key="forged-forget",
+                    )
                 )
-            )
-            assert forged_forget.forgotten is False
         with tenant_scope(tenant_a):
             async with factory() as uow:
                 assert await uow.memories.get(owner_id=owner_a, memory_id=written.memory.id)

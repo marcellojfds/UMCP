@@ -198,20 +198,7 @@ def test_mvp0_journey_postgres_official_stdio(tmp_path: Path) -> None:
     assert cascade == {"memory_versions": 0, "memory_embeddings": 0, "memory_relations": 0}
 
     assert client_b.import_file(export_path, dry_run=True)["count"] == 0
-    assert client_b.import_file(export_path)["count"] == 1
-    assert client_b.import_file(export_path)["count"] == 0
-    assert (
-        client_b.search(
-            query=(
-                "What GTM strategy follows the MBA lesson: geographic density before broad "
-                "geographic expansion?"
-            ),
-            owner_id=owner_a,
-        )["count"]
-        == 1
-    )
-    assert (
-        client_b.forget(id=memory_id, owner_id=owner_a, idempotency_key="forget-002")["status"]
-        == "forgotten"
-    )
+    with pytest.raises(ProtocolError) as restore:
+        client_b.import_file(export_path)
+    assert restore.value.code == "restore_blocked_by_tombstone"
     assert canary not in log_path.read_text(encoding="utf-8")
