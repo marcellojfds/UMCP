@@ -435,6 +435,8 @@ def create_admin_app(auth: LocalMailboxAuth, runtime: object | None = None) -> F
             "scopes": sorted(scope.value for scope in payload.scopes),
             "tenant_id": str(value.tenant_id),
             "status": "active",
+            # A nullable, server-owned audit field; no browser timestamp is trusted.
+            "last_used_at": None,
         }
         auth._connections[connection_id] = connection
         return {

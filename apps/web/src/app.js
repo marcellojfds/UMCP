@@ -1,4 +1,5 @@
 import { getAdminAdapter } from "./admin-adapter.js";
+import { getAuthAdapter } from "./auth-fixture.js";
 import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
 import { renderMemoryInbox } from "./memory-inbox-view.js";
 import { M1_FIXTURE_MEMORY_ID } from "./memory-inbox-contract.js";
@@ -18,6 +19,7 @@ const routePages = {
   "/dashboard": ["Dashboard", "A calm overview of your memory layer.", "Start by connecting an authenticated Cloud adapter. Your dashboard will appear here once the server-side session is verified."],
   "/memories": ["Memories", "Review what your agents remember.", "No memories are loaded in this preview. The administrative adapter will provide paginated, tenant-scoped results without browser database access."],
   "/connections": ["Connections", "Choose which clients can use your memory.", "Connection scopes and revocation are server operations. Nothing is connected in this preview."],
+  "/consent": ["Connection consent", "Review access before it begins.", "The server supplies the client, purpose, scopes, and consent version. The browser can only approve or deny that request."],
   "/agents": ["Agents", "Issue narrow credentials for your own agents.", "Agent credentials are one-time displayed, hashed at rest, scoped, and revocable. Provisioning is waiting for the Cloud adapter."],
   "/settings/security": ["Security settings", "Sessions, consent, and account controls.", "A verified server session is required before security settings or destructive actions can be enabled."],
   "/docs": ["Documentation", "Connect the surfaces you actually use.", "Read the public onboarding contract and surface-specific recipes. Each compatibility row stays conservative until lifecycle evidence exists."],
@@ -75,7 +77,7 @@ async function renderAuthenticatedRoute(path) {
     }
     if (path === "/connections") {
       const result = await adapter.listConnections();
-      const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))}</small>${connection.status === "active" ? `<button type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been created.</li>";
+      const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))} · last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small>${connection.status === "active" ? `<button type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been created.</li>";
       renderRoutePage(path, `<div class="control-card"><p class="mono">CONNECTIONS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>`);
       wireConnectionActions(adapter);
       return true;
@@ -101,6 +103,129 @@ async function renderAuthenticatedRoute(path) {
     return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ERROR</span><p>We could not load this account data. Please try again later.</p></div>`);
   }
   return unavailableRoute(path, staticPage[2]);
+}
+
+let authSnapshot = { state: "idle", message: "" };
+
+function authStatus(message, state = "") {
+  const target = document.querySelector("#login-status");
+  if (!target) return;
+  target.dataset.state = state;
+  target.textContent = message;
+}
+
+function authErrorMessage(error) {
+  switch (error?.code) {
+    case "expired_callback": return "This sign-in link has expired. Request a new one and try again.";
+    case "revoked": return "This connection was revoked. Sign in again to request access.";
+    case "authentication_required": return "Your session is no longer available. Sign in again to continue.";
+    case "invalid_callback": return "This callback is invalid or has already been used.";
+    case "invalid_email": return "Enter a valid email address to request the local sign-in link.";
+    case "consent_already_decided": return "This consent request is no longer available.";
+    default: return "We could not complete that request. Please try again.";
+  }
+}
+
+function scopeDescription(scope) {
+  return {
+    "memory:read": "Read memories when the client asks for context",
+    "memory:write": "Create or update memories",
+    "memory:delete": "Forget memories on your instruction",
+    "memory:export": "Request a tenant export",
+    "connections:manage": "Manage this connection",
+  }[scope] || scope;
+}
+
+async function renderConsentRoute() {
+  const adapter = getAuthAdapter();
+  if (getAdminAdapter().status === "ready" && adapter.mode === "fixture") {
+    return unavailableRoute("/consent", "The deployed server must inject its H04 consent adapter before this screen can be used.");
+  }
+  if (adapter.status !== "ready") return unavailableRoute("/consent", "A verified server session is required before consent can be reviewed.");
+  renderRoutePage("/consent", `<div class="empty-state"><span class="mono">LOADING CONSENT</span><p>Checking the server-owned request…</p></div>`);
+  try {
+    const request = await adapter.consentRequest();
+    const scopes = (request.scopes || []).map((scope) => `<li><strong>${escapeHtml(scope)}</strong><span>${escapeHtml(scopeDescription(scope))}</span></li>`).join("");
+    renderRoutePage("/consent", `<div class="consent-card" data-state="${escapeHtml(authSnapshot.state || "ready")}"><p class="mono">CONSENT REQUEST / ${escapeHtml(request.policy_version)}</p><h2>${escapeHtml(request.client_name)} wants access.</h2><dl><div><dt>Purpose</dt><dd>${escapeHtml(request.purpose)}</dd></div><div><dt>Client</dt><dd>${escapeHtml(request.client_id)}</dd></div></dl><section class="scope-review" aria-labelledby="scope-review-heading"><p class="eyebrow" id="scope-review-heading">Requested scopes</p><ul>${scopes}</ul></section><p class="caption">The server records this decision as consent ${escapeHtml(request.request_id)}. You can revoke this connection later; the browser never chooses a tenant or expands these scopes.</p><div class="card-actions"><button class="button" id="grant-consent" type="button">Allow access</button><button class="button button--quiet" id="deny-consent" type="button">Deny</button></div><p id="consent-action-status" role="status" aria-live="polite"></p></div>`);
+    wireConsentActions(adapter);
+    return true;
+  } catch (error) {
+    const state = error?.code === "revoked" ? "revoked" : error?.code === "consent_already_decided" ? "denied" : "error";
+    const message = authErrorMessage(error);
+    authSnapshot = { state, message };
+    return renderRoutePage("/consent", `<div class="empty-state" data-state="${state}"><span class="mono">${state === "revoked" ? "CONNECTION REVOKED" : state === "denied" ? "CONSENT CLOSED" : "CONSENT UNAVAILABLE"}</span><p>${escapeHtml(message)}</p><div class="card-actions"><a class="button" href="#login">Return to sign in</a><button class="button button--quiet" data-action="retry-consent" type="button">Retry</button></div></div>`);
+  }
+}
+
+function wireConsentActions(adapter) {
+  const status = document.querySelector("#consent-action-status");
+  const grant = document.querySelector("#grant-consent");
+  const deny = document.querySelector("#deny-consent");
+  if (!status || !grant || !deny) return;
+  const setBusy = (message) => {
+    grant.disabled = true;
+    deny.disabled = true;
+    status.dataset.state = "loading";
+    status.textContent = message;
+  };
+  grant.addEventListener("click", async () => {
+    setBusy("Saving your consent decision…");
+    try {
+      await adapter.grantConsent();
+      authSnapshot = { state: "granted", message: "" };
+      location.hash = "#/connections";
+    } catch (error) {
+      grant.disabled = false;
+      deny.disabled = false;
+      status.dataset.state = error?.code === "revoked" ? "revoked" : "error";
+      status.textContent = authErrorMessage(error);
+    }
+  });
+  deny.addEventListener("click", async () => {
+    setBusy("Recording that access was denied…");
+    try {
+      await adapter.denyConsent();
+      authSnapshot = { state: "denied", message: "Access was denied. No connection was created." };
+      location.hash = "#login";
+      authStatus(authSnapshot.message, "denied");
+    } catch (error) {
+      grant.disabled = false;
+      deny.disabled = false;
+      status.dataset.state = "error";
+      status.textContent = authErrorMessage(error);
+    }
+  });
+  document.querySelector("[data-action='retry-consent']")?.addEventListener("click", () => { void renderConsentRoute(); });
+}
+
+async function renderConnectionsRoute() {
+  const admin = getAdminAdapter();
+  const adapter = admin.status === "ready" ? admin : getAuthAdapter();
+  if (adapter.status !== "ready") return unavailableRoute("/connections", routePages["/connections"][2]);
+  renderRoutePage("/connections", `<div class="empty-state"><span class="mono">LOADING CONNECTIONS</span><p>Checking server-owned access records…</p></div>`);
+  try {
+    const result = await adapter.listConnections();
+    const rows = (result.connections || []).map((connection) => `<li><span><strong>${escapeHtml(connection.name || connection.client_id || "Unnamed connection")}</strong><small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))}</small><small>Last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small></span>${connection.status === "active" ? `<button type="button" data-revoke-h05="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been approved.</li>";
+    renderRoutePage("/connections", `<div class="control-card"><p class="mono">SERVER-OWNED CONNECTIONS</p><p>Each client has its own scopes and revocation state. Last-used data is audit-safe metadata only.</p><ul class="connection-list">${rows}</ul><p id="connection-action-status" class="action-result" role="status" aria-live="polite"></p></div>`);
+    document.querySelectorAll("[data-revoke-h05]").forEach((button) => button.addEventListener("click", async () => {
+      if (!globalThis.confirm("Revoke this connection? Its access will stop.")) return;
+      button.disabled = true;
+      const status = document.querySelector("#connection-action-status");
+      status.textContent = "Revoking connection…";
+      try {
+        await adapter.revokeConnection(button.dataset.revokeH05);
+        authSnapshot = { state: "revoked", message: "Connection revoked. Its session is no longer usable." };
+        await renderConnectionsRoute();
+      } catch (error) {
+        button.disabled = false;
+        status.dataset.state = error?.code === "revoked" ? "revoked" : "error";
+        status.textContent = authErrorMessage(error);
+      }
+    }));
+    return true;
+  } catch (error) {
+    return renderRoutePage("/connections", `<div class="empty-state" data-state="${error?.code === "revoked" ? "revoked" : "error"}"><span class="mono">${error?.code === "revoked" ? "CONNECTION REVOKED" : "CONNECTIONS UNAVAILABLE"}</span><p>${escapeHtml(authErrorMessage(error))}</p><div class="card-actions"><a class="button" href="#login">Return to sign in</a><button class="button button--quiet" data-action="retry-connections" type="button">Retry</button></div></div>`);
+  }
 }
 
 let inboxSnapshot = { restore: null, recall: null };
@@ -360,47 +485,94 @@ function restoreLanding() {
 function wireLogin() {
   const form = document.querySelector("#login-form");
   const status = document.querySelector("#login-status");
-  if (!form || !status) return;
+  const google = document.querySelector("#google-login");
+  const adapter = getAuthAdapter();
+  const admin = getAdminAdapter();
+  if (!form || !status || !google) return;
+
+  const start = async (method, email) => {
+    if (method === "google" && admin.status === "ready" && adapter.mode === "fixture") {
+      authStatus("Google is not configured for this deployment. CP-2 must approve an IdP before this option is enabled.", "unavailable");
+      return;
+    }
+    if (adapter.status !== "ready") {
+      authStatus("Sign-in is not connected here. A deployed server must provide the verified identity flow.", "unavailable");
+      return;
+    }
+    google.disabled = true;
+    form.querySelector("button[type='submit']").disabled = true;
+    authStatus(method === "google" ? "Preparing the local callback…" : "Requesting a local sign-in link…", "loading");
+    try {
+      if (method === "magic_link" && admin.status === "ready" && adapter.mode === "fixture") {
+        await admin.requestMagicLink({ email });
+        authStatus("If this address can receive sign-in mail, a link will arrive shortly.", "success");
+        return;
+      }
+      const result = await adapter.beginLogin({ method, email });
+      if (method === "google") {
+        location.hash = result.callback_hash;
+        return;
+      }
+      authStatus("The local fixture accepted the request. No email was sent.", "success");
+      const link = document.querySelector("#open-magic-link");
+      if (link) link.remove();
+      const action = document.createElement("button");
+      action.id = "open-magic-link";
+      action.type = "button";
+      action.className = "button button--dark";
+      action.textContent = "Open local sign-in link";
+      action.addEventListener("click", () => { location.hash = adapter.openCapturedLink(); });
+      status.insertAdjacentElement("afterend", action);
+    } catch (error) {
+      authStatus(authErrorMessage(error), error?.code === "expired_callback" ? "expired" : "error");
+    } finally {
+      google.disabled = false;
+      form.querySelector("button[type='submit']").disabled = false;
+    }
+  };
+
+  google.addEventListener("click", () => { void start("google"); });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    const adapter = getAdminAdapter();
-    if (adapter.status !== "ready") {
-      status.dataset.state = "unavailable";
-      status.textContent = "Sign-in is not connected here. A deployed server must provide the verified email flow.";
-      return;
-    }
-    status.dataset.state = "loading";
-    status.textContent = "Requesting a sign-in link…";
-    try {
-      await adapter.requestMagicLink({ email: new FormData(form).get("email") });
-      status.dataset.state = "success";
-      status.textContent = "If this address can receive sign-in mail, a link will arrive shortly.";
-    } catch {
-      status.dataset.state = "error";
-      status.textContent = "We could not process that request. Please try again later.";
-    }
+    await start("magic_link", new FormData(form).get("email"));
   });
 }
 
 async function route() {
-  const callbackToken = new URLSearchParams(location.search).get("token");
-  if (callbackToken) {
-    const adapter = getAdminAdapter();
+  const hashParts = location.hash.match(/^#\/callback\?(.+)$/);
+  const query = hashParts ? new URLSearchParams(hashParts[1]) : new URLSearchParams(location.search);
+  const callbackToken = query.get("token");
+  const callbackCode = query.get("code");
+  if (callbackToken || callbackCode) {
+    const adapter = callbackCode ? getAuthAdapter() : getAdminAdapter();
     try {
-      await adapter.completeMagicLink(callbackToken);
-      history.replaceState({}, "", `${location.pathname}${location.hash || "#/dashboard"}`);
-      if (!location.hash) location.hash = "#/dashboard";
-    } catch {
-      history.replaceState({}, "", `${location.pathname}${location.hash || "#login"}`);
+      if (callbackCode) {
+        await adapter.completeCallback({ code: callbackCode, state: query.get("state") });
+        authSnapshot = { state: "authenticated", message: "" };
+        location.hash = "#/consent";
+      } else {
+        await adapter.completeMagicLink(callbackToken);
+        history.replaceState({}, "", `${location.pathname}${location.hash || "#/dashboard"}`);
+        if (!location.hash) location.hash = "#/dashboard";
+      }
+    } catch (error) {
+      if (callbackCode) {
+        authSnapshot = { state: error?.code === "expired_callback" ? "expired" : "error", message: authErrorMessage(error) };
+        location.hash = "#login";
+      } else {
+        history.replaceState({}, "", `${location.pathname}${location.hash || "#login"}`);
+      }
       const loginStatus = document.querySelector("#login-status");
       if (loginStatus) {
-        loginStatus.dataset.state = "error";
-        loginStatus.textContent = "This sign-in link is invalid, expired, or has already been used.";
+        loginStatus.dataset.state = authSnapshot.state || "error";
+        loginStatus.textContent = callbackCode ? authSnapshot.message : "This sign-in link is invalid, expired, or has already been used.";
       }
     }
   }
   const path = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
+  if (path === "/consent") return renderConsentRoute();
+  if (path === "/connections" && getAdminAdapter().status !== "ready") return renderConnectionsRoute();
   if (path === "/inbox") return renderInboxRoute();
   const detail = path.match(/^\/memories\/([^/]+)$/);
   if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]));
