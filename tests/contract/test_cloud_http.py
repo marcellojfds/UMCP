@@ -115,8 +115,10 @@ def test_cloud_official_mcp_path_does_not_redirect_or_downgrade_https(tmp_path) 
         "method": "initialize",
         "params": {},
     }
+    # Model the internal HTTP hop after a TLS terminator without permitting
+    # the application/router to construct a downgrade redirect.
     with TestClient(
-        app, base_url="https://local.umcp.invalid", follow_redirects=False
+        app, base_url="http://local.umcp.invalid", follow_redirects=False
     ) as client:
         response = client.post("/mcp", headers=headers, json=request)
         assert response.status_code == 200

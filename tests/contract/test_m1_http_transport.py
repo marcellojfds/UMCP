@@ -84,8 +84,10 @@ def test_m1_official_mcp_path_does_not_redirect_or_downgrade_https() -> None:
         "x-forwarded-proto": "https",
         "origin": "https://synthetic-client.invalid",
     }
+    # A TLS terminator forwards the application request over HTTP while
+    # preserving the external scheme in a trusted forwarding header.
     with TestClient(
-        app, base_url="https://mcp.synthetic.invalid", follow_redirects=False
+        app, base_url="http://mcp.synthetic.invalid", follow_redirects=False
     ) as client:
         response = client.post("/mcp", headers=headers, json=request)
         assert response.status_code == 200
