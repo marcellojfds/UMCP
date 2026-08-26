@@ -119,7 +119,10 @@ def create_cloud_server(
             resource_server_url=cast(AnyHttpUrl, "https://local.umcp.invalid/mcp"),
             required_scopes=[],
         ),
-        streamable_http_path="/mcp",
+        # ``create_cloud_http_app`` mounts this ASGI application at the one
+        # public MCP route.  The transport itself must therefore be rooted at
+        # the mount point rather than declare a second ``/mcp`` segment.
+        streamable_http_path="/",
         stateless_http=True,
         max_request_body_size=64 * 1024,
         transport_security=TransportSecuritySettings(
@@ -218,11 +221,16 @@ def create_cloud_http_app(
         redoc_url=None,
         openapi_url=None,
         lifespan=lifespan,
+        redirect_slashes=False,
     )
 
     @app.middleware("http")
     async def reject_client_owner_id(request: Request, call_next: object) -> object:
         """Reject, rather than silently discard, a hosted authorization boundary."""
+        if request.url.path == "/mcp/":
+            return JSONResponse(
+                {"error": "not found"}, status_code=404, headers={"cache-control": "no-store"}
+            )
         if request.method == "POST" and request.url.path == "/mcp":
             try:
                 payload = json.loads((await request.body()).decode("utf-8"))
@@ -269,7 +277,7 @@ def create_cloud_http_app(
 
         app.mount("/web", StaticFiles(directory=str(web_directory), html=True), name="web")
 
-    app.mount("/", server.streamable_http_app())
+    app.mount("/mcp", server.streamable_http_app())
     return app
 
 

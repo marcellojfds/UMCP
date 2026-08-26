@@ -96,6 +96,38 @@ def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
         assert revoked.status_code == 401
 
 
+def test_cloud_official_mcp_path_does_not_redirect_or_downgrade_https(tmp_path) -> None:
+    """Keep the public `/mcp` route exact behind a synthetic TLS proxy."""
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+    )
+    local = verifier()
+    app = create_cloud_http_app(runtime, local)
+    headers = {
+        "authorization": f"Bearer {token(local, {Scope.MEMORY_READ})}",
+        "accept": "application/json, text/event-stream",
+        "x-forwarded-proto": "https",
+        "origin": "https://synthetic-client.invalid",
+    }
+    request = {
+        "jsonrpc": "2.0",
+        "id": "initialize-over-https",
+        "method": "initialize",
+        "params": {},
+    }
+    with TestClient(
+        app, base_url="https://local.umcp.invalid", follow_redirects=False
+    ) as client:
+        response = client.post("/mcp", headers=headers, json=request)
+        assert response.status_code == 200
+        assert "location" not in response.headers
+        assert response.headers["mcp-session-id"]
+
+        trailing = client.post("/mcp/", headers=headers, json=request)
+        assert trailing.status_code == 404
+        assert "location" not in trailing.headers
+
+
 def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path) -> None:
     """The browser shell can reach only the same-origin Admin API in local mode."""
     runtime = create_cloud_demo_runtime(
