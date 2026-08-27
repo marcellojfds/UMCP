@@ -14,6 +14,13 @@ Streamable HTTP transport.  `/mcp/` remains deliberately unserved.  The
 transport security configuration now derives HTTPS origins from the approved
 host allowlist rather than accepting an arbitrary browser origin.
 
+The first staging rollout also revealed that `ServerRuntime.startup()` made
+the container exit when PostgreSQL was unavailable.  The hosted lifespan now
+keeps the process live for that specific dependency failure: `/healthz` stays
+available, `/readyz` truthfully returns `503`, and unauthenticated MCP remains
+`401`.  This is not a database fallback and does not make the MCP service
+ready.
+
 ## Current evidence
 
 Executed on the delivery tree:
@@ -24,6 +31,9 @@ python3.11 -m pytest -q tests/unit/test_cloud_entrypoint.py \
   tests/unit/test_cloud_security.py tests/unit/test_h04_identity_contracts.py \
   -k 'not calls_tools_with_verified_tenant_principal and not conformance_runner_executes_against_local_mcp_gateway'
 # 33 passed, 2 deselected
+
+# after the readiness repair
+# 34 passed, 2 deselected
 
 python3.11 -m ruff check src/omp/server/official.py tests/contract/test_cloud_http.py
 # passed
