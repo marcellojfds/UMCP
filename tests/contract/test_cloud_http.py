@@ -107,13 +107,17 @@ def test_cloud_official_mcp_path_does_not_redirect_or_downgrade_https(tmp_path) 
         "authorization": f"Bearer {token(local, {Scope.MEMORY_READ})}",
         "accept": "application/json, text/event-stream",
         "x-forwarded-proto": "https",
-        "origin": "https://synthetic-client.invalid",
+        "origin": "https://local.umcp.invalid",
     }
     request = {
         "jsonrpc": "2.0",
         "id": "initialize-over-https",
         "method": "initialize",
-        "params": {},
+        "params": {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {},
+            "clientInfo": {"name": "umcp-contract", "version": "1"},
+        },
     }
     # Model the internal HTTP hop after a TLS terminator without permitting
     # the application/router to construct a downgrade redirect.
@@ -123,7 +127,9 @@ def test_cloud_official_mcp_path_does_not_redirect_or_downgrade_https(tmp_path) 
         response = client.post("/mcp", headers=headers, json=request)
         assert response.status_code == 200
         assert "location" not in response.headers
-        assert response.headers["mcp-session-id"]
+        # The hosted transport is stateless, so a successful initialize is
+        # streamed and intentionally does not establish a session header.
+        assert "mcp-session-id" not in response.headers
 
         trailing = client.post("/mcp/", headers=headers, json=request)
         assert trailing.status_code == 404

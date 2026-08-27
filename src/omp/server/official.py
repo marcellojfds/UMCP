@@ -15,6 +15,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import AnyHttpUrl, Field
+from starlette.routing import BaseRoute, Match
 
 from omp.adapters.mcp.http import (
     M1LocalAuth,
@@ -37,6 +38,33 @@ from omp.cloud.tenant import tenant_scope
 from omp.config import OMPSettings
 
 from .composition import ServerRuntime, create_fail_closed_cloud_runtime
+
+
+class _ExactMCPRoute(BaseRoute):
+    """Delegate the public exact ``/mcp`` path to the Streamable HTTP ASGI app.
+
+    Starlette's ``Mount`` intentionally matches a trailing slash, which means
+    mounting at ``/mcp`` leaves the exact protocol endpoint as a 404 when the
+    parent application has redirects disabled.  MCP clients use the endpoint
+    without that slash, and a redirect can downgrade the scheme behind a TLS
+    terminator.  This route rewrites only the child ASGI scope, keeping the
+    externally visible path exact and leaving ``/mcp/`` unserved.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    def matches(self, scope: dict[str, Any]) -> tuple[Match, dict[str, Any]]:
+        if scope["type"] == "http" and scope["path"] == "/mcp":
+            return Match.FULL, scope
+        return Match.NONE, {}
+
+    async def handle(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        child_scope = dict(scope)
+        child_scope["root_path"] = f"{scope.get('root_path', '')}/mcp"
+        child_scope["path"] = "/"
+        child_scope["raw_path"] = b"/"
+        await self.app(child_scope, receive, send)
 
 
 class RejectUnconfiguredOIDCVerifier:
@@ -118,6 +146,7 @@ def create_cloud_server(
     argument. The verified bearer claim is converted to the internal temporary
     compatibility owner only at the adapter boundary.
     """
+    permitted_hosts = allowed_hosts or ["local.umcp.invalid"]
     server = FastMCP(
         name="umcp-cloud",
         instructions="Use memory tools only within the scopes granted to this integration.",
@@ -134,7 +163,8 @@ def create_cloud_server(
         stateless_http=True,
         max_request_body_size=64 * 1024,
         transport_security=TransportSecuritySettings(
-            allowed_hosts=allowed_hosts or ["local.umcp.invalid"]
+            allowed_hosts=permitted_hosts,
+            allowed_origins=[f"https://{host}" for host in permitted_hosts],
         ),
     )
 
@@ -294,7 +324,9 @@ def create_cloud_http_app(
 
         app.mount("/web", StaticFiles(directory=str(web_directory), html=True), name="web")
 
-    app.mount("/mcp", server.streamable_http_app())
+    # This must be registered after the non-MCP routes, while still matching
+    # the exact public endpoint rather than Starlette's trailing-slash mount.
+    app.router.routes.append(_ExactMCPRoute(server.streamable_http_app()))
     return app
 
 
