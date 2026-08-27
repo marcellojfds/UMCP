@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 
 from omp.cloud import (
+    GoogleCloudKMS,
     HostedKMSUnavailable,
     JobState,
     KMSUnavailableError,
@@ -64,6 +65,28 @@ def test_hosted_kms_seam_fails_closed_without_a_plaintext_fallback() -> None:
             plaintext="must never be persisted",
             key_version=1,
         )
+
+
+def test_google_kms_adapter_binds_wrapped_keys_to_tenant_and_version() -> None:
+    class Client:
+        def encrypt(self, *, request):
+            self.encrypt_request = request
+            return type("Result", (), {"ciphertext": b"wrapped"})()
+
+        def decrypt(self, *, request):
+            self.decrypt_request = request
+            return type("Result", (), {"plaintext": b"k" * 32})()
+
+    client = Client()
+    kms = GoogleCloudKMS(
+        "projects/test/locations/us-central1/keyRings/umcp/cryptoKeys/envelope", client=client
+    )
+    tenant = uuid4()
+    assert kms.wrap(tenant_id=tenant, key_version=1, dek=b"d" * 32) == b"wrapped"
+    assert kms.unwrap(tenant_id=tenant, key_version=1, wrapped_dek=b"wrapped") == b"k" * 32
+    assert client.encrypt_request["additional_authenticated_data"] == client.decrypt_request[
+        "additional_authenticated_data"
+    ]
 
 
 def test_envelope_ciphertext_is_tenant_and_record_bound() -> None:

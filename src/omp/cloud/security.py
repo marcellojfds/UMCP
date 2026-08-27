@@ -186,6 +186,57 @@ class HostedKMSUnavailable:
         raise KMSUnavailableError(self._reason)
 
 
+class GoogleCloudKMS:
+    """Production KMS adapter using the runtime's application-default identity."""
+
+    def __init__(self, key_resource: str, *, client: object | None = None) -> None:
+        if not key_resource.startswith("projects/"):
+            raise ValueError("a full Cloud KMS key resource is required")
+        if client is None:
+            from google.cloud import kms
+
+            client = kms.KeyManagementServiceClient()
+        self._key_resource = key_resource
+        self._client = client
+
+    def wrap(self, *, tenant_id: UUID, key_version: int, dek: bytes) -> bytes:
+        if key_version < 1 or len(dek) != 32:
+            raise KMSUnavailableError("invalid envelope key request")
+        try:
+            response = self._client.encrypt(
+                request={
+                    "name": self._key_resource,
+                    "plaintext": dek,
+                    "additional_authenticated_data": self._aad(tenant_id, key_version),
+                }
+            )
+            return bytes(response.ciphertext)
+        except Exception as exc:
+            raise KMSUnavailableError("key wrap failed") from exc
+
+    def unwrap(self, *, tenant_id: UUID, key_version: int, wrapped_dek: bytes) -> bytes:
+        if key_version < 1 or not wrapped_dek:
+            raise KMSUnavailableError("invalid envelope key request")
+        try:
+            response = self._client.decrypt(
+                request={
+                    "name": self._key_resource,
+                    "ciphertext": wrapped_dek,
+                    "additional_authenticated_data": self._aad(tenant_id, key_version),
+                }
+            )
+            plaintext = bytes(response.plaintext)
+            if len(plaintext) != 32:
+                raise ValueError("invalid decrypted DEK")
+            return plaintext
+        except Exception as exc:
+            raise KMSUnavailableError("key unwrap failed") from exc
+
+    @staticmethod
+    def _aad(tenant_id: UUID, key_version: int) -> bytes:
+        return f"umcp/dek/v1/{tenant_id}/{key_version}".encode()
+
+
 class LocalDevelopmentKMS:
     """Process-local development KMS; never configure this in hosted staging/prod."""
 

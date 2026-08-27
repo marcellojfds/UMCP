@@ -10,6 +10,7 @@ from .recovery import (
 )
 from .security import (
     EnvelopeCiphertext,
+    GoogleCloudKMS,
     HostedKMSUnavailable,
     KMSUnavailableError,
     LocalDevelopmentKMS,
@@ -25,6 +26,7 @@ from .worker import JobState, LocalTenantWorker, reembed_memory
 
 __all__ = [
     "EnvelopeCiphertext",
+    "GoogleCloudKMS",
     "HostedKMSUnavailable",
     "KMSUnavailableError",
     "LocalDevelopmentKMS",

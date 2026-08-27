@@ -38,6 +38,7 @@ class OMPSettings(BaseSettings):
     log_content: bool = False
     image_digest: str = ""
     image_source_sha: str = ""
+    kms_key_resource: str = ""
 
     def safe_summary(self) -> dict[str, str | int | float | bool]:
         """Return configuration suitable for diagnostics without secrets."""

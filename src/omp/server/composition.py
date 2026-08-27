@@ -15,7 +15,12 @@ from omp.adapters.mcp.local import PersistentLocalMemoryService
 from omp.adapters.postgres.repository import create_postgres_uow_factory
 from omp.application.services import MemoryApplicationService
 from omp.cloud.encrypted_memory import EncryptedCloudMemoryService
-from omp.cloud.security import HostedKMSUnavailable, LocalDevelopmentKMS, TenantEnvelopeEncryptor
+from omp.cloud.security import (
+    GoogleCloudKMS,
+    HostedKMSUnavailable,
+    LocalDevelopmentKMS,
+    TenantEnvelopeEncryptor,
+)
 from omp.config import OMPSettings, get_settings
 from omp.domain import utc_now
 
@@ -173,7 +178,9 @@ def create_fail_closed_cloud_runtime(settings: OMPSettings | None = None) -> Ser
     selected = settings or get_settings()
     if selected.environment != "cloud":
         selected = selected.model_copy(update={"environment": "cloud"})
-    return create_runtime(
-        selected,
-        encryptor=TenantEnvelopeEncryptor(HostedKMSUnavailable()),
+    kms = (
+        GoogleCloudKMS(selected.kms_key_resource)
+        if selected.kms_key_resource
+        else HostedKMSUnavailable()
     )
+    return create_runtime(selected, encryptor=TenantEnvelopeEncryptor(kms))
