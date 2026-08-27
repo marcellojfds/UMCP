@@ -50,3 +50,28 @@ It does not prove OAuth, an external MCP client, staging readiness, deployment,
 or production.  The next material step is to build and deploy a reviewed image
 to the authorized staging service, then re-run the black-box path probe before
 attempting the still-missing OAuth flow.
+
+## Staging rollout evidence (2026-08-27)
+
+The reviewed image was built in the authorized staging project and deployed by
+immutable digest to `umcp-cloud-staging` in `us-central1`:
+
+- source commit: `be50dedb46075d0606ee5b68467319097077efff`;
+- image digest:
+  `sha256:5dbb10482989bd5adca64e536658621d755a2e87be6b188e63ab9745d4bd6c67`;
+- revision: `umcp-cloud-staging-00006-wkf`, receiving 100% of staging traffic.
+
+The first rollout attempt failed before traffic shifting because PostgreSQL
+readiness terminated the process.  The readiness repair above was then built
+and rolled out successfully.  Current black-box results against the revision:
+
+| Probe | Result | Interpretation |
+| --- | --- | --- |
+| `GET /readyz` | `503 {"status":"not_ready"}` with image provenance headers | current, truthful dependency failure |
+| unauthenticated `POST /mcp` | `401` with image provenance headers | current, exact endpoint reaches fail-closed MCP boundary without redirect |
+| `GET /healthz` | frontend `404`, no application provenance headers/log entry | unresolved platform routing observation; not a liveness pass |
+
+No OAuth flow, credential issuance, real connector journey, data write, or
+production action was attempted.  C02 remains **NO-GO**: the deploy proves the
+MCP boundary and truthful unready behavior, but the staging database and
+provider-backed OAuth composition are still absent.
