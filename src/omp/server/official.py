@@ -246,7 +246,17 @@ def create_cloud_http_app(
 
     @asynccontextmanager
     async def lifespan(_: object) -> AsyncIterator[None]:
-        await runtime.startup()
+        # A hosted process must remain live when a required dependency is
+        # unavailable so Cloud Run can expose a truthful readiness result and
+        # recover when the dependency returns.  ``ServerRuntime.startup``
+        # raises this specific error for an unavailable PostgreSQL backend;
+        # MCP remains fail-closed because requests still pass through the
+        # runtime and ``/readyz`` continues to report 503.
+        try:
+            await runtime.startup()
+        except RuntimeError as exc:
+            if str(exc) != "postgres readiness check failed":
+                raise
         try:
             async with server.session_manager.run():
                 yield

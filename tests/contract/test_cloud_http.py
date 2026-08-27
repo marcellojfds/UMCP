@@ -19,8 +19,12 @@ from sse_starlette.sse import AppStatus
 from omp.cloud import LocalAgentCredentialVerifier, LocalDevelopmentTokenVerifier, Scope
 from omp.cloud.admin import LocalMailboxAuth, create_admin_app
 from omp.config import OMPSettings
-from omp.server.composition import create_cloud_demo_runtime, create_demo_runtime
-from omp.server.official import create_cloud_http_app, create_cloud_server
+from omp.server.composition import create_cloud_demo_runtime, create_demo_runtime, create_runtime
+from omp.server.official import (
+    RejectUnconfiguredOIDCVerifier,
+    create_cloud_http_app,
+    create_cloud_server,
+)
 
 
 def verifier() -> LocalDevelopmentTokenVerifier:
@@ -94,6 +98,25 @@ def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
             json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
         )
         assert revoked.status_code == 401
+
+
+def test_cloud_process_stays_live_but_unready_when_postgres_is_unavailable() -> None:
+    """A dependency outage is readiness failure, not a Cloud Run startup crash."""
+    runtime = create_runtime(
+        OMPSettings(
+            backend="postgres",
+            database_url="postgresql+asyncpg://127.0.0.1:1/umcp",
+        )
+    )
+    app = create_cloud_http_app(runtime, RejectUnconfiguredOIDCVerifier())
+    with TestClient(app, base_url="https://local.umcp.invalid") as client:
+        assert client.get("/healthz").json() == {"status": "ok"}
+        assert client.get("/readyz").status_code == 503
+        assert client.post(
+            "/mcp",
+            headers={"accept": "application/json, text/event-stream"},
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        ).status_code == 401
 
 
 def test_cloud_official_mcp_path_does_not_redirect_or_downgrade_https(tmp_path) -> None:
