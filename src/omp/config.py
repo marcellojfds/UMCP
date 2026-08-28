@@ -42,6 +42,7 @@ class OMPSettings(BaseSettings):
     public_base_url: str = ""
     oauth_google_credentials: SecretStr = SecretStr("")
     oauth_google_client_id: str = ""
+    oauth_google_redirect_uri: str = ""
     oauth_clients: str = ""
     oauth_allowed_email_sha256: str = ""
 

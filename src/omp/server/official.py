@@ -322,11 +322,16 @@ def create_cloud_http_app(
         async def protected_metadata() -> dict[str, object]:
             return {"resource": oauth_server.config.issuer + "/mcp", "authorization_servers": [oauth_server.config.issuer], "scopes_supported": sorted({"memory:read", "memory:write", "memory:delete"})}
 
+        @app.get("/.well-known/oauth-protected-resource/mcp")
+        async def protected_mcp_metadata() -> dict[str, object]:
+            return await protected_metadata()
+
         @app.get("/.well-known/oauth-authorization-server")
         async def authorization_metadata() -> dict[str, object]:
             return oauth_server.metadata()
 
         @app.get("/authorize")
+        @app.get("/oauth/authorize")
         async def authorize(response_type: str, client_id: str, redirect_uri: str, scope: str, state: str, code_challenge: str, code_challenge_method: str) -> object:
             if response_type != "code":
                 return JSONResponse({"error": "unsupported_response_type"}, 400)
@@ -352,12 +357,17 @@ def create_cloud_http_app(
                 body = (await request.body()).decode("utf-8")
                 form = dict(urllib.parse.parse_qsl(body, keep_blank_values=True))
                 return JSONResponse(await oauth_server.token(form), headers={"cache-control": "no-store", "pragma": "no-cache"})
+            except UnicodeDecodeError:
+                return JSONResponse({"error": "invalid_request"}, 400, headers={"cache-control": "no-store"})
             except OAuthError as exc:
                 return JSONResponse({"error": exc.code}, exc.status, headers={"cache-control": "no-store"})
 
         @app.post("/revoke")
         async def revoke(request: Request) -> object:
-            form = dict(urllib.parse.parse_qsl((await request.body()).decode("utf-8")))
+            try:
+                form = dict(urllib.parse.parse_qsl((await request.body()).decode("utf-8")))
+            except UnicodeDecodeError:
+                return JSONResponse({"error": "invalid_request"}, 400, headers={"cache-control": "no-store"})
             await oauth_server.revoke(form.get("token", ""))
             return JSONResponse({}, 200, headers={"cache-control": "no-store"})
 
