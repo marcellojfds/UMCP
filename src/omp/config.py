@@ -34,11 +34,16 @@ class OMPSettings(BaseSettings):
     retrieval_default_threshold: float = 0.78
     retrieval_default_candidate_limit: int = 50
     retrieval_default_limit: int = 5
-    migration_head: str = "0010_oauth_server"
+    migration_head: str = "0011_oauth_authorization_codes"
     log_content: bool = False
     image_digest: str = ""
     image_source_sha: str = ""
     kms_key_resource: str = ""
+    public_base_url: str = ""
+    oauth_google_credentials: SecretStr = SecretStr("")
+    oauth_google_client_id: str = ""
+    oauth_clients: str = ""
+    oauth_allowed_email_sha256: str = ""
 
     def safe_summary(self) -> dict[str, str | int | float | bool]:
         """Return configuration suitable for diagnostics without secrets."""

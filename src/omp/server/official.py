@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -36,6 +37,7 @@ from omp.adapters.mcp.schemas import (
 from omp.cloud import OIDCTokenVerifier, Scope, principal_from_access_token
 from omp.cloud.tenant import tenant_scope
 from omp.config import OMPSettings
+from .oauth import OAuthConfiguration, OAuthError, OAuthServer
 
 from .composition import ServerRuntime, create_fail_closed_cloud_runtime
 
@@ -230,6 +232,7 @@ def create_cloud_http_app(
     allowed_hosts: list[str] | None = None,
     admin_app: object | None = None,
     web_directory: Path | None = None,
+    oauth_server: OAuthServer | None = None,
 ) -> object:
     """Mount authenticated `/mcp` alongside redacted health/readiness routes.
 
@@ -314,6 +317,50 @@ def create_cloud_http_app(
             ready = False
         return JSONResponse({"status": "ready" if ready else "not_ready"}, 200 if ready else 503)
 
+    if oauth_server is not None:
+        @app.get("/.well-known/oauth-protected-resource")
+        async def protected_metadata() -> dict[str, object]:
+            return {"resource": oauth_server.config.issuer + "/mcp", "authorization_servers": [oauth_server.config.issuer], "scopes_supported": sorted({"memory:read", "memory:write", "memory:delete"})}
+
+        @app.get("/.well-known/oauth-authorization-server")
+        async def authorization_metadata() -> dict[str, object]:
+            return oauth_server.metadata()
+
+        @app.get("/authorize")
+        async def authorize(response_type: str, client_id: str, redirect_uri: str, scope: str, state: str, code_challenge: str, code_challenge_method: str) -> object:
+            if response_type != "code":
+                return JSONResponse({"error": "unsupported_response_type"}, 400)
+            try:
+                from fastapi.responses import RedirectResponse
+                return RedirectResponse(await oauth_server.begin(client_id, redirect_uri, scope, state, code_challenge, code_challenge_method), status_code=302)
+            except OAuthError as exc:
+                return JSONResponse({"error": exc.code}, exc.status)
+
+        @app.get("/oauth/callback")
+        async def oauth_callback(code: str = "", state: str = "") -> object:
+            try:
+                redirect_uri, authorization_code, client_state = await oauth_server.callback(code, state)
+                query = urllib.parse.urlencode({"code": authorization_code, "state": client_state})
+                from fastapi.responses import RedirectResponse
+                return RedirectResponse(redirect_uri + ("&" if "?" in redirect_uri else "?") + query, status_code=302)
+            except OAuthError as exc:
+                return JSONResponse({"error": exc.code}, exc.status)
+
+        @app.post("/token")
+        async def token(request: Request) -> object:
+            try:
+                body = (await request.body()).decode("utf-8")
+                form = dict(urllib.parse.parse_qsl(body, keep_blank_values=True))
+                return JSONResponse(await oauth_server.token(form), headers={"cache-control": "no-store", "pragma": "no-cache"})
+            except OAuthError as exc:
+                return JSONResponse({"error": exc.code}, exc.status, headers={"cache-control": "no-store"})
+
+        @app.post("/revoke")
+        async def revoke(request: Request) -> object:
+            form = dict(urllib.parse.parse_qsl((await request.body()).decode("utf-8")))
+            await oauth_server.revoke(form.get("token", ""))
+            return JSONResponse({}, 200, headers={"cache-control": "no-store"})
+
     if admin_app is not None:
         app.mount("/admin", cast(Any, admin_app))
     if web_directory is not None:
@@ -347,9 +394,12 @@ def create_fail_closed_cloud_http_app(settings: OMPSettings | None = None) -> ob
     verifier is wired outside this local remediation.  Its public surface is
     still the hosted ``/mcp`` composition, including exact-path handling.
     """
-    return create_cloud_http_app(
-        create_fail_closed_cloud_runtime(settings), RejectUnconfiguredOIDCVerifier()
-    )
+    runtime = create_fail_closed_cloud_runtime(settings)
+    config = OAuthConfiguration.from_settings(runtime.settings)
+    if config is None or runtime.engine is None:
+        return create_cloud_http_app(runtime, RejectUnconfiguredOIDCVerifier())
+    oauth = OAuthServer(runtime.engine, config)
+    return create_cloud_http_app(runtime, oauth, oauth_server=oauth)
 
 
 __all__ = [
