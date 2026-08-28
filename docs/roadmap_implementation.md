@@ -2,7 +2,7 @@
 title: UMCP Roadmap Implementation Guide
 status: active
 confidence: repository-grounded
-updated: 2026-08-25
+updated: 2026-08-28
 baseline_roadmap: docs/CODEX_DELIVERY_ROADMAP.md
 baseline_candidate: codex/m01-local-integrated@faeadaf
 current_checkout_at_inventory: terra-alpha-recovery@2c94d55
@@ -28,6 +28,8 @@ A leitura executiva é:
 - **M3 possui contrato e receita sintética, não dois conectores reais.**
 - **M4–M8 permanecem majoritariamente por implementar.**
 - **Nenhuma entrega posterior ao Alpha está integrada em `main`.**
+- **O primeiro uso externo será private managed beta; M7 open source vem
+  depois de M6, não antes.**
 - **A primeira tarefa não é abrir uma feature nova; é criar uma linha
   canônica, limpa e auditável que reúna as entregas válidas já existentes.**
 
@@ -234,8 +236,8 @@ de HTTPS. O handoff `M02-GCP-DEPLOYMENT-DONE.md` deve ser reclassificado de
 | M3 | `PREFLIGHT only` | contrato v1, fixtures e recipe sintética | controlled Python agent e duas superfícies reais com auth/revoke/report |
 | M4 | `NOT-STARTED`, exceto Inbox M1 | Inbox local e primitives de mental note | concepts domain/jobs/API, Concepts UI, Notes completas, Activity e invalidação |
 | M5 | `BASELINE only` | E5 development evidence e harnesses iniciais | capture/recall/security evals, policy engine, workers, budgets e thresholds |
-| M6 | `NOT-STARTED` | alguns controles locais reutilizáveis | onboarding real, quotas, telemetry opt-in, drills, SLO, suporte e beta aprovado |
-| M7 | `NOT-STARTED` como release | Alpha possui packaging/docs parciais | clean install, multi-arch, CI remoto, scans, SBOM/provenance/signing e auditoria |
+| M6 | `NOT-STARTED` private managed beta | alguns controles locais reutilizáveis | onboarding real, quotas, telemetry opt-in, drills, SLO, suporte e beta aprovado; sem distribuição pública |
+| M7 | `DEFERRED until M6 evidence` | Alpha possui packaging/docs parciais | clean install, multi-arch, CI remoto, scans, SBOM/provenance/signing e auditoria após B04T |
 | M8 | `NOT-STARTED` | nenhum gate de beta público/GA | operação sustentada, claims e auditorias, holdout autorizado e decisão humana |
 
 ## 6. Findings que bloqueiam avanço
@@ -347,8 +349,8 @@ R00–R02 consolidar baseline
   → C01–C05 provar M3 real
   → A01–A05 entregar M4 Atlas
   → T01–T05 fechar M5 Trusted Recall
-  → B01–B04 preparar/operar M6
-  → O01–O04 fechar M7
+  → B01–B04 preparar/operar private managed beta M6
+  → O01–O04 fechar M7 open source após evidência M6
   → G01–G03 decidir M8
 ```
 
@@ -753,7 +755,7 @@ relatórios redigidos. Solicitar holdout somente com candidate SHA congelado.
 Gate M5: development atende guardrails; holdout continua `not-run` ou tem uma
 única execução autorizada; falha produz `NO-GO`.
 
-## 14. Bloco B — M6 Closed Beta
+## 14. Bloco B — M6 Private Managed Beta
 
 ### B01 — onboarding e controles de usuário
 
@@ -790,19 +792,21 @@ Gate: nenhum P0/P1 aberto, rollback ensaiado, canais e owners ativos.
 **Modelo:** Luna para onboarding/suporte; Terra para operação.  
 **Depende de:** B03 e autorização humana explícita.
 
-Abrir somente 5–20 usuários consentidos, com quotas e kill switch. Registrar
+Abrir somente 5–20 usuários consentidos, com quotas e kill switch. Código,
+SDKs, artefatos e documentação operacional permanecem privados. Registrar
 coorte, consentimento, incidentes, custo e critérios de pausa sem conteúdo em
 analytics.
 
 Gate M6: SLO observado, restore/delete comprovados e usuários compreendem
 captura/controle. Sem autorização, concluir como `BETA-READY / NOT-OPENED`.
 
-## 15. Bloco O — M7 Open-source Release
+## 15. Bloco O — M7 Open-source Release após beta privado
 
 ### O01 — clean install e artefatos
 
 **Modelo:** Terra.  
-**Depende de:** B03; não depende de abrir B04.
+**Depende de:** B04T. O beta privado precisa ter sido operado e auditado antes
+de expor uma superfície Community suportada.
 
 Entregar quickstart limpo, wheel/sdist, migrations empacotadas, Docker
 multi-arch, constraints, upgrade/forward-fix/restore e sample runtime.
@@ -839,7 +843,8 @@ Executar suite, clean install, package audit, scans, docs/links, migrations,
 backup/restore/delete e auditoria equivalente a S07-R2.
 
 Gate M7: `GO` independente. Publicação, push, tag e release continuam ações
-separadas e exigem autorização humana.
+separadas e exigem autorização humana; M7 não reclassifica o beta privado como
+public beta ou GA.
 
 ## 16. Bloco G — M8 Public Beta e GA
 
@@ -958,9 +963,9 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 - [ ] B01 | model=luna | depends=T05A | checkpoint=- | title=Entregar onboarding e controles de usuário
 - [ ] B02 | model=terra | depends=T05A | checkpoint=- | title=Entregar operação quotas e console
 - [ ] B03 | model=terra | depends=B01,B02 | checkpoint=- | title=Executar drills e fechar beta readiness
-- [ ] B04L | model=luna | depends=B03 | checkpoint=CP-6 | title=Abrir onboarding controlado do closed beta
-- [ ] B04T | model=terra | depends=B04L | checkpoint=CP-6 | title=Operar e auditar o closed beta
-- [ ] O01 | model=terra | depends=B03 | checkpoint=- | title=Fechar clean install e artefatos Community
+- [ ] B04L | model=luna | depends=B03 | checkpoint=CP-6 | title=Abrir onboarding do private managed beta
+- [ ] B04T | model=terra | depends=B04L | checkpoint=CP-6 | title=Operar e auditar o private managed beta
+- [ ] O01 | model=terra | depends=B04T | checkpoint=- | title=Fechar clean install e artefatos Community após beta privado
 - [ ] O02 | model=luna | depends=O01 | checkpoint=- | title=Entregar SDKs examples e documentação Community
 - [ ] O03 | model=terra | depends=O01 | checkpoint=- | title=Fechar supply chain e CI
 - [ ] O04 | model=audit | depends=O02,O03 | checkpoint=- | title=Executar auditoria independente M7

@@ -168,9 +168,18 @@ remove.
 | M3 | Cross-client Connectors | pelo menos duas superfícies reais comprovadas |
 | M4 | Memory Atlas | Inbox, Concepts, Mental Notes e provenance utilizáveis |
 | M5 | Trusted Recall | captura/consolidação/retrieval com qualidade e controle |
-| M6 | Closed Beta | usuários consentidos, operação e suporte reais |
-| M7 | Open-source Release | Community reproduzível e supply chain auditada |
+| M6 | Private Managed Beta | usuários consentidos, operação e suporte reais, sem distribuição pública |
+| M7 | Open-source Release (após M6) | Community reproduzível e supply chain auditada |
 | M8 | Public Beta/GA | claims, SLOs, compatibilidade e segurança auditados |
+
+### Estratégia de disponibilidade
+
+O primeiro uso externo é um **private managed beta**, não uma distribuição
+open source. Até o Gate M6, código, serviço, conectores e documentação
+operacional ficam privados e disponíveis somente a operadores do projeto e a
+5–20 convidados consentidos. M7 continua obrigatório, mas começa após a
+operação/auditoria do beta privado; não bloqueia M6. A decisão e os guardrails
+estão em [ADR 0017](adr/0017-private-managed-beta-before-community-release.md).
 
 ## 5. M0 — Integration Recovery
 
@@ -479,11 +488,12 @@ O sistema lembra o que ajuda, abstém quando deve e não surpreende o usuário.
 - falha não é corrigida baixando meta retroativamente;
 - claim de idioma limitada ao corpus comprovado.
 
-## 11. M6 — Closed Beta
+## 11. M6 — Private Managed Beta
 
 ### Objetivo
 
-Validar valor e operação com 5–20 usuários consentidos.
+Validar valor e operação com 5–20 usuários consentidos, sem publicar código,
+artefatos, SDKs ou promessas de compatibilidade.
 
 ### Pacotes Codex
 
@@ -513,7 +523,8 @@ Validar valor e operação com 5–20 usuários consentidos.
 
 ### Objetivo
 
-Publicar UMCP Community de modo reproduzível e seguro.
+Publicar UMCP Community de modo reproduzível e seguro, após o beta privado ter
+sido operado e auditado. M7 não é pré-requisito para convidar o cohort M6.
 
 ### Pacotes Codex
 
