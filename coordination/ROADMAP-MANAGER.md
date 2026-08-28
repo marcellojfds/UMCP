@@ -1,7 +1,7 @@
 # UMCP Roadmap Manager
 
-manager_status: stalled
-canonical_ref: 9bd105d535a30ccbbf72a2d31d54327ee90f5196
+manager_status: stopped
+canonical_ref: 1908307e2e574e32e5ce3ea324793b0d828c6d12
 active_id: none
 active_kind: none
 active_thread_id: none
@@ -10,11 +10,11 @@ wait_cursor: none
 cadence_minutes: 5
 progress_minutes: 30
 run_mode: manual
-started_at: 2026-08-26T13:32:49Z
+started_at: 2026-08-27T21:57:53-03:00
 stop_at: none
-next_progress_at: 2026-08-26T17:51:00Z
+next_progress_at: none
 last_announced_completed: 9
-recovery_attempt: 1
+recovery_attempt: 0
 last_reconciled_sha: 9bd105d535a30ccbbf72a2d31d54327ee90f5196
 
 ## Events
@@ -65,6 +65,8 @@ last_reconciled_sha: 9bd105d535a30ccbbf72a2d31d54327ee90f5196
 - reconciliation | 2026-08-26T16:41:37Z | H07-DIRECT-DEPLOY | delivery=85aaf06b2472e41b47d284a560a146a00ef2e45f | result=Cloud Build API enabled; build denied to interactive principal before start; remote revision/trafic unchanged; next=owner-provided builder or explicit minimal IAM grant
 - reconciliation | 2026-08-26T17:24:00Z | H07 | evidence=H07-DONE.md, source=705e68f5d658899c7e808af4f82326d2ba365b08, candidate_revision=umcp-cloud-staging-00004-z9m, rollback=umcp-cloud-staging-00001-pjj | result=NO-GO retained; reason=unauthenticated verifier blocked by Cloud Run IAM and canonical H07 gates 2-10 (login/connections/revoke/tenant/RLS/KMS/restore/log/load) lack current same-revision evidence; next=owner scopes an authenticated audit route plus synthetic identities/data and permitted read-only audit actions
 - decision-needed | 2026-08-26T17:30:00Z | H07 | owner_direction=1A,2A,3A accepted | remaining=exact auditor identity/IAM binding; IdP and synthetic-account creation boundary; KMS key/failure method; isolated restore target; load ceiling and rollback conditions
+- remediation | 2026-08-27 | H07 | result=private Cloud SQL, runtime service account, Secret Manager database injection, VPC connector and Cloud KMS envelope-key wiring provisioned in authorized staging; readyz=200 on umcp-cloud-staging-00010-2bp; exact unauthenticated POST /mcp=401
+- stopped | 2026-08-27 | manager | reason=user-requested-handoff-to-new-session | candidate=1908307e2e574e32e5ce3ea324793b0d828c6d12 | checklist=9/43; H07 and C02 remain NO-GO pending OAuth endpoint implementation, OAuth migration rollout and clean same-revision audit
 
 ## Resumption boundary
 
@@ -74,8 +76,10 @@ The next item is H07. Before dispatching it, record explicit, non-secret scope:
 - CP-2: IdP, redirect URIs, scopes, email path and cost boundary.
 - CP-3: secret/KMS/IAM owners, rotation, break-glass and revocation.
 
-No provider registration, credential, secret, deploy, staging, production or
-external cloud operation has been performed by this canonical line.
+Historic note only: the statement above described the original canonical
+line.  Staging-only provider and infrastructure work is now recorded in
+`docs/handoffs/roadmap/H07-RESUMPTION-20260827.md`; no production operation
+has been performed.
 
 ## Dispatch decision policy
 
