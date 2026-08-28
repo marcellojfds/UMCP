@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import urllib.parse
 from collections.abc import AsyncIterator
@@ -341,13 +342,21 @@ def create_cloud_http_app(
             except OAuthError as exc:
                 return JSONResponse({"error": exc.code}, exc.status)
 
+        audit_redirect = oauth_server.config.issuer + "/oauth/audit/callback"
+        audit_clients = [
+            client_id
+            for client_id, redirect_uri in oauth_server.config.clients.items()
+            if redirect_uri == audit_redirect
+        ]
+
         @app.get("/oauth/callback")
         async def oauth_callback(code: str = "", state: str = "") -> object:
             try:
                 redirect_uri, authorization_code, client_state = await oauth_server.callback(code, state)
                 query = urllib.parse.urlencode({"code": authorization_code, "state": client_state})
                 from fastapi.responses import RedirectResponse
-                return RedirectResponse(redirect_uri + ("&" if "?" in redirect_uri else "?") + query, status_code=302)
+                sep = "#" if redirect_uri == audit_redirect else ("&" if "?" in redirect_uri else "?")
+                return RedirectResponse(redirect_uri + sep + query, status_code=302)
             except OAuthError as exc:
                 return JSONResponse({"error": exc.code}, exc.status)
 
@@ -370,6 +379,111 @@ def create_cloud_http_app(
                 return JSONResponse({"error": "invalid_request"}, 400, headers={"cache-control": "no-store"})
             await oauth_server.revoke(form.get("token", ""))
             return JSONResponse({}, 200, headers={"cache-control": "no-store"})
+
+        if runtime.settings.oauth_audit_runner_enabled and len(audit_clients) == 1:
+            audit_client_id = audit_clients[0]
+
+            def audit_page(script: str) -> object:
+                from fastapi.responses import HTMLResponse
+
+                return HTMLResponse(
+                    "<!doctype html><meta charset=\"utf-8\"><title>UMCP OAuth audit</title>"
+                    "<pre id=\"result\">running</pre><script>" + script + "</script>",
+                    headers={
+                        "cache-control": "no-store",
+                        "pragma": "no-cache",
+                        "referrer-policy": "no-referrer",
+                        "content-security-policy": "default-src 'self'; connect-src 'self'; "
+                        "script-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+                    },
+                )
+
+            @app.get("/oauth/audit-runner", include_in_schema=False)
+            async def oauth_audit_runner() -> object:
+                # This page deliberately generates PKCE material in browser memory. It
+                # never serializes a token, code, state, or identity into HTML/logs.
+                script = f"""
+const b64 = (bytes) => btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
+const result = document.getElementById('result');
+(async () => {{
+  const verifier = b64(crypto.getRandomValues(new Uint8Array(48)));
+  const state = b64(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = b64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
+  sessionStorage.setItem('umcp_h07_audit', JSON.stringify({{state, verifier}}));
+  const response = await fetch('/oauth/audit/start', {{method:'POST', headers:{{'content-type':'application/json'}}, body:JSON.stringify({{state, code_challenge:challenge}})}});
+  const body = await response.json();
+  if (!response.ok || typeof body.redirect !== 'string') throw new Error('authorization_start_failed');
+  location.replace(body.redirect);
+}})().catch(() => {{ result.textContent = 'FAIL authorization_start'; }});
+"""
+                return audit_page(script)
+
+            @app.post("/oauth/audit/start", include_in_schema=False)
+            async def oauth_audit_start(request: Request) -> object:
+                try:
+                    payload = json.loads((await request.body()).decode("utf-8"))
+                    state = payload.get("state", "")
+                    challenge = payload.get("code_challenge", "")
+                    if not isinstance(state, str) or not isinstance(challenge, str):
+                        raise ValueError
+                    redirect = await oauth_server.begin(
+                        audit_client_id,
+                        audit_redirect,
+                        "memory:read memory:write memory:delete",
+                        state,
+                        challenge,
+                        "S256",
+                    )
+                except (OAuthError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+                    return JSONResponse({"error": "invalid_request"}, 400, headers={"cache-control": "no-store"})
+                return JSONResponse({"redirect": redirect}, headers={"cache-control": "no-store"})
+
+            @app.get("/oauth/audit/callback", include_in_schema=False)
+            async def oauth_audit_callback() -> object:
+                # The preceding server callback redirected with a URL fragment containing
+                # the one-time authorization code. The browser never sends the fragment
+                # in the HTTP request to Cloud Run, keeping requestUrl free of secrets.
+                client_id_esc = html.escape(audit_client_id, quote=True)
+                redirect_esc = html.escape(audit_redirect, quote=True)
+                script = f"""
+const result = document.getElementById('result');
+(async () => {{
+  const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  const params = new URLSearchParams(hash || location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  history.replaceState(null, '', '/oauth/audit/callback');
+  const saved = JSON.parse(sessionStorage.getItem('umcp_h07_audit') || 'null');
+  sessionStorage.removeItem('umcp_h07_audit');
+  if (!code || !saved || state !== saved.state) throw new Error('state');
+  const post = async (path, body) => fetch(path, {{method:'POST', headers:{{'content-type':'application/x-www-form-urlencoded'}}, body:new URLSearchParams(body)}});
+  const token = await post('/token', {{grant_type:'authorization_code', code, client_id:'{client_id_esc}', redirect_uri:'{redirect_esc}', code_verifier:saved.verifier}});
+  const issued = await token.json();
+  if (!token.ok || !issued.access_token || !issued.refresh_token) throw new Error('token');
+  const rpc = async (id, method, params, access=issued.access_token) => fetch('/mcp', {{method:'POST', headers:{{authorization:'Bearer '+access, 'content-type':'application/json', accept:'application/json, text/event-stream'}}, body:JSON.stringify({{jsonrpc:'2.0', id, method, params}})}});
+  const initialize = await rpc(1, 'initialize', {{protocolVersion:'2025-03-26', capabilities:{{}}, clientInfo:{{name:'h07-audit', version:'1'}}}});
+  const list = await rpc(2, 'tools/list', {{}});
+  const write = await rpc(3, 'tools/call', {{name:'memory.write', arguments:{{content:'h07 synthetic audit memory', type:'fact', provenance:{{source:'user_explicit', source_actor_id:'h07-auditor', confidence:1.0}}, idempotency_key:'h07-synthetic-1'}}}});
+  const writeBody = await write.json();
+  let memoryId = '';
+  try {{
+    const parsed = JSON.parse(writeBody?.result?.content?.[0]?.text || '{{}}');
+    memoryId = parsed.id || '';
+  }} catch (_) {{}}
+  const search = await rpc(4, 'tools/call', {{name:'memory.search', arguments:{{query:'h07 synthetic audit memory', limit:1}}}});
+  const forget = memoryId ? await rpc(5, 'tools/call', {{name:'memory.forget', arguments:{{id:memoryId, idempotency_key:'h07-synthetic-forget-1'}}}}) : {{status:0}};
+  const replay = await post('/token', {{grant_type:'authorization_code', code, client_id:'{client_id_esc}', redirect_uri:'{redirect_esc}', code_verifier:saved.verifier}});
+  const refresh = await post('/token', {{grant_type:'refresh_token', refresh_token:issued.refresh_token, client_id:'{client_id_esc}'}});
+  const rotated = await refresh.json();
+  const oldRefresh = await post('/token', {{grant_type:'refresh_token', refresh_token:issued.refresh_token, client_id:'{client_id_esc}'}});
+  await post('/revoke', {{token:issued.access_token}});
+  const revokedAccess = await rpc(6, 'tools/list', {{}}, issued.access_token);
+  await post('/revoke', {{token:rotated.refresh_token}});
+  const revokedRefresh = await post('/token', {{grant_type:'refresh_token', refresh_token:rotated.refresh_token, client_id:'{client_id_esc}'}});
+  result.textContent = JSON.stringify({{token:token.status, initialize:initialize.status, tools_list:list.status, synthetic_write:write.status, synthetic_search:search.status, synthetic_forget:forget.status, code_replay:replay.status, refresh_rotation:refresh.status, old_refresh:oldRefresh.status, revoked_access:revokedAccess.status, revoked_refresh:revokedRefresh.status}});
+}})().catch((err) => {{ result.textContent = 'FAIL audit_workflow: ' + err.message; }});
+"""
+                return audit_page(script)
 
     if admin_app is not None:
         app.mount("/admin", cast(Any, admin_app))

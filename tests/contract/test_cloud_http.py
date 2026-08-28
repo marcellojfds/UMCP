@@ -106,7 +106,10 @@ def test_oauth_form_endpoints_receive_starlette_request_objects(tmp_path) -> Non
     """Regression coverage for postponed annotations on FastAPI request inputs."""
 
     class StubOAuthServer:
-        config = SimpleNamespace(issuer="https://local.umcp.invalid")
+        config = SimpleNamespace(
+            issuer="https://local.umcp.invalid",
+            clients={"test-client": "https://local.umcp.invalid/readyz"},
+        )
 
         def metadata(self) -> dict[str, str]:
             return {"issuer": self.config.issuer}
@@ -124,6 +127,80 @@ def test_oauth_form_endpoints_receive_starlette_request_objects(tmp_path) -> Non
     with TestClient(app, base_url="https://local.umcp.invalid") as client:
         assert client.post("/token", content="").status_code == 400
         assert client.post("/revoke", content="").status_code == 200
+        # Audit runner is disabled by default
+        assert client.get("/oauth/audit-runner").status_code == 404
+        assert client.get("/oauth/audit/callback").status_code == 404
+        assert client.post("/oauth/audit/start", json={}).status_code == 404
+
+
+def test_oauth_audit_runner_requires_flag_and_exact_client(tmp_path) -> None:
+    """Audit runner routes only exist when flag is enabled and exactly one matching client is configured."""
+
+    class StubOAuthServer:
+        def __init__(self, clients: dict[str, str]) -> None:
+            self.config = SimpleNamespace(
+                issuer="https://local.umcp.invalid",
+                clients=clients,
+            )
+
+        def metadata(self) -> dict[str, str]:
+            return {"issuer": self.config.issuer}
+
+        async def begin(self, client_id: str, redirect_uri: str, scope: str, state: str, challenge: str, method: str) -> str:
+            return f"https://accounts.google.com/o/oauth2/v2/auth?client_id=google&state={state}"
+
+        async def callback(self, code: str, state: str) -> tuple[str, str, str]:
+            return "https://local.umcp.invalid/oauth/audit/callback", "ac_test_123", "st_test_456"
+
+        async def token(self, form: dict[str, str]) -> dict[str, str]:
+            return {"access_token": "at_test", "refresh_token": "rt_test"}
+
+        async def revoke(self, token: str) -> None:
+            return None
+
+    # Case 1: Flag enabled, but no matching client redirect
+    runtime_mismatch = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "c1.json"), oauth_audit_runner_enabled=True),
+        kms_master_key=b"k" * 32,
+    )
+    oauth_mismatch = StubOAuthServer({"audit-client": "https://local.umcp.invalid/wrong/callback"})
+    app_mismatch = create_cloud_http_app(runtime_mismatch, verifier(), oauth_server=oauth_mismatch)
+    with TestClient(app_mismatch, base_url="https://local.umcp.invalid") as client:
+        assert client.get("/oauth/audit-runner").status_code == 404
+
+    # Case 2: Flag enabled, exact matching client
+    runtime_valid = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "c2.json"), oauth_audit_runner_enabled=True),
+        kms_master_key=b"k" * 32,
+    )
+    oauth_valid = StubOAuthServer({"audit-client": "https://local.umcp.invalid/oauth/audit/callback"})
+    app_valid = create_cloud_http_app(runtime_valid, verifier(), oauth_server=oauth_valid)
+    with TestClient(app_valid, base_url="https://local.umcp.invalid") as client:
+        runner_resp = client.get("/oauth/audit-runner")
+        assert runner_resp.status_code == 200
+        assert runner_resp.headers["cache-control"] == "no-store"
+        assert runner_resp.headers["pragma"] == "no-cache"
+        assert runner_resp.headers["referrer-policy"] == "no-referrer"
+        assert "frame-ancestors 'none'" in runner_resp.headers["content-security-policy"]
+        assert "localStorage" not in runner_resp.text
+
+        callback_resp = client.get("/oauth/audit/callback")
+        assert callback_resp.status_code == 200
+        assert callback_resp.headers["cache-control"] == "no-store"
+        assert "frame-ancestors 'none'" in callback_resp.headers["content-security-policy"]
+        assert "audit-client" in callback_resp.text
+        assert "localStorage" not in callback_resp.text
+
+        start_resp = client.post("/oauth/audit/start", json={"state": "s" * 10, "code_challenge": "c" * 43})
+        assert start_resp.status_code == 200
+        assert "https://accounts.google.com" in start_resp.json()["redirect"]
+
+        # OAuth callback uses fragment '#' for audit redirect to avoid server URL logging of authorization code
+        cb_redirect = client.get("/oauth/callback?code=google_code&state=google_state", follow_redirects=False)
+        assert cb_redirect.status_code == 302
+        loc = cb_redirect.headers["location"]
+        assert loc.startswith("https://local.umcp.invalid/oauth/audit/callback#code=")
+        assert "?" not in loc
 
 
 def test_cloud_process_stays_live_but_unready_when_postgres_is_unavailable() -> None:

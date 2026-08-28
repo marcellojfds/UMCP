@@ -45,6 +45,7 @@ class OMPSettings(BaseSettings):
     oauth_google_redirect_uri: str = ""
     oauth_clients: str = ""
     oauth_allowed_email_sha256: str = ""
+    oauth_audit_runner_enabled: bool = False
 
     def safe_summary(self) -> dict[str, str | int | float | bool]:
         """Return configuration suitable for diagnostics without secrets."""
@@ -64,6 +65,7 @@ class OMPSettings(BaseSettings):
             "retrieval_default_limit": self.retrieval_default_limit,
             "migration_head": self.migration_head,
             "log_content": self.log_content,
+            "oauth_audit_runner_enabled": self.oauth_audit_runner_enabled,
         }
 
 
