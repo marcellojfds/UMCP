@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Annotated, Any, cast
 
 import anyio
+from fastapi import FastAPI, Request
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
@@ -241,7 +242,6 @@ def create_cloud_http_app(
     exercise the Admin API and browser shell on the same origin without changing
     the hosted MCP contract.
     """
-    from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
     from fastapi.staticfiles import StaticFiles
 

@@ -6,6 +6,7 @@ import os
 import socket
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import httpx
@@ -25,6 +26,7 @@ from omp.server.official import (
     create_cloud_http_app,
     create_cloud_server,
 )
+from omp.server.oauth import OAuthError
 
 
 def verifier() -> LocalDevelopmentTokenVerifier:
@@ -98,6 +100,30 @@ def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
             json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
         )
         assert revoked.status_code == 401
+
+
+def test_oauth_form_endpoints_receive_starlette_request_objects(tmp_path) -> None:
+    """Regression coverage for postponed annotations on FastAPI request inputs."""
+
+    class StubOAuthServer:
+        config = SimpleNamespace(issuer="https://local.umcp.invalid")
+
+        def metadata(self) -> dict[str, str]:
+            return {"issuer": self.config.issuer}
+
+        async def token(self, form: dict[str, str]) -> dict[str, str]:
+            raise OAuthError("unsupported_grant_type")
+
+        async def revoke(self, token: str) -> None:
+            return None
+
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+    )
+    app = create_cloud_http_app(runtime, verifier(), oauth_server=StubOAuthServer())
+    with TestClient(app, base_url="https://local.umcp.invalid") as client:
+        assert client.post("/token", content="").status_code == 400
+        assert client.post("/revoke", content="").status_code == 200
 
 
 def test_cloud_process_stays_live_but_unready_when_postgres_is_unavailable() -> None:
