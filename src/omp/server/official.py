@@ -150,14 +150,39 @@ def create_cloud_server(
     argument. The verified bearer claim is converted to the internal temporary
     compatibility owner only at the adapter boundary.
     """
-    permitted_hosts = allowed_hosts or ["local.umcp.invalid"]
+    if allowed_hosts is not None:
+        permitted_hosts = list(allowed_hosts)
+    else:
+        host = (
+            urllib.parse.urlsplit(runtime.settings.public_base_url).netloc.split(":")[0]
+            if runtime.settings.public_base_url
+            else ""
+        )
+        permitted_hosts = [host] if host else ["local.umcp.invalid"]
+    if "local.umcp.invalid" not in permitted_hosts:
+        permitted_hosts.append("local.umcp.invalid")
+    for ph in list(permitted_hosts):
+        if ph.endswith(".run.app"):
+            for run_app_host in [
+                "umcp-cloud-staging-933783819701.us-central1.run.app",
+                "umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
+            ]:
+                if run_app_host not in permitted_hosts:
+                    permitted_hosts.append(run_app_host)
+
+    issuer_url = runtime.settings.public_base_url or "https://local.umcp.invalid"
+    resource_server_url = (
+        (runtime.settings.public_base_url.rstrip("/") if runtime.settings.public_base_url else "https://local.umcp.invalid")
+        + "/mcp"
+    )
+
     server = FastMCP(
         name="umcp-cloud",
         instructions="Use memory tools only within the scopes granted to this integration.",
         token_verifier=verifier,
         auth=AuthSettings(
-            issuer_url=cast(AnyHttpUrl, "https://local.umcp.invalid"),
-            resource_server_url=cast(AnyHttpUrl, "https://local.umcp.invalid/mcp"),
+            issuer_url=cast(AnyHttpUrl, issuer_url),
+            resource_server_url=cast(AnyHttpUrl, resource_server_url),
             required_scopes=[],
         ),
         # ``create_cloud_http_app`` mounts this ASGI application at the one
@@ -464,12 +489,14 @@ const result = document.getElementById('result');
   const initialize = await rpc(1, 'initialize', {{protocolVersion:'2025-03-26', capabilities:{{}}, clientInfo:{{name:'h07-audit', version:'1'}}}});
   const list = await rpc(2, 'tools/list', {{}});
   const write = await rpc(3, 'tools/call', {{name:'memory.write', arguments:{{content:'h07 synthetic audit memory', type:'fact', provenance:{{source:'user_explicit', source_actor_id:'h07-auditor', confidence:1.0}}, idempotency_key:'h07-synthetic-1'}}}});
-  const writeBody = await write.json();
   let memoryId = '';
-  try {{
-    const parsed = JSON.parse(writeBody?.result?.content?.[0]?.text || '{{}}');
-    memoryId = parsed.id || '';
-  }} catch (_) {{}}
+  if (write.ok) {{
+    try {{
+      const writeBody = await write.json();
+      const parsed = JSON.parse(writeBody?.result?.content?.[0]?.text || '{{}}');
+      memoryId = parsed.id || '';
+    }} catch (_) {{}}
+  }}
   const search = await rpc(4, 'tools/call', {{name:'memory.search', arguments:{{query:'h07 synthetic audit memory', limit:1}}}});
   const forget = memoryId ? await rpc(5, 'tools/call', {{name:'memory.forget', arguments:{{id:memoryId, idempotency_key:'h07-synthetic-forget-1'}}}}) : {{status:0}};
   const replay = await post('/token', {{grant_type:'authorization_code', code, client_id:'{client_id_esc}', redirect_uri:'{redirect_esc}', code_verifier:saved.verifier}});
