@@ -107,7 +107,8 @@ def test_c01_conformance_runner_live_probes_success() -> None:
             if name == "memory.search":
                 return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memories": [{"memory": {"id": "rec-123", "content": args.get("query")}}]}})}]}}
             if name == "memory.update":
-                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memory": {"id": "rec-123", "version": 2}}})}]}}
+                content = args.get("patch", {}).get("content", "updated")
+                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memory": {"id": "rec-123", "version": 2, "content": content}}})}]}}
             if name == "memory.forget":
                 return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"id": args.get("id"), "status": "forgotten"}})}]}}
         return {"result": {}}
@@ -127,6 +128,9 @@ def test_c01_conformance_runner_live_probes_success() -> None:
     assert all(status == "PASS" for status in checks["results"].values())
     report = generate_c01_report(
         base_url="https://staging.test.invalid",
+        server_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+        server_digest="sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
+        server_revision="umcp-cloud-staging-00018-f78",
         transport_results=checks["results"],
     )
     assert report["summary"]["supported_count"] == 14
@@ -136,7 +140,12 @@ def test_c01_conformance_runner_live_probes_success() -> None:
 
 
 def test_c01_report_fail_closed_without_results() -> None:
-    report = generate_c01_report(base_url="https://staging.test.invalid")
+    report = generate_c01_report(
+        base_url="https://staging.test.invalid",
+        server_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+        server_digest="sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
+        server_revision="umcp-cloud-staging-00018-f78",
+    )
     assert report["sdk_version"] == "1.0.0"
     assert report["protocol_version"] == "omp.mcp.v0"
     assert report["checksum"].startswith("sha256:")

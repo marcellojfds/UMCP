@@ -1,7 +1,7 @@
 {
   "agent_version": "1.0.0",
   "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-  "checksum": "sha256:923d5daf1b280804d7e2a0974b59347ec84f8c3bbed1d72d8fffefa616dfa4ef",
+  "checksum": "sha256:b43daad5ba6128b0945cfdd623f3ade633193d07e35a7a2a8a64285733cdff2c",
   "limitations": [
     "Private managed beta only",
     "Strictly synthetic test payloads; zero user data",
@@ -10,9 +10,9 @@
   "provenance": {
     "server_digest": "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
     "server_revision": "umcp-cloud-staging-00018-f78",
-    "server_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
+    "server_sha": "96f5391a61801469e3cdbe1ec249689f6f7b00de"
   },
-  "report_id": "c02-8d84969583ce",
+  "report_id": "c02-1ec3b8981707",
   "scopes": [
     "memory:read",
     "memory:write",
@@ -43,8 +43,8 @@
     },
     "15_tenant_isolation": {
       "rls_enforced": true,
-      "tenant_a_token_digest": "sha256:0858d11deacb4955...",
-      "tenant_b_token_digest": "sha256:1c242ad144997b8a...",
+      "tenant_a_token_digest": "sha256:c1a19553613805d6...",
+      "tenant_b_token_digest": "sha256:82a97a741e1dcd7c...",
       "zero_leakage_proven": true
     },
     "1_discovery": {
@@ -63,7 +63,7 @@
       "tools_count": 4
     },
     "5_synthetic_write": {
-      "record_id": "e6292e6e-b7fd-4597-958e-9356f5e5b29f",
+      "record_id": "16ceabb1-830c-4417-8088-b590a15c76f6",
       "version": 1
     },
     "6_recall_search": {
@@ -75,12 +75,12 @@
       "updated": true
     },
     "8_forget": {
-      "forgotten_id": "e6292e6e-b7fd-4597-958e-9356f5e5b29f",
+      "forgotten_id": "16ceabb1-830c-4417-8088-b590a15c76f6",
       "status": "forgotten"
     },
     "9_tombstone_non_resurrection": {
       "non_resurrected": true,
-      "verified_record_id": "e6292e6e-b7fd-4597-958e-9356f5e5b29f"
+      "verified_record_id": "16ceabb1-830c-4417-8088-b590a15c76f6"
     }
   },
   "step_results": {
@@ -105,5 +105,5 @@
     "passed_steps": 15,
     "total_steps": 15
   },
-  "timestamp_utc": "2026-08-29T11:51:27.455250Z"
+  "timestamp_utc": "2026-08-29T13:21:48.507700Z"
 }

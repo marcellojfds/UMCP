@@ -1,16 +1,16 @@
 # C02 — Relatório de Execução do Controlled Python Agent
 
-- **Data:** 2026-08-29T11:51:27.455250Z
+- **Data:** 2026-08-29T13:21:48.507700Z
 - **Versão do Agente:** `1.0.0`
 - **Versão do SDK:** `1.0.0`
 - **Base URL Staging:** `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app`
-- **Server Source SHA:** `367cd365df43f9282f5155394cd39275169bf8f2`
+- **Server Source SHA:** `96f5391a61801469e3cdbe1ec249689f6f7b00de`
 - **Server Image Digest:** `sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d`
 - **Server Active Revision:** `umcp-cloud-staging-00018-f78`
-- **Report ID:** `c02-8d84969583ce`
+- **Report ID:** `c02-1ec3b8981707`
 - **Canonical JSON Artifact:** [`C02-CONTROLLED-AGENT-REPORT-20260828.json`](./C02-CONTROLLED-AGENT-REPORT-20260828.json)
-- **Checksum do Payload Canônico (SHA-256):** `sha256:923d5daf1b280804d7e2a0974b59347ec84f8c3bbed1d72d8fffefa616dfa4ef`
-- **Checksum do Arquivo JSON (SHA-256):** `sha256:157842197f48eaccb20713d383d2f60882958601c969228023be729f71125ef5`
+- **Checksum do Payload Canônico (SHA-256):** `sha256:b43daad5ba6128b0945cfdd623f3ade633193d07e35a7a2a8a64285733cdff2c`
+- **Checksum do Arquivo JSON (SHA-256):** `sha256:e8e793b014fc6deffdfc5f2d3aebea83182eae1a8e79f90e591962355a7ab3cf`
 
 ---
 

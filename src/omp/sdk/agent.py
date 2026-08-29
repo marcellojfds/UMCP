@@ -17,6 +17,23 @@ from .cloud import CloudOAuthTransport
 from .oauth import OAuthSession, TokenData
 
 
+def _extract_memories(res: Any) -> list[dict[str, Any]]:
+    """Normalize direct and nested memory list envelopes."""
+    if not isinstance(res, dict):
+        return []
+    data = res.get("data", res) if isinstance(res, dict) else {}
+    if not isinstance(data, dict):
+        return []
+    raw_list = data.get("memories") or data.get("matches") or data.get("results") or data.get("records") or []
+    out = []
+    for item in raw_list:
+        if isinstance(item, dict):
+            mem = item.get("memory") or item.get("record") or item
+            if isinstance(mem, dict):
+                out.append(mem)
+    return out
+
+
 class ControlledMemoryAgent:
     """Controlled Python agent performing end-to-end memory lifecycle operations."""
 
@@ -50,349 +67,384 @@ class ControlledMemoryAgent:
         results: dict[str, str] = {}
         details: dict[str, Any] = {}
 
-        # 1. Discovery
         try:
-            p_res = self.session_a.discover_protected_resource()
-            a_res = self.session_a.discover_authorization_server()
-            if not isinstance(p_res, dict) or not isinstance(a_res, dict):
-                raise ValueError("Discovery responses must be non-empty dictionaries")
-            if p_res.get("resource") != f"{self.session_a.base_url}/mcp":
-                raise ValueError(f"Unexpected protected resource: {p_res.get('resource')}")
-            if not a_res.get("authorization_endpoint") or not a_res.get("token_endpoint"):
-                raise ValueError(f"Incomplete authorization server metadata: {a_res}")
-            results["1_discovery"] = "PASS"
-            details["1_discovery"] = {"protected_resource": p_res.get("resource"), "auth_endpoint": a_res.get("authorization_endpoint")}
-        except Exception as exc:
-            results["1_discovery"] = "FAIL"
-            details["1_discovery"] = {"error": str(exc)}
+            # 1. Discovery
+            try:
+                p_res = self.session_a.discover_protected_resource()
+                a_res = self.session_a.discover_authorization_server()
+                if not isinstance(p_res, dict) or not isinstance(a_res, dict):
+                    raise ValueError("Discovery responses must be non-empty dictionaries")
+                if p_res.get("resource") != f"{self.session_a.base_url}/mcp":
+                    raise ValueError(f"Unexpected protected resource: {p_res.get('resource')}")
+                if not a_res.get("authorization_endpoint") or not a_res.get("token_endpoint"):
+                    raise ValueError(f"Incomplete authorization server metadata: {a_res}")
+                results["1_discovery"] = "PASS"
+                details["1_discovery"] = {"protected_resource": p_res.get("resource"), "auth_endpoint": a_res.get("authorization_endpoint")}
+            except Exception as exc:
+                results["1_discovery"] = "FAIL"
+                details["1_discovery"] = {"error": str(exc)}
 
-        # 2. OAuth PKCE Session Verification
-        try:
-            if not self.session_a._tokens or not self.session_a._tokens.access_token:
-                raise ValueError("No authenticated token present in session A")
-            token_val = self.session_a.get_valid_access_token()
-            if not token_val:
-                raise ValueError("Failed to retrieve valid access token")
-            results["2_oauth_pkce_login"] = "PASS"
-            details["2_oauth_pkce_login"] = {"token_type": self.session_a._tokens.token_type, "has_refresh": bool(self.session_a._tokens.refresh_token)}
-        except Exception as exc:
-            results["2_oauth_pkce_login"] = "FAIL"
-            details["2_oauth_pkce_login"] = {"error": str(exc)}
+            # 2. OAuth PKCE Session Verification
+            try:
+                if not self.session_a._tokens or not self.session_a._tokens.access_token:
+                    raise ValueError("No authenticated token present in session A")
+                token_val = self.session_a.get_valid_access_token()
+                if not token_val:
+                    raise ValueError("Failed to retrieve valid access token")
+                results["2_oauth_pkce_login"] = "PASS"
+                details["2_oauth_pkce_login"] = {"token_type": self.session_a._tokens.token_type, "has_refresh": bool(self.session_a._tokens.refresh_token)}
+            except Exception as exc:
+                results["2_oauth_pkce_login"] = "FAIL"
+                details["2_oauth_pkce_login"] = {"error": str(exc)}
 
-        # 3. Initialize & 4. Tools List
-        try:
-            disc = self.transport_a.discover()
-            server_name = disc.get("server_name")
-            tools = disc.get("tools", [])
-            if server_name != "umcp-cloud":
-                raise ValueError(f"Expected server umcp-cloud, got {server_name}")
-            required_tools = {"memory.write", "memory.search", "memory.update", "memory.forget"}
-            if not required_tools.issubset(set(tools)):
-                raise ValueError(f"Missing required tools: {required_tools - set(tools)}")
-            results["3_mcp_initialize"] = "PASS"
-            results["4_mcp_tools_list"] = "PASS"
-            details["3_mcp_initialize"] = {"server_name": server_name, "version": disc.get("server_version")}
-            details["4_mcp_tools_list"] = {"tools_count": len(tools)}
-        except Exception as exc:
-            results["3_mcp_initialize"] = "FAIL"
-            results["4_mcp_tools_list"] = "FAIL"
-            details["3_mcp_initialize"] = {"error": str(exc)}
-            details["4_mcp_tools_list"] = {"error": str(exc)}
+            # 3. Initialize & 4. Tools List
+            try:
+                disc = self.transport_a.discover()
+                server_name = disc.get("server_name")
+                tools = disc.get("tools", [])
+                if server_name != "umcp-cloud":
+                    raise ValueError(f"Expected server umcp-cloud, got {server_name}")
+                required_tools = {"memory.write", "memory.search", "memory.update", "memory.forget"}
+                if not required_tools.issubset(set(tools)):
+                    raise ValueError(f"Missing required tools: {required_tools - set(tools)}")
+                results["3_mcp_initialize"] = "PASS"
+                results["4_mcp_tools_list"] = "PASS"
+                details["3_mcp_initialize"] = {"server_name": server_name, "version": disc.get("server_version")}
+                details["4_mcp_tools_list"] = {"tools_count": len(tools)}
+            except Exception as exc:
+                results["3_mcp_initialize"] = "FAIL"
+                results["4_mcp_tools_list"] = "FAIL"
+                details["3_mcp_initialize"] = {"error": str(exc)}
+                details["4_mcp_tools_list"] = {"error": str(exc)}
 
-        # 5. Synthetic Write / Capture
-        write_key = f"c02-write-{uuid.uuid4().hex[:8]}"
-        synthetic_content = f"c02 synthetic agent memory content {uuid.uuid4().hex[:6]}"
-        record_id = None
-        record = None
-        captured_time = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-        sent_provenance = {
-            "source_type": "user",
-            "captured_at": captured_time,
-            "source_id": "c02-test-actor",
-        }
-        try:
-            res_write = self.client_a.write(
-                content=synthetic_content,
-                type="fact",
-                provenance=sent_provenance,
-                idempotency_key=write_key,
-            )
-            data_map = res_write.get("data", res_write) if isinstance(res_write, dict) else {}
-            record = data_map.get("memory") or data_map.get("record") or data_map
-            record_id = (record.get("id") if isinstance(record, dict) else None) or res_write.get("id")
-            if not record_id:
-                raise ValueError(f"memory.write did not return a valid record id: {res_write}")
-            init_version = record.get("version") if isinstance(record, dict) else 1
-            if init_version != 1:
-                raise ValueError(f"Initial record version expected 1, got {init_version}")
-            results["5_synthetic_write"] = "PASS"
-            details["5_synthetic_write"] = {"record_id": str(record_id), "version": 1}
-        except Exception as exc:
-            results["5_synthetic_write"] = "FAIL"
-            details["5_synthetic_write"] = {"error": str(exc)}
-
-        # 6. Recall / Search
-        try:
-            if not record_id:
-                raise ValueError("Cannot perform recall check: prerequisite write failed")
-            res_search = self.client_a.search(query=synthetic_content, limit=5, min_relevance=0.1)
-            search_data = res_search.get("data", res_search) if isinstance(res_search, dict) else {}
-            items = search_data.get("memories") or search_data.get("matches") or search_data.get("results") or []
-            found = False
-            for m in items:
-                mem = m.get("memory", m) if isinstance(m, dict) else {}
-                if mem.get("id") == record_id or mem.get("content") == synthetic_content:
-                    found = True
-                    break
-            if not found:
-                raise ValueError(f"Written record {record_id} not found in search results: {res_search}")
-            results["6_recall_search"] = "PASS"
-            details["6_recall_search"] = {"found": True, "items_count": len(items)}
-        except Exception as exc:
-            results["6_recall_search"] = "FAIL"
-            details["6_recall_search"] = {"error": str(exc)}
-
-        # 7. Update (verifying ID, updated content and version increment)
-        updated_content = f"{synthetic_content} updated v2"
-        try:
-            if not record_id:
-                raise ValueError("Cannot perform update check: prerequisite write failed")
-            update_key = f"c02-update-{uuid.uuid4().hex[:8]}"
-            res_update = self.client_a.update(
-                id=record_id,
-                expected_version=1,
-                patch={"content": updated_content},
-                idempotency_key=update_key,
-            )
-            upd_data = res_update.get("data", res_update) if isinstance(res_update, dict) else {}
-            upd_record = upd_data.get("memory") or upd_data.get("record") or upd_data
-            upd_id = upd_record.get("id") if isinstance(upd_record, dict) else None
-            if upd_id and str(upd_id) != str(record_id):
-                raise ValueError("Update returned mismatching record ID")
-            new_version = upd_record.get("version") if isinstance(upd_record, dict) else None
-            if new_version is not None and new_version != 2:
-                raise ValueError(f"Update expected version 2, got {new_version}")
-            results["7_update"] = "PASS"
-            details["7_update"] = {"updated": True, "new_version": 2}
-        except Exception as exc:
-            results["7_update"] = "FAIL"
-            details["7_update"] = {"error": str(exc)}
-
-        # 8. Forget (verifying returned ID and tombstone confirmation)
-        try:
-            if not record_id:
-                raise ValueError("Cannot perform forget check: prerequisite write failed")
-            forget_key = f"c02-forget-{uuid.uuid4().hex[:8]}"
-            res_forget = self.client_a.forget(id=record_id, idempotency_key=forget_key)
-            if not isinstance(res_forget, dict):
-                raise ValueError("memory.forget returned invalid non-dictionary envelope")
-            forget_data = res_forget.get("data", res_forget)
-            ret_id = forget_data.get("id") or res_forget.get("id")
-            if ret_id and str(ret_id) != str(record_id):
-                raise ValueError(f"Forget returned mismatching record ID: {ret_id} != {record_id}")
-            results["8_forget"] = "PASS"
-            details["8_forget"] = {"forgotten_id": str(record_id), "status": "forgotten"}
-        except Exception as exc:
-            results["8_forget"] = "FAIL"
-            details["8_forget"] = {"error": str(exc)}
-
-        # 9. Tombstone Proof (verifying the same record ID after forget)
-        try:
-            if not record_id:
-                raise ValueError("Cannot perform tombstone check: prerequisite write failed")
-            res_tombstone = self.client_a.search(query=updated_content, limit=10, min_relevance=0.1)
-            tomb_data = res_tombstone.get("data", res_tombstone) if isinstance(res_tombstone, dict) else {}
-            items = tomb_data.get("memories") or tomb_data.get("matches") or tomb_data.get("results") or []
-            still_exists = False
-            for m in items:
-                mem = m.get("memory", m) if isinstance(m, dict) else {}
-                if mem.get("id") == record_id:
-                    still_exists = True
-                    break
-            if still_exists:
-                raise ValueError(f"Forgotten record {record_id} was resurrected in search results")
-            results["9_tombstone_non_resurrection"] = "PASS"
-            details["9_tombstone_non_resurrection"] = {"non_resurrected": True, "verified_record_id": str(record_id)}
-        except Exception as exc:
-            results["9_tombstone_non_resurrection"] = "FAIL"
-            details["9_tombstone_non_resurrection"] = {"error": str(exc)}
-
-        # 10. Provenance Preservation (fail if expected fields are missing or different)
-        try:
-            if not record_id or not record:
-                raise ValueError("Cannot verify provenance: prerequisite write failed or empty record")
-            prov = record.get("provenance", {})
-            if not prov or not isinstance(prov, dict):
-                raise ValueError(f"Record does not contain valid provenance object: {record}")
-            if prov.get("source_type") != sent_provenance["source_type"]:
-                raise ValueError(f"Provenance source_type mismatch: expected {sent_provenance['source_type']}, got {prov.get('source_type')}")
-            if prov.get("source_id") != sent_provenance["source_id"]:
-                raise ValueError(f"Provenance source_id mismatch: expected {sent_provenance['source_id']}, got {prov.get('source_id')}")
-            if not prov.get("captured_at"):
-                raise ValueError("Provenance missing required captured_at field")
-            results["10_provenance_preservation"] = "PASS"
-            details["10_provenance_preservation"] = {
-                "provenance_validated": True,
-                "source_type": prov.get("source_type"),
-                "source_id": prov.get("source_id"),
+            # 5. Synthetic Write / Capture
+            write_key = f"c02-write-{uuid.uuid4().hex[:8]}"
+            synthetic_content = f"c02 synthetic agent memory content {uuid.uuid4().hex[:6]}"
+            record_id = None
+            record = None
+            captured_time = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+            sent_provenance = {
+                "source_type": "user",
+                "captured_at": captured_time,
+                "source_id": "c02-test-actor",
             }
-        except Exception as exc:
-            results["10_provenance_preservation"] = "FAIL"
-            details["10_provenance_preservation"] = {"error": str(exc)}
+            try:
+                res_write = self.client_a.write(
+                    content=synthetic_content,
+                    type="fact",
+                    provenance=sent_provenance,
+                    idempotency_key=write_key,
+                )
+                data_map = res_write.get("data", res_write) if isinstance(res_write, dict) else {}
+                record = data_map.get("memory") or data_map.get("record") or data_map
+                record_id = (record.get("id") if isinstance(record, dict) else None) or res_write.get("id")
+                if not record_id:
+                    raise ValueError(f"memory.write did not return a valid record id: {res_write}")
+                init_version = record.get("version") if isinstance(record, dict) else 1
+                if init_version != 1:
+                    raise ValueError(f"Initial record version expected 1, got {init_version}")
+                results["5_synthetic_write"] = "PASS"
+                details["5_synthetic_write"] = {"record_id": str(record_id), "version": 1}
+            except Exception as exc:
+                results["5_synthetic_write"] = "FAIL"
+                details["5_synthetic_write"] = {"error": str(exc)}
 
-        # 14. Forged Authority Attempt (client-side and direct server-side rejection)
-        try:
-            client_rejected = False
+            # 6. Recall / Search
             try:
-                self.client_a.write(content="forged", owner_id="forged-owner-id")
-            except ProtocolError:
-                client_rejected = True
-            if not client_rejected:
-                raise ValueError("Client allowed forged owner_id without ProtocolError")
-            server_rejected = False
-            token = self.session_a.get_valid_access_token()
-            forged_body = json.dumps({
-                "jsonrpc": "2.0",
-                "id": 888,
-                "method": "tools/call",
-                "params": {"name": "memory.write", "arguments": {"content": "forged", "owner_id": "forged-id"}},
-            }).encode("utf-8")
-            req = Request(
-                f"{self.session_a.base_url}/mcp",
-                data=forged_body,
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
-                method="POST",
-            )
+                if not record_id:
+                    raise ValueError("Cannot perform recall check: prerequisite write failed")
+                res_search = self.client_a.search(query=synthetic_content, limit=5, min_relevance=0.1)
+                items = _extract_memories(res_search)
+                found = False
+                for mem in items:
+                    if mem.get("id") == record_id or mem.get("content") == synthetic_content:
+                        found = True
+                        break
+                if not found:
+                    raise ValueError(f"Written record {record_id} not found in search results: {res_search}")
+                results["6_recall_search"] = "PASS"
+                details["6_recall_search"] = {"found": True, "items_count": len(items)}
+            except Exception as exc:
+                results["6_recall_search"] = "FAIL"
+                details["6_recall_search"] = {"error": str(exc)}
+
+            # 7. Update (strict: matching ID, updated content, version == 2)
+            updated_content = f"{synthetic_content} updated v2"
             try:
-                with urlopen(req, timeout=self.session_a.timeout) as resp:
-                    raw = resp.read().decode()
-                    parsed = json.loads(raw) if raw else {}
-                    if "error" in parsed or parsed.get("result", {}).get("isError"):
+                if not record_id:
+                    raise ValueError("Cannot perform update check: prerequisite write failed")
+                update_key = f"c02-update-{uuid.uuid4().hex[:8]}"
+                res_update = self.client_a.update(
+                    id=record_id,
+                    expected_version=1,
+                    patch={"content": updated_content},
+                    idempotency_key=update_key,
+                )
+                upd_data = res_update.get("data", res_update) if isinstance(res_update, dict) else {}
+                upd_record = upd_data.get("memory") or upd_data.get("record") or upd_data
+                if not isinstance(upd_record, dict):
+                    raise ValueError(f"Update returned non-dictionary record payload: {res_update}")
+                upd_id = upd_record.get("id")
+                if not upd_id or str(upd_id) != str(record_id):
+                    raise ValueError(f"Update returned mismatching record ID: expected {record_id}, got {upd_id}")
+                upd_content = upd_record.get("content")
+                if upd_content != updated_content:
+                    raise ValueError(f"Update returned mismatching content: expected '{updated_content}', got '{upd_content}'")
+                new_version = upd_record.get("version")
+                if new_version != 2:
+                    raise ValueError(f"Update expected incremented version 2, got {new_version}")
+                results["7_update"] = "PASS"
+                details["7_update"] = {"updated": True, "new_version": 2}
+            except Exception as exc:
+                results["7_update"] = "FAIL"
+                details["7_update"] = {"error": str(exc)}
+
+            # 8. Forget (strict: explicit tombstone/deletion status and ok == True)
+            try:
+                if not record_id:
+                    raise ValueError("Cannot perform forget check: prerequisite write failed")
+                forget_key = f"c02-forget-{uuid.uuid4().hex[:8]}"
+                res_forget = self.client_a.forget(id=record_id, idempotency_key=forget_key)
+                if not isinstance(res_forget, dict):
+                    raise ValueError("memory.forget returned invalid non-dictionary envelope")
+                forget_data = res_forget.get("data", res_forget) if isinstance(res_forget, dict) else {}
+                ret_status = forget_data.get("status") or forget_data.get("state") or res_forget.get("status")
+                if ret_status not in {"forgotten", "deleted", "archived", "tombstoned"} and res_forget.get("ok") is not True:
+                    raise ValueError(f"Forget did not return explicit tombstone status: {res_forget}")
+                results["8_forget"] = "PASS"
+                details["8_forget"] = {"forgotten_id": str(record_id), "status": ret_status}
+            except Exception as exc:
+                results["8_forget"] = "FAIL"
+                details["8_forget"] = {"error": str(exc)}
+
+            # 9. Tombstone Proof (verifying the same record ID is not returned after forget)
+            try:
+                if not record_id:
+                    raise ValueError("Cannot perform tombstone check: prerequisite write failed")
+                res_tombstone = self.client_a.search(query=updated_content, limit=10, min_relevance=0.1)
+                items = _extract_memories(res_tombstone)
+                still_exists = False
+                for mem in items:
+                    if mem.get("id") == record_id:
+                        still_exists = True
+                        break
+                if still_exists:
+                    raise ValueError(f"Forgotten record {record_id} was resurrected in search results")
+                results["9_tombstone_non_resurrection"] = "PASS"
+                details["9_tombstone_non_resurrection"] = {"non_resurrected": True, "verified_record_id": str(record_id)}
+            except Exception as exc:
+                results["9_tombstone_non_resurrection"] = "FAIL"
+                details["9_tombstone_non_resurrection"] = {"error": str(exc)}
+
+            # 10. Provenance Preservation (fail if expected fields are missing or different)
+            try:
+                if not record_id or not record:
+                    raise ValueError("Cannot verify provenance: prerequisite write failed or empty record")
+                prov = record.get("provenance", {})
+                if not prov or not isinstance(prov, dict):
+                    raise ValueError(f"Record does not contain valid provenance object: {record}")
+                if prov.get("source_type") != sent_provenance["source_type"]:
+                    raise ValueError(f"Provenance source_type mismatch: expected {sent_provenance['source_type']}, got {prov.get('source_type')}")
+                if prov.get("source_id") != sent_provenance["source_id"]:
+                    raise ValueError(f"Provenance source_id mismatch: expected {sent_provenance['source_id']}, got {prov.get('source_id')}")
+                if not prov.get("captured_at"):
+                    raise ValueError("Provenance missing required captured_at field")
+                results["10_provenance_preservation"] = "PASS"
+                details["10_provenance_preservation"] = {
+                    "provenance_validated": True,
+                    "source_type": prov.get("source_type"),
+                    "source_id": prov.get("source_id"),
+                }
+            except Exception as exc:
+                results["10_provenance_preservation"] = "FAIL"
+                details["10_provenance_preservation"] = {"error": str(exc)}
+
+            # 14. Forged Authority Attempt (client-side and direct server-side explicit rejection)
+            try:
+                client_rejected = False
+                try:
+                    self.client_a.write(content="forged", owner_id="forged-owner-id")
+                except ProtocolError:
+                    client_rejected = True
+                if not client_rejected:
+                    raise ValueError("Client allowed forged owner_id without ProtocolError")
+
+                server_rejected = False
+                token = self.session_a.get_valid_access_token()
+                forged_body = json.dumps({
+                    "jsonrpc": "2.0",
+                    "id": 888,
+                    "method": "tools/call",
+                    "params": {"name": "memory.write", "arguments": {"content": "forged", "owner_id": "forged-id"}},
+                }).encode("utf-8")
+                req = Request(
+                    f"{self.session_a.base_url}/mcp",
+                    data=forged_body,
+                    headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "Authorization": f"Bearer {token}"},
+                    method="POST",
+                )
+                try:
+                    with urlopen(req, timeout=self.session_a.timeout) as resp:
+                        raw = resp.read().decode()
+                        parsed = json.loads(raw) if raw else {}
+                        if "error" in parsed or parsed.get("result", {}).get("isError") is True:
+                            server_rejected = True
+                        else:
+                            raise ValueError(f"Server did not reject forged authority in JSON-RPC response: {raw[:150]}")
+                except HTTPError as exc:
+                    if exc.code in {400, 403, 422}:
                         server_rejected = True
-            except HTTPError as exc:
-                if exc.code in {400, 403, 422}:
-                    server_rejected = True
-            except Exception:
-                pass
-            if not server_rejected:
-                server_rejected = True
-            results["14_forged_authority_rejection"] = "PASS"
-            details["14_forged_authority_rejection"] = {"client_rejected": True, "server_rejected": server_rejected}
-        except Exception as exc:
-            results["14_forged_authority_rejection"] = "FAIL"
-            details["14_forged_authority_rejection"] = {"error": str(exc)}
+                    else:
+                        raise ValueError(f"Server returned unexpected HTTP error on forged authority: {exc.code}")
+                except Exception as exc:
+                    raise ValueError(f"Direct server probe for forged authority failed: {exc}")
 
-        # 15. Tenant Isolation (strictly requiring two independent tenants)
-        try:
-            if not self.transport_b or not self.client_b or not self.session_b:
-                raise ValueError("Only one tenant/identity provided; two independent tenants are required to prove zero leakage")
-            # Write unique secret memory in Tenant B
-            b_key = f"c02-tenant-b-write-{uuid.uuid4().hex[:8]}"
-            content_b = f"tenant_b_isolated_secret_{uuid.uuid4().hex[:8]}"
-            b_prov = {"source_type": "user", "captured_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"), "source_id": "c02-tenant-b"}
-            res_write_b = self.client_b.write(content=content_b, type="fact", provenance=b_prov, idempotency_key=b_key)
-            rec_b_id = (res_write_b.get("data", {}).get("memory", {}).get("id") or res_write_b.get("id"))
+                if not server_rejected:
+                    raise ValueError("Server failed to reject forged authority")
 
-            # Tenant A searches for Tenant B secret -> must return 0 results
-            res_a_leak_search = self.client_a.search(query=content_b, limit=10, min_relevance=0.1)
-            search_a_data = res_a_leak_search.get("data", res_a_leak_search) if isinstance(res_a_leak_search, dict) else {}
-            items_a = search_a_data.get("memories") or search_a_data.get("matches") or []
-            if any(m.get("id") == rec_b_id or m.get("content") == content_b for m in items_a if isinstance(m, dict)):
-                raise ValueError("Cross-tenant leakage detected: Tenant A retrieved Tenant B memory")
+                results["14_forged_authority_rejection"] = "PASS"
+                details["14_forged_authority_rejection"] = {"client_rejected": True, "server_rejected": True}
+            except Exception as exc:
+                results["14_forged_authority_rejection"] = "FAIL"
+                details["14_forged_authority_rejection"] = {"error": str(exc)}
 
-            # Tenant B searches for Tenant A memory -> must return 0 results
-            res_b_leak_search = self.client_b.search(query=synthetic_content, limit=10, min_relevance=0.1)
-            search_b_data = res_b_leak_search.get("data", res_b_leak_search) if isinstance(res_b_leak_search, dict) else {}
-            items_b = search_b_data.get("memories") or search_b_data.get("matches") or []
-            if any(m.get("id") == record_id or m.get("content") == synthetic_content for m in items_b if isinstance(m, dict)):
-                raise ValueError("Cross-tenant leakage detected: Tenant B retrieved Tenant A memory")
-
-            tok_a = self.session_a._tokens.access_token if self.session_a._tokens else ""
-            tok_b = self.session_b._tokens.access_token if self.session_b._tokens else ""
-            hash_a = hashlib.sha256(tok_a.encode("utf-8")).hexdigest()[:16]
-            hash_b = hashlib.sha256(tok_b.encode("utf-8")).hexdigest()[:16]
-
-            results["15_tenant_isolation"] = "PASS"
-            details["15_tenant_isolation"] = {
-                "zero_leakage_proven": True,
-                "rls_enforced": True,
-                "tenant_a_token_digest": f"sha256:{hash_a}...",
-                "tenant_b_token_digest": f"sha256:{hash_b}...",
-            }
-        except Exception as exc:
-            results["15_tenant_isolation"] = "FAIL"
-            details["15_tenant_isolation"] = {"error": str(exc)}
-
-        # 11. Refresh & Rotation (verifying new tokens and old refresh rejection HTTP 400)
-        old_refresh_code = None
-        try:
-            if not self.session_a._tokens or not self.session_a._tokens.refresh_token:
-                raise ValueError("No refresh token available in session A to test rotation")
-            old_access = self.session_a._tokens.access_token
-            old_refresh = self.session_a._tokens.refresh_token
-            new_tokens = self.session_a.refresh()
-            if new_tokens.access_token == old_access or new_tokens.refresh_token == old_refresh:
-                raise ValueError("Refresh did not rotate access/refresh token pair")
-            token_endpoint = f"{self.session_a.base_url}/token"
-            old_ref_body = urlencode({
-                "grant_type": "refresh_token",
-                "refresh_token": old_refresh,
-                "client_id": self.session_a.client_id,
-            }).encode("utf-8")
-            req = Request(token_endpoint, data=old_ref_body, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+            # 15. Tenant Isolation (strictly requiring two distinct tenant contexts)
             try:
-                with urlopen(req, timeout=self.session_a.timeout) as resp:
-                    old_refresh_code = resp.status
-            except HTTPError as exc:
-                old_refresh_code = exc.code
-            if old_refresh_code != 400:
-                raise ValueError(f"Old refresh token was not rejected with HTTP 400 (got {old_refresh_code})")
-            results["11_refresh_rotation"] = "PASS"
-            details["11_refresh_rotation"] = {"rotated": True, "old_refresh_rejected_status": 400}
-        except Exception as exc:
-            results["11_refresh_rotation"] = "FAIL"
-            details["11_refresh_rotation"] = {"error": str(exc)}
+                if not self.transport_b or not self.client_b or not self.session_b:
+                    raise ValueError("Only one tenant/identity provided; two independent tenants are required to prove zero leakage")
 
-        # 12. Revoke (preserving token, clearing session) & 13. Unauthorized After Revoke (HTTP 401 to /mcp)
-        revoked_access_token = None
-        revoke_code = 200
-        post_revoke_code = None
-        try:
-            if not self.session_a._tokens or not self.session_a._tokens.access_token:
-                raise ValueError("No active access token to revoke in session A")
-            revoked_access_token = self.session_a._tokens.access_token
-            revoked = self.session_a.revoke()
-            if not revoked or self.session_a._tokens is not None:
-                raise ValueError("Token revocation failed to clear local session")
-            results["12_token_revocation"] = "PASS"
-            details["12_token_revocation"] = {"revoked": True, "revoke_status": revoke_code}
-        except Exception as exc:
-            results["12_token_revocation"] = "FAIL"
-            details["12_token_revocation"] = {"error": str(exc)}
+                # Tenant B writes unique secret memory
+                b_key = f"c02-tenant-b-write-{uuid.uuid4().hex[:8]}"
+                content_b = f"tenant_b_isolated_secret_{uuid.uuid4().hex[:8]}"
+                b_prov = {"source_type": "user", "captured_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"), "source_id": "c02-tenant-b"}
+                res_write_b = self.client_b.write(content=content_b, type="fact", provenance=b_prov, idempotency_key=b_key)
+                b_data = res_write_b.get("data", res_write_b) if isinstance(res_write_b, dict) else {}
+                b_rec = b_data.get("memory") or b_data.get("record") or b_data
+                rec_b_id = b_rec.get("id") if isinstance(b_rec, dict) else None
+                if not rec_b_id:
+                    raise ValueError("Tenant B write failed to return a valid record ID")
 
-        try:
-            if not revoked_access_token:
-                raise ValueError("Cannot test post-revoke HTTP 401: prerequisite revoke failed")
-            mcp_endpoint = f"{self.session_a.base_url}/mcp"
-            probe_payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}).encode("utf-8")
-            req = Request(
-                mcp_endpoint,
-                data=probe_payload,
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {revoked_access_token}"},
-                method="POST",
-            )
+                # Tenant A searches for Tenant B secret -> must return 0 results
+                res_a_leak_search = self.client_a.search(query=content_b, limit=10, min_relevance=0.1)
+                items_a = _extract_memories(res_a_leak_search)
+                if any(m.get("id") == rec_b_id or m.get("content") == content_b for m in items_a):
+                    raise ValueError("Cross-tenant leakage detected: Tenant A retrieved Tenant B memory")
+
+                # Tenant B searches for Tenant A memory -> must return 0 results
+                res_b_leak_search = self.client_b.search(query=synthetic_content, limit=10, min_relevance=0.1)
+                items_b = _extract_memories(res_b_leak_search)
+                if any(m.get("id") == record_id or m.get("content") == synthetic_content for m in items_b):
+                    raise ValueError("Cross-tenant leakage detected: Tenant B retrieved Tenant A memory")
+
+                # Tenant A attempts to update Tenant B record -> must fail/not mutate
+                leak_upd_a = False
+                try:
+                    res_upd = self.client_a.update(id=rec_b_id, expected_version=1, patch={"content": "hacked_by_a"}, idempotency_key="leak-upd-a")
+                    if isinstance(res_upd, dict) and res_upd.get("ok") is True:
+                        leak_upd_a = True
+                except Exception:
+                    pass
+                if leak_upd_a:
+                    raise ValueError("Cross-tenant mutation: Tenant A updated Tenant B record")
+
+                tok_a = self.session_a._tokens.access_token if self.session_a._tokens else ""
+                tok_b = self.session_b._tokens.access_token if self.session_b._tokens else ""
+                hash_a = hashlib.sha256(tok_a.encode("utf-8")).hexdigest()[:16]
+                hash_b = hashlib.sha256(tok_b.encode("utf-8")).hexdigest()[:16]
+
+                results["15_tenant_isolation"] = "PASS"
+                details["15_tenant_isolation"] = {
+                    "zero_leakage_proven": True,
+                    "rls_enforced": True,
+                    "tenant_a_token_digest": f"sha256:{hash_a}...",
+                    "tenant_b_token_digest": f"sha256:{hash_b}...",
+                }
+            except Exception as exc:
+                results["15_tenant_isolation"] = "FAIL"
+                details["15_tenant_isolation"] = {"error": str(exc)}
+
+            # 11. Refresh & Rotation (verifying new tokens and old refresh rejection HTTP 400)
+            old_refresh_code = None
             try:
-                with urlopen(req, timeout=self.session_a.timeout) as resp:
-                    post_revoke_code = resp.status
-            except HTTPError as exc:
-                post_revoke_code = exc.code
-            if post_revoke_code != 401:
-                raise ValueError(f"Revoked access token was not rejected by server with HTTP 401 (got {post_revoke_code})")
-            results["13_unauthorized_after_revoke"] = "PASS"
-            details["13_unauthorized_after_revoke"] = {"rejected_401": True, "post_revoke_status": 401}
-        except Exception as exc:
-            results["13_unauthorized_after_revoke"] = "FAIL"
-            details["13_unauthorized_after_revoke"] = {"error": str(exc)}
+                if not self.session_a._tokens or not self.session_a._tokens.refresh_token:
+                    raise ValueError("No refresh token available in session A to test rotation")
+                old_access = self.session_a._tokens.access_token
+                old_refresh = self.session_a._tokens.refresh_token
+                new_tokens = self.session_a.refresh()
+                if new_tokens.access_token == old_access or new_tokens.refresh_token == old_refresh:
+                    raise ValueError("Refresh did not rotate access/refresh token pair")
+                token_endpoint = f"{self.session_a.base_url}/token"
+                old_ref_body = urlencode({
+                    "grant_type": "refresh_token",
+                    "refresh_token": old_refresh,
+                    "client_id": self.session_a.client_id,
+                }).encode("utf-8")
+                req = Request(token_endpoint, data=old_ref_body, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+                try:
+                    with urlopen(req, timeout=self.session_a.timeout) as resp:
+                        old_refresh_code = resp.status
+                except HTTPError as exc:
+                    old_refresh_code = exc.code
+                if old_refresh_code != 400:
+                    raise ValueError(f"Old refresh token was not rejected with HTTP 400 (got {old_refresh_code})")
+                results["11_refresh_rotation"] = "PASS"
+                details["11_refresh_rotation"] = {"rotated": True, "old_refresh_rejected_status": 400}
+            except Exception as exc:
+                results["11_refresh_rotation"] = "FAIL"
+                details["11_refresh_rotation"] = {"error": str(exc)}
+
+            # 12. Revoke (preserving token, clearing session) & 13. Unauthorized After Revoke (HTTP 401 to /mcp)
+            revoked_access_token = None
+            revoke_code = 200
+            post_revoke_code = None
+            try:
+                if not self.session_a._tokens or not self.session_a._tokens.access_token:
+                    raise ValueError("No active access token to revoke in session A")
+                revoked_access_token = self.session_a._tokens.access_token
+                revoked = self.session_a.revoke()
+                if not revoked or self.session_a._tokens is not None:
+                    raise ValueError("Token revocation failed to clear local session")
+                results["12_token_revocation"] = "PASS"
+                details["12_token_revocation"] = {"revoked": True, "revoke_status": revoke_code}
+            except Exception as exc:
+                results["12_token_revocation"] = "FAIL"
+                details["12_token_revocation"] = {"error": str(exc)}
+
+            try:
+                if not revoked_access_token:
+                    raise ValueError("Cannot test post-revoke HTTP 401: prerequisite revoke failed")
+                mcp_endpoint = f"{self.session_a.base_url}/mcp"
+                probe_payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}).encode("utf-8")
+                req = Request(
+                    mcp_endpoint,
+                    data=probe_payload,
+                    headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "Authorization": f"Bearer {revoked_access_token}"},
+                    method="POST",
+                )
+                try:
+                    with urlopen(req, timeout=self.session_a.timeout) as resp:
+                        post_revoke_code = resp.status
+                except HTTPError as exc:
+                    post_revoke_code = exc.code
+                if post_revoke_code != 401:
+                    raise ValueError(f"Revoked access token was not rejected by server with HTTP 401 (got {post_revoke_code})")
+                results["13_unauthorized_after_revoke"] = "PASS"
+                details["13_unauthorized_after_revoke"] = {"rejected_401": True, "post_revoke_status": 401}
+            except Exception as exc:
+                results["13_unauthorized_after_revoke"] = "FAIL"
+                details["13_unauthorized_after_revoke"] = {"error": str(exc)}
+
+        finally:
+            if self.session_a and self.session_a._tokens:
+                try:
+                    self.session_a.revoke()
+                except Exception:
+                    pass
+            if self.session_b and self.session_b._tokens:
+                try:
+                    self.session_b.revoke()
+                except Exception:
+                    pass
 
         report = {
             "report_id": report_id,

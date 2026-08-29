@@ -112,7 +112,7 @@ class OAuthSession:
         *,
         client_id: str = DEFAULT_CLIENT_ID,
         redirect_uri: str = DEFAULT_LOOPBACK_REDIRECT,
-        timeout: float = 10.0,
+        timeout: float = 30.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.client_id = client_id
