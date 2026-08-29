@@ -80,33 +80,35 @@ class CloudOAuthTransport(ToolTransport):
                     text_val = item.get("text", "{}")
                     try:
                         parsed = json.loads(text_val)
-                        if is_error:
-                            parsed_error = parsed.get("error") if isinstance(parsed, dict) else None
-                            if isinstance(parsed_error, dict):
-                                return {
+                        if isinstance(parsed, dict):
+                            if parsed.get("ok") is False or is_error:
+                                parsed_error = parsed.get("error")
+                                if isinstance(parsed_error, dict):
+                                    err_code = str(parsed_error.get("code", "tool_error"))
+                                    err_msg = str(parsed_error.get("message", "tool execution failed"))
+                                else:
+                                    err_code = "tool_error"
+                                    err_msg = str(parsed_error or "tool execution failed")
+                                ret: dict[str, Any] = {
                                     "ok": False,
-                                    "error": {
-                                        "code": str(parsed_error.get("code", "tool_error")),
-                                        "message": str(
-                                            parsed_error.get("message", "tool execution failed")
+                                    "error": {"code": err_code, "message": err_msg},
+                                }
+                                if "request_id" in parsed:
+                                    ret["request_id"] = parsed["request_id"]
+                                return ret
+                            if "status" in parsed:
+                                if parsed.get("status") == "success":
+                                    return {"ok": True, "data": parsed.get("data", {})}
+                                else:
+                                    return {
+                                        "ok": False,
+                                        "error": parsed.get(
+                                            "error",
+                                            {"code": "error", "message": "tool execution failed"},
                                         ),
-                                    },
-                                }
-                            return {
-                                "ok": False,
-                                "error": {"code": "tool_error", "message": "tool execution failed"},
-                            }
-                        if isinstance(parsed, dict) and "status" in parsed:
-                            if parsed.get("status") == "success":
+                                    }
+                            if parsed.get("ok") is True:
                                 return {"ok": True, "data": parsed.get("data", {})}
-                            else:
-                                return {
-                                    "ok": False,
-                                    "error": parsed.get(
-                                        "error",
-                                        {"code": "error", "message": "tool execution failed"},
-                                    ),
-                                }
                         return {"ok": True, "data": parsed}
                     except (json.JSONDecodeError, TypeError):
                         if is_error:
