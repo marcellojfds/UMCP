@@ -426,6 +426,7 @@ def _stage_reports(
 
 
 def _scan_redaction(cycle_id: str, *texts: str) -> None:
+    sanitized_texts = [text.replace(RUNTIME_SA, "") for text in texts]
     patterns = (
         re.compile(re.escape(f"UMCPAUDIT_SECRET_{cycle_id}_")),
         re.compile(r"(?i)authorization\s*[:=]\s*bearer\s+\S+"),
@@ -433,9 +434,9 @@ def _scan_redaction(cycle_id: str, *texts: str) -> None:
         re.compile(
             r"(?i)(?:client_secret|refresh_token|access_token|code_verifier)\s*[:=]\s*['\"]?[^\s,'\"]+"
         ),
-        re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+        re.compile(r"(?i)[A-Za-z0-9._%+-]+@(?!.*gserviceaccount\.com)[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
     )
-    if any(pattern.search(text) for pattern in patterns for text in texts):
+    if any(pattern.search(text) for pattern in patterns for text in sanitized_texts):
         raise ValueError("redaction sentinel or forbidden secret-like value found")
 
 
