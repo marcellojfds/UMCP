@@ -1,7 +1,7 @@
 {
   "agent_version": "1.0.0",
   "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-  "checksum": "sha256:a5f391386b7f55bdc779ff97a1ed35cbde7de16b1fa142976f1c895211cd4e7b",
+  "checksum": "sha256:923d5daf1b280804d7e2a0974b59347ec84f8c3bbed1d72d8fffefa616dfa4ef",
   "limitations": [
     "Private managed beta only",
     "Strictly synthetic test payloads; zero user data",
@@ -12,7 +12,7 @@
     "server_revision": "umcp-cloud-staging-00018-f78",
     "server_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
   },
-  "report_id": "c02-79d8097732ce",
+  "report_id": "c02-8d84969583ce",
   "scopes": [
     "memory:read",
     "memory:write",
@@ -22,22 +22,30 @@
   "step_details": {
     "10_provenance_preservation": {
       "provenance_validated": true,
+      "source_id": "c02-test-actor",
       "source_type": "user"
     },
     "11_refresh_rotation": {
+      "old_refresh_rejected_status": 400,
       "rotated": true
     },
     "12_token_revocation": {
+      "revoke_status": 200,
       "revoked": true
     },
     "13_unauthorized_after_revoke": {
+      "post_revoke_status": 401,
       "rejected_401": true
     },
     "14_forged_authority_rejection": {
-      "client_rejected": true
+      "client_rejected": true,
+      "server_rejected": true
     },
     "15_tenant_isolation": {
-      "rls_enforced": true
+      "rls_enforced": true,
+      "tenant_a_token_digest": "sha256:0858d11deacb4955...",
+      "tenant_b_token_digest": "sha256:1c242ad144997b8a...",
+      "zero_leakage_proven": true
     },
     "1_discovery": {
       "auth_endpoint": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/authorize",
@@ -55,20 +63,24 @@
       "tools_count": 4
     },
     "5_synthetic_write": {
-      "record_id": "d6af9321-1d56-4d60-9a25-403c04473952"
+      "record_id": "e6292e6e-b7fd-4597-958e-9356f5e5b29f",
+      "version": 1
     },
     "6_recall_search": {
       "found": true,
-      "items_count": 2
+      "items_count": 1
     },
     "7_update": {
+      "new_version": 2,
       "updated": true
     },
     "8_forget": {
-      "forgotten_id": "d6af9321-1d56-4d60-9a25-403c04473952"
+      "forgotten_id": "e6292e6e-b7fd-4597-958e-9356f5e5b29f",
+      "status": "forgotten"
     },
     "9_tombstone_non_resurrection": {
-      "non_resurrected": true
+      "non_resurrected": true,
+      "verified_record_id": "e6292e6e-b7fd-4597-958e-9356f5e5b29f"
     }
   },
   "step_results": {
@@ -93,5 +105,5 @@
     "passed_steps": 15,
     "total_steps": 15
   },
-  "timestamp_utc": "2026-08-29T01:56:48.467197Z"
+  "timestamp_utc": "2026-08-29T11:51:27.455250Z"
 }

@@ -1,7 +1,7 @@
 {
   "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-  "checksum": "sha256:9c585e919e0139ca491814d254453ccfdb476f9ead061530064dedc589e83958",
-  "created_at": "2026-08-29T01:59:03.188494Z",
+  "checksum": "sha256:6089bbd28d8deae740450a6c5ada748382565297c257052c28090ce081f0e53e",
+  "created_at": "2026-08-29T11:54:07.402918Z",
   "limitations": [
     "Private managed beta only; not approved for public distribution or external users",
     "Operates with authorized test identity and synthetic test payloads only"
@@ -35,7 +35,7 @@
     "server_revision": "umcp-cloud-staging-00018-f78",
     "server_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
   },
-  "report_id": "c01-a5091ba10ebb",
+  "report_id": "c01-61b067ce8e1c",
   "scopes": [
     "memory:read",
     "memory:write",
@@ -48,19 +48,19 @@
     "unverified_count": 0
   },
   "test_results": {
-    "authorization_server_discovery": true,
-    "forged_authority_rejection": true,
-    "mcp_initialize": true,
-    "mcp_tools_list": true,
-    "memory_forget_synthetic": true,
-    "memory_search_synthetic": true,
-    "memory_update_synthetic": true,
-    "memory_write_synthetic": true,
-    "oauth_pkce_s256": true,
-    "protected_resource_discovery": true,
-    "token_exchange": true,
-    "token_refresh_rotation": true,
-    "token_revocation": true,
-    "zero_leakage_redaction": true
+    "authorization_server_discovery": "PASS",
+    "forged_authority_rejection": "PASS",
+    "mcp_initialize": "PASS",
+    "mcp_tools_list": "PASS",
+    "memory_forget_synthetic": "PASS",
+    "memory_search_synthetic": "PASS",
+    "memory_update_synthetic": "PASS",
+    "memory_write_synthetic": "PASS",
+    "oauth_pkce_s256": "PASS",
+    "protected_resource_discovery": "PASS",
+    "token_exchange": "PASS",
+    "token_refresh_rotation": "PASS",
+    "token_revocation": "PASS",
+    "zero_leakage_redaction": "PASS"
   }
 }

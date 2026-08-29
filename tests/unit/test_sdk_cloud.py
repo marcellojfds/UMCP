@@ -1,7 +1,8 @@
-"""Unit and contract tests for UMCP Cloud SDK."""
+"""Unit and contract tests for UMCP Cloud SDK and Conformance Runner."""
 
 import json
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 import pytest
 
 from omp.sdk.client import MemoryClient, ProtocolError
@@ -12,7 +13,7 @@ from omp.sdk.oauth import (
     _validate_loopback_redirect_uri,
     generate_pkce_pair,
 )
-from omp.sdk.runner import ALL_CAPABILITIES, generate_c01_report
+from omp.sdk.runner import ALL_CAPABILITIES, SDKConformanceRunner, generate_c01_report
 
 
 def test_pkce_pair_generation() -> None:
@@ -56,12 +57,10 @@ def test_loopback_redirect_uri_validation() -> None:
     host, port, path = _validate_loopback_redirect_uri("http://[::1]:9000/auth")
     assert host == "::1" and port == 9000 and path == "/auth"
 
-    # Reject textual localhost
     with pytest.raises(ValueError) as exc:
         _validate_loopback_redirect_uri("http://localhost:8765/callback")
     assert "must be literal 127.0.0.1 or ::1" in str(exc.value)
 
-    # Reject https or non-loopback
     with pytest.raises(ValueError) as exc:
         _validate_loopback_redirect_uri("https://example.com/callback")
     assert "must use http://" in str(exc.value)
@@ -82,21 +81,64 @@ def test_cloud_transport_rejects_forged_owner_or_tenant() -> None:
     assert "client must not specify owner_id or tenant_id" in str(exc.value)
 
 
+def test_c01_conformance_runner_live_probes_success() -> None:
+    session = OAuthSession("https://staging.test.invalid")
+    session.set_tokens(TokenData(access_token="tok123", token_type="Bearer", expires_in=3600, refresh_token="ref123"))
+    session.discover_protected_resource = MagicMock(return_value={"resource": "https://staging.test.invalid/mcp"})
+    session.discover_authorization_server = MagicMock(return_value={"issuer": "https://staging.test.invalid", "authorization_endpoint": "https://staging.test.invalid/authorize", "token_endpoint": "https://staging.test.invalid/token"})
+    session.refresh = MagicMock(return_value=TokenData(access_token="tok_new", token_type="Bearer", expires_in=3600, refresh_token="ref_new"))
+
+    def _mock_revoke(token=None, token_type_hint="access_token"):
+        session._tokens = None
+        return True
+
+    session.revoke = MagicMock(side_effect=_mock_revoke)
+
+    def _mock_rpc(method, params, retryable=False):
+        if method == "initialize":
+            return {"result": {"protocolVersion": "2025-03-26", "serverInfo": {"name": "umcp-cloud", "version": "1.0"}}}
+        if method == "tools/list":
+            return {"result": {"tools": [{"name": "memory.write"}, {"name": "memory.search"}, {"name": "memory.update"}, {"name": "memory.forget"}]}}
+        if method == "tools/call":
+            name = params.get("name")
+            args = params.get("arguments", {})
+            if name == "memory.write":
+                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memory": {"id": "rec-123", "version": 1}}})}]}}
+            if name == "memory.search":
+                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memories": [{"memory": {"id": "rec-123", "content": args.get("query")}}]}})}]}}
+            if name == "memory.update":
+                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memory": {"id": "rec-123", "version": 2}}})}]}}
+            if name == "memory.forget":
+                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"id": args.get("id"), "status": "forgotten"}})}]}}
+        return {"result": {}}
+
+    transport = CloudOAuthTransport(session)
+    transport._rpc = MagicMock(side_effect=_mock_rpc)
+
+    runner = SDKConformanceRunner(transport)
+    with patch("omp.sdk.runner.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = [
+            HTTPError("https://staging.test.invalid/mcp", 400, "Bad Request", {}, None),  # Forged raw probe
+            HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None), # Old refresh probe
+            HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),  # Revoke 401 probe
+        ]
+        checks = runner.run_all_checks()
+
+    assert all(status == "PASS" for status in checks["results"].values())
+    report = generate_c01_report(
+        base_url="https://staging.test.invalid",
+        transport_results=checks["results"],
+    )
+    assert report["summary"]["supported_count"] == 14
+    assert report["summary"]["unverified_count"] == 0
+    assert report["checksum"].startswith("sha256:")
+    assert report["file_sha256"].startswith("sha256:")
+
+
 def test_c01_report_fail_closed_without_results() -> None:
-    # Fail-closed: empty transport_results results in ALL capabilities as unverified
-    report = generate_c01_report(base_url="https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app")
+    report = generate_c01_report(base_url="https://staging.test.invalid")
     assert report["sdk_version"] == "1.0.0"
     assert report["protocol_version"] == "omp.mcp.v0"
     assert report["checksum"].startswith("sha256:")
     assert len(report["matrix"]["supported"]) == 0
     assert len(report["matrix"]["unverified"]) == len(ALL_CAPABILITIES)
-
-
-def test_c01_report_with_results() -> None:
-    results = {cap: "PASS" for cap in ALL_CAPABILITIES}
-    report = generate_c01_report(
-        base_url="https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-        transport_results=results,
-    )
-    assert len(report["matrix"]["supported"]) == len(ALL_CAPABILITIES)
-    assert len(report["matrix"]["unverified"]) == 0
