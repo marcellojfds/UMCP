@@ -1,7 +1,7 @@
 # UMCP Roadmap Manager
 
-manager_status: preparing
-canonical_ref: b74bb1d415a1d8e45d01030fb57e9c3693fc4a1e
+manager_status: waiting_owner_decision
+canonical_ref: a9e7b5deefeb0f43799e95a09a263bea5a5757d6
 active_id: none
 active_kind: none
 active_thread_id: none
@@ -15,7 +15,7 @@ stop_at: none
 next_progress_at: none
 last_announced_completed: 10
 recovery_attempt: 0
-last_reconciled_sha: b462bccec5bdea2db40d6aaac30e3cdd449e503d
+last_reconciled_sha: a9e7b5deefeb0f43799e95a09a263bea5a5757d6
 
 ## Events
 
@@ -71,6 +71,14 @@ last_reconciled_sha: b462bccec5bdea2db40d6aaac30e3cdd449e503d
 - reconciliation | 2026-08-29 | C01,C02 | candidate=b462bccec5bdea2db40d6aaac30e3cdd449e503d | result=gates reopened; hosted results=14/14 and 15/15; containment=0/0/0; blocker=audit image was built before delivery commit and reports audit_source_sha=72b9fad4, so evidence is not reproducible from the claimed SHA
 - stopped | 2026-08-29 | manager | reason=direct-session-handoff-requested; active=none; checklist=10/43; next=C01 clean-SHA audit rerun, then C02 and C03/CP-4
 - resumed | 2026-08-29 | manager | purpose=private controlled MVP usable through ChatGPT and Gemini with auth/account UI and cross-assistant transfer; cadence=10m; board=coordination/SLACK-MANAGER-BOARD.md; first_wave=W01-W06; no release authorization
+- blocked | 2026-08-29T14:42:22Z | W01 | delivery=1ebfaab004f527e7db069fed634ddd58da0f7c86 | verifier_fix=87e7b0a5fa55759bcf99fecd30250f4cb2b45519 | acceptance=stdlib verifier PASS; local audit image built; hosted rerun NOT-RUN | reason=Artifact Registry publication not authorized; C01/C02 remain open
+- reconciled | 2026-08-29T14:42:22Z | W02 | delivery=79014e79fa2ca2af658d54cf5363d44ff29b0285 | clean=true | scope=acceptance-freeze-only | result=delivery contract met; integration pending
+- reconciled | 2026-08-29T14:42:22Z | W03 | delivery=4977556c1402dae8a48d97ef41a90b83f8514b03 | clean=true | scope=read-only capability preflight | result=ChatGPT primary; Gemini CLI fallback; CP-4 retained; integration pending
+- reconciled | 2026-08-29T14:42:22Z | W04 | delivery=9df8d95a6a459baf9ddcd503e4589eb1aa468041 | clean=true | scope=MVP-gap-map-only | result=portable MCP export/import gap identified; integration pending
+- audit | 2026-08-29T14:42:22Z | W05 | source=a9e7b5deefeb0f43799e95a09a263bea5a5757d6 | result=NO-GO for W01 | findings=P0 image-SHA provenance declarative; P0 fail-open job/empty containment; P1 monkeypatch/OAuth/redaction/RLS overclaims
+- coordination-failure | 2026-08-29T14:42:22Z | W06 | result=NO-GO | reason=no shared lock/CAS; stale READY rows; divergent bases; C01-C02 dependency violation; acceptance freeze raced execution
+- containment | 2026-08-29T14:42:22Z | manager | action=paused all six lane schedulers; heartbeat changed to monitor-only; no new dispatch or integration pending owner direction
+- decision-needed | 2026-08-29T14:42:22Z | owner | options=authorize one controlled integration/remediation task and staging Artifact Registry publication after P0 fixes; or keep system paused | external_scope=existing staging project/region/registry only; no production/release
 
 ## Resumption boundary
 

@@ -45,6 +45,19 @@ Slack is a coordination and notification surface, not proof of delivery.
   its claimed `audit_source_sha` is not reproducible.
 - C03 and all downstream items: blocked by dependencies and/or checkpoints.
 
+## Safety containment — 2026-08-29 14:42 UTC
+
+- All six lane schedulers are `PAUSED` after the independent coordination
+  review found no shared lock/CAS, stale `READY` rows and divergent worktree
+  bases. The manager heartbeat is active in monitor-only mode.
+- No new worker may be dispatched and no divergent delivery may be integrated
+  until the owner authorizes one controlled integration/remediation path.
+- W01 delivered a stdlib-only checksum verifier and a locally built clean-SHA
+  image, but did not publish or run it in staging. C01/C02 remain open.
+- W05 found additional P0 defects that must be repaired before publication:
+  declarative image-to-SHA provenance and fail-open job/empty-containment
+  handling. Publication authorization alone is not sufficient for acceptance.
+
 ## Work protocol
 
 1. A worker may claim only one `READY` item assigned to its lane.
@@ -73,7 +86,7 @@ Slack is a coordination and notification surface, not proof of delivery.
 
 ### W01 — C01/C02 clean-SHA audit rerun
 
-- Status: `READY`
+- Status: `BLOCKED / REMEDIATION REQUIRED`
 - Owner: Luna 1
 - Depends on: H07
 - Exclusive write ownership: `scripts/verify_checksums.py`, regenerated C01,
@@ -84,10 +97,14 @@ Slack is a coordination and notification surface, not proof of delivery.
   15/15; containment is 0/0/0; no secrets appear; reports distinguish audit
   SHA, server SHA, server digest/revision and audit image digest.
 - Delivery: local clean commit and reconciliable handoff. No C03 work.
+- Current delivery: verifier fix `87e7b0a5...`; blocked handoff
+  `1ebfaab004...`; hosted acceptance not run. Requires P0 remediation, a
+  controlled integration SHA, and explicit authorization to publish the audit
+  image to the existing staging Artifact Registry.
 
 ### W02 — Freeze C01/C02 acceptance
 
-- Status: `READY`
+- Status: `DELIVERED / INTEGRATION PENDING`
 - Owner: Terra 1
 - Depends on: H07
 - Exclusive write ownership:
@@ -96,10 +113,11 @@ Slack is a coordination and notification surface, not proof of delivery.
   algorithm, containment invariants, redaction rules and fail-closed criteria
   are specified before W01 is accepted.
 - Delivery: local clean commit/handoff; no runtime or report edits.
+- Delivery SHA: `79014e79fa2ca2af658d54cf5363d44ff29b0285`.
 
 ### W03 — C03 capability and checkpoint preflight
 
-- Status: `READY-PREFLIGHT-ONLY`
+- Status: `DELIVERED / INTEGRATION PENDING`
 - Owner: Luna 2
 - Depends on: none for read-only preflight; implementation remains blocked by
   C02 and CP-4.
@@ -109,10 +127,13 @@ Slack is a coordination and notification surface, not proof of delivery.
   connectivity/import/export; exact owner actions, account prerequisites,
   OAuth/redirect/scopes and unsupported steps; proposed primary/fallback
   surface. No credential, account or external mutation.
+- Delivery SHA: `4977556c1402dae8a48d97ef41a90b83f8514b03`;
+  ChatGPT web is the proposed primary and Gemini CLI the supported fallback;
+  CP-4 remains open.
 
 ### W04 — MVP user-goal gap map
 
-- Status: `READY`
+- Status: `DELIVERED / INTEGRATION PENDING`
 - Owner: Terra 2
 - Depends on: current roadmap and handoff.
 - Exclusive write ownership:
@@ -121,23 +142,28 @@ Slack is a coordination and notification surface, not proof of delivery.
   export to existing packages; identify missing tasks, critical path,
   checkpoints and measurable end-to-end tests without marking implementation
   complete.
+- Delivery SHA: `9df8d95a6a459baf9ddcd503e4589eb1aa468041`;
+  portable MCP export/import is a confirmed roadmap gap.
 
 ### W05 — Independent audit-runner review
 
-- Status: `READY-READ-ONLY`
+- Status: `DONE / NO-GO FINDINGS`
 - Owner: Sol 1
 - Write ownership: none.
 - Acceptance: report actionable findings against W01's runner, provenance,
   redaction, OAuth realism, cross-tenant isolation and checksum design. Do not
   modify W01-owned files or certify before current evidence exists.
+- Result: two P0 findings (image/SHA provenance and fail-open job/containment)
+  plus P1 findings for SDK monkeypatching, OAuth overclaim, redaction and RLS.
 
 ### W06 — Coordination-system safety review
 
-- Status: `READY-READ-ONLY`
+- Status: `DONE / COORDINATION NO-GO`
 - Owner: Sol 2
 - Write ownership: none.
 - Acceptance: identify races, duplicate-dispatch risks, missing stop conditions,
   dependency errors and unsafe automation behavior. Do not change product code.
+- Result: recurring lane dispatch is paused; only central monitor remains.
 
 ## Dependency backlog
 
@@ -167,4 +193,3 @@ Every 10 minutes:
 6. notify only on dispatch, failure, decision-needed or completion;
 7. stop and remove the heartbeat when the MVP success evidence is met or a
    material owner decision is required.
-
