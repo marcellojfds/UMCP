@@ -1,19 +1,21 @@
 {
+  "audit_cycle_id": "audit-20260829191427-3d666ba5",
   "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-  "checksum": "sha256:35fbdf2f12b53af8fc699fd013d55804c137c00eb2964790d7ca7b95c3ba8911",
+  "checksum": "sha256:b04273e3a9710f43efb11512418d4266f01d03a898d296a13e52ea13f25dfed0",
+  "job_execution": "umcp-c01c02-cont-4273d666ba5-6tfpg",
   "metrics": {
     "active_codes": 0,
     "active_test_tenants": 0,
     "active_tokens": 0
   },
   "provenance": {
-    "audit_image_digest": "sha256:c39b3d02785b0a4f817da4074136b4d662c49085499e6cebbf8a69b96ccbedea",
-    "audit_source_sha": "72b9fad4d9ed6b54f44150d19fc3d3edef67e1ab",
+    "audit_image_digest": "sha256:6a5b8b0e95048c9b5c5f74a9d8452d0eb9ab3bb74db19e4e8aee3147b1c25124",
+    "audit_source_sha": "74b4e7e46a14984e82a9fd4a0f1fa511ef074f42",
     "server_digest": "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
     "server_revision": "umcp-cloud-staging-00018-f78",
     "server_source_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
   },
-  "report_id": "containment-72b9fad4d9ed",
+  "report_id": "containment-audit-20260829191427-3d666ba5",
   "status": "PASS",
-  "timestamp_utc": "2026-08-29T14:10:27.700645Z"
+  "timestamp_utc": "2026-08-29T19:20:53.444561Z"
 }

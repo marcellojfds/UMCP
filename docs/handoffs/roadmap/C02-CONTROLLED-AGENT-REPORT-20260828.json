@@ -1,20 +1,33 @@
 {
   "agent_version": "1.0.0",
+  "audit_cycle_id": "audit-20260829191427-3d666ba5",
   "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-  "checksum": "sha256:2e640048bb8430f27b77cc3977d3987017e0c7f6da145d1aa779ea458188f348",
+  "checksum": "sha256:677b8c552eff51c463aeb3932972f9c6478b4c6aa6051cc77f7abddaa0127b5f",
+  "job_execution": "umcp-c01c02-audit-4273d666ba5-pmfnr",
   "limitations": [
     "Private managed beta only",
     "Strictly synthetic test payloads; zero user data",
-    "Ephemeral in-memory token lifecycle"
+    "Ephemeral in-memory token lifecycle",
+    "Step 2 uses synthetic pre-provisioned credentials; no interactive login was performed",
+    "Tenant isolation is observed at the application boundary; this report is not direct RLS proof"
   ],
+  "negative_results": {
+    "authorization_code_replay_rejected": "PASS",
+    "cross_tenant_explicit_rejection": "PASS",
+    "forged_authority_explicit_rejection": "PASS",
+    "old_refresh_rejected": "PASS",
+    "revoked_access_rejected_401": "PASS",
+    "tombstone_non_resurrection": "PASS",
+    "unauthenticated_mcp_401": "PASS"
+  },
   "provenance": {
-    "audit_image_digest": "sha256:c39b3d02785b0a4f817da4074136b4d662c49085499e6cebbf8a69b96ccbedea",
-    "audit_source_sha": "72b9fad4d9ed6b54f44150d19fc3d3edef67e1ab",
+    "audit_image_digest": "sha256:6a5b8b0e95048c9b5c5f74a9d8452d0eb9ab3bb74db19e4e8aee3147b1c25124",
+    "audit_source_sha": "74b4e7e46a14984e82a9fd4a0f1fa511ef074f42",
     "server_digest": "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
     "server_revision": "umcp-cloud-staging-00018-f78",
     "server_source_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
   },
-  "report_id": "c02-e71fe8188a36",
+  "report_id": "c02-e1ac6288ab58",
   "scopes": [
     "memory:read",
     "memory:write",
@@ -44,9 +57,12 @@
       "server_rejected": true
     },
     "15_tenant_isolation": {
-      "rls_enforced": true,
-      "tenant_a_token_digest": "sha256:c104c718d81c8b36...",
-      "tenant_b_token_digest": "sha256:55b59ce4d361bb90...",
+      "claim": "observed application boundary isolation; not direct RLS proof",
+      "database_rls_directly_proven": false,
+      "explicit_denial_codes": [
+        "not_found",
+        "not_found"
+      ],
       "zero_leakage_proven": true
     },
     "1_discovery": {
@@ -54,7 +70,9 @@
       "protected_resource": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp"
     },
     "2_oauth_pkce_login": {
+      "credential_source": "synthetic_preprovisioned_token",
       "has_refresh": true,
+      "interactive_login_performed": false,
       "token_type": "Bearer"
     },
     "3_mcp_initialize": {
@@ -65,7 +83,7 @@
       "tools_count": 4
     },
     "5_synthetic_write": {
-      "record_id": "f6b5859f-3f78-484e-8ea7-5bd7f4be3fe1",
+      "record_id": "d072df74-807f-4c87-906c-b441aae1a591",
       "version": 1
     },
     "6_recall_search": {
@@ -77,12 +95,12 @@
       "updated": true
     },
     "8_forget": {
-      "forgotten_id": "f6b5859f-3f78-484e-8ea7-5bd7f4be3fe1",
+      "forgotten_id": "d072df74-807f-4c87-906c-b441aae1a591",
       "status": "forgotten"
     },
     "9_tombstone_non_resurrection": {
       "non_resurrected": true,
-      "verified_record_id": "f6b5859f-3f78-484e-8ea7-5bd7f4be3fe1"
+      "verified_record_id": "d072df74-807f-4c87-906c-b441aae1a591"
     }
   },
   "step_results": {
@@ -107,5 +125,5 @@
     "passed_steps": 15,
     "total_steps": 15
   },
-  "timestamp_utc": "2026-08-29T14:06:59.609578Z"
+  "timestamp_utc": "2026-08-29T19:16:57.776634Z"
 }

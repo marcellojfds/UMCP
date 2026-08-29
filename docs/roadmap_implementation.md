@@ -952,8 +952,8 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 - [x] H05 | model=luna | depends=H04 | checkpoint=- | title=Entregar login e consent UX
 - [x] H06 | model=terra | depends=H01,H04 | checkpoint=- | title=Fechar tenancy RLS KMS e recuperação hosted
 - [x] H07 | model=audit | depends=H02,H05,H06 | checkpoint=CP-1,CP-2,CP-3 | title=Integrar e auditar M2 em staging
-- [ ] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
-- [ ] C02 | model=luna | depends=C01 | checkpoint=- | title=Comprovar primeiro conector real controlado
+- [x] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
+- [x] C02 | model=luna | depends=C01 | checkpoint=- | title=Comprovar primeiro conector real controlado
 - [ ] C03 | model=luna | depends=C02 | checkpoint=CP-4 | title=Comprovar primeira superfície externa real
 - [ ] C04 | model=luna | depends=C03 | checkpoint=CP-4 | title=Comprovar segunda superfície externa real
 - [ ] C05L | model=luna | depends=C03,C04 | checkpoint=- | title=Entregar SDK TypeScript recipes e matriz M3
