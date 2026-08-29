@@ -360,4 +360,5 @@ if __name__ == "__main__":
             f"AUDIT_FAIL:error_type={detail['error_type']},error_code={detail['error_code']}",
             file=sys.stderr,
         )
+        print(f"AUDIT_DETAIL:{exc.__class__.__name__}:{exc}", file=sys.stderr)
         sys.exit(1)
