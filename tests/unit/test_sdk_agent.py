@@ -81,15 +81,16 @@ def test_controlled_memory_agent_15_steps_success() -> None:
             HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),  # Revoke probe
         ]
         report = agent.run_e2e_journey(
-            server_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+            audit_source_sha="sha_audit",
+            server_source_sha="sha_server",
             server_digest="sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
             server_revision="umcp-cloud-staging-00018-f78",
+            audit_image_digest="sha256:audit_img",
         )
 
     assert report["agent_version"] == "1.0.0"
     assert report["sdk_version"] == "1.0.0"
     assert report["checksum"].startswith("sha256:")
-    assert report["file_sha256"].startswith("sha256:")
     assert report["summary"]["total_steps"] == 15
     assert report["summary"]["passed_steps"] == 15
     assert report["summary"]["failed_steps"] == 0
@@ -111,7 +112,7 @@ def test_forged_authority_fails_when_server_does_not_reject() -> None:
             HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None),
             HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),
         ]
-        report = agent.run_e2e_journey(server_sha="sha", server_digest="dig", server_revision="rev")
+        report = agent.run_e2e_journey(audit_source_sha="sha_audit", server_source_sha="sha_server", server_digest="dig", server_revision="rev")
 
     assert report["step_results"]["14_forged_authority_rejection"] == "FAIL"
     assert "Server did not reject forged authority" in report["step_details"]["14_forged_authority_rejection"]["error"]
@@ -127,7 +128,7 @@ def test_tenant_isolation_fails_without_second_tenant() -> None:
             HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None),
             HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),
         ]
-        report = agent.run_e2e_journey(server_sha="sha", server_digest="dig", server_revision="rev")
+        report = agent.run_e2e_journey(audit_source_sha="sha_audit", server_source_sha="sha_server", server_digest="dig", server_revision="rev")
 
     assert report["step_results"]["15_tenant_isolation"] == "FAIL"
     assert "Only one tenant/identity provided" in report["step_details"]["15_tenant_isolation"]["error"]
@@ -153,7 +154,7 @@ def test_provenance_fails_when_missing_or_mismatching() -> None:
             HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None),
             HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),
         ]
-        report = agent.run_e2e_journey(server_sha="sha", server_digest="dig", server_revision="rev")
+        report = agent.run_e2e_journey(audit_source_sha="sha_audit", server_source_sha="sha_server", server_digest="dig", server_revision="rev")
 
     assert report["step_results"]["10_provenance_preservation"] == "FAIL"
     assert "Provenance source_type mismatch" in report["step_details"]["10_provenance_preservation"]["error"]
@@ -180,7 +181,7 @@ def test_update_fails_without_version_increment() -> None:
             HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None),
             HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),
         ]
-        report = agent.run_e2e_journey(server_sha="sha", server_digest="dig", server_revision="rev")
+        report = agent.run_e2e_journey(audit_source_sha="sha_audit", server_source_sha="sha_server", server_digest="dig", server_revision="rev")
 
     assert report["step_results"]["7_update"] == "FAIL"
     assert "Update expected incremented version 2" in report["step_details"]["7_update"]["error"]
@@ -206,7 +207,7 @@ def test_forget_fails_without_tombstone_status() -> None:
             HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None),
             HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),
         ]
-        report = agent.run_e2e_journey(server_sha="sha", server_digest="dig", server_revision="rev")
+        report = agent.run_e2e_journey(audit_source_sha="sha_audit", server_source_sha="sha_server", server_digest="dig", server_revision="rev")
 
     assert report["step_results"]["8_forget"] == "FAIL"
     assert "Forget did not return explicit tombstone status" in report["step_details"]["8_forget"]["error"]

@@ -128,7 +128,8 @@ def test_c01_conformance_runner_live_probes_success() -> None:
     assert all(status == "PASS" for status in checks["results"].values())
     report = generate_c01_report(
         base_url="https://staging.test.invalid",
-        server_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+        audit_source_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+        server_source_sha="367cd365df43f9282f5155394cd39275169bf8f2",
         server_digest="sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
         server_revision="umcp-cloud-staging-00018-f78",
         transport_results=checks["results"],
@@ -136,13 +137,13 @@ def test_c01_conformance_runner_live_probes_success() -> None:
     assert report["summary"]["supported_count"] == 14
     assert report["summary"]["unverified_count"] == 0
     assert report["checksum"].startswith("sha256:")
-    assert report["file_sha256"].startswith("sha256:")
 
 
 def test_c01_report_fail_closed_without_results() -> None:
     report = generate_c01_report(
         base_url="https://staging.test.invalid",
-        server_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+        audit_source_sha="367cd365df43f9282f5155394cd39275169bf8f2",
+        server_source_sha="367cd365df43f9282f5155394cd39275169bf8f2",
         server_digest="sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
         server_revision="umcp-cloud-staging-00018-f78",
     )

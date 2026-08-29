@@ -12,6 +12,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .checksums import compute_canonical_checksum
 from .client import MemoryClient, ProtocolError
 from .cloud import CloudOAuthTransport
 from .oauth import OAuthSession, TokenData
@@ -55,9 +56,11 @@ class ControlledMemoryAgent:
     def run_e2e_journey(
         self,
         *,
-        server_sha: str = "367cd365df43f9282f5155394cd39275169bf8f2",
+        audit_source_sha: str,
+        server_source_sha: str = "367cd365df43f9282f5155394cd39275169bf8f2",
         server_digest: str = "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
         server_revision: str = "umcp-cloud-staging-00018-f78",
+        audit_image_digest: str = "sha256:unknown",
         output_json_path: Path | str | None = None,
         output_md_path: Path | str | None = None,
     ) -> dict[str, Any]:
@@ -199,43 +202,6 @@ class ControlledMemoryAgent:
                 results["7_update"] = "FAIL"
                 details["7_update"] = {"error": str(exc)}
 
-            # 8. Forget (strict: explicit tombstone/deletion status and ok == True)
-            try:
-                if not record_id:
-                    raise ValueError("Cannot perform forget check: prerequisite write failed")
-                forget_key = f"c02-forget-{uuid.uuid4().hex[:8]}"
-                res_forget = self.client_a.forget(id=record_id, idempotency_key=forget_key)
-                if not isinstance(res_forget, dict):
-                    raise ValueError("memory.forget returned invalid non-dictionary envelope")
-                forget_data = res_forget.get("data", res_forget) if isinstance(res_forget, dict) else {}
-                ret_status = forget_data.get("status") or forget_data.get("state") or res_forget.get("status")
-                if ret_status not in {"forgotten", "deleted", "archived", "tombstoned"} and res_forget.get("ok") is not True:
-                    raise ValueError(f"Forget did not return explicit tombstone status: {res_forget}")
-                results["8_forget"] = "PASS"
-                details["8_forget"] = {"forgotten_id": str(record_id), "status": ret_status}
-            except Exception as exc:
-                results["8_forget"] = "FAIL"
-                details["8_forget"] = {"error": str(exc)}
-
-            # 9. Tombstone Proof (verifying the same record ID is not returned after forget)
-            try:
-                if not record_id:
-                    raise ValueError("Cannot perform tombstone check: prerequisite write failed")
-                res_tombstone = self.client_a.search(query=updated_content, limit=10, min_relevance=0.1)
-                items = _extract_memories(res_tombstone)
-                still_exists = False
-                for mem in items:
-                    if mem.get("id") == record_id:
-                        still_exists = True
-                        break
-                if still_exists:
-                    raise ValueError(f"Forgotten record {record_id} was resurrected in search results")
-                results["9_tombstone_non_resurrection"] = "PASS"
-                details["9_tombstone_non_resurrection"] = {"non_resurrected": True, "verified_record_id": str(record_id)}
-            except Exception as exc:
-                results["9_tombstone_non_resurrection"] = "FAIL"
-                details["9_tombstone_non_resurrection"] = {"error": str(exc)}
-
             # 10. Provenance Preservation (fail if expected fields are missing or different)
             try:
                 if not record_id or not record:
@@ -308,7 +274,7 @@ class ControlledMemoryAgent:
                 results["14_forged_authority_rejection"] = "FAIL"
                 details["14_forged_authority_rejection"] = {"error": str(exc)}
 
-            # 15. Tenant Isolation (strictly requiring two distinct tenant contexts)
+            # 15. Tenant Isolation (strictly requiring two distinct tenant contexts, read/write/mutation assertions in both directions with post-mutation verification)
             try:
                 if not self.transport_b or not self.client_b or not self.session_b:
                     raise ValueError("Only one tenant/identity provided; two independent tenants are required to prove zero leakage")
@@ -324,28 +290,53 @@ class ControlledMemoryAgent:
                 if not rec_b_id:
                     raise ValueError("Tenant B write failed to return a valid record ID")
 
-                # Tenant A searches for Tenant B secret -> must return 0 results
+                # 1. Tenant A searches for Tenant B secret -> must return 0 results
                 res_a_leak_search = self.client_a.search(query=content_b, limit=10, min_relevance=0.1)
                 items_a = _extract_memories(res_a_leak_search)
                 if any(m.get("id") == rec_b_id or m.get("content") == content_b for m in items_a):
                     raise ValueError("Cross-tenant leakage detected: Tenant A retrieved Tenant B memory")
 
-                # Tenant B searches for Tenant A memory -> must return 0 results
+                # 2. Tenant B searches for Tenant A memory -> must return 0 results
                 res_b_leak_search = self.client_b.search(query=synthetic_content, limit=10, min_relevance=0.1)
                 items_b = _extract_memories(res_b_leak_search)
                 if any(m.get("id") == record_id or m.get("content") == synthetic_content for m in items_b):
                     raise ValueError("Cross-tenant leakage detected: Tenant B retrieved Tenant A memory")
 
-                # Tenant A attempts to update Tenant B record -> must fail/not mutate
+                # 3. Tenant A attempts mutation on Tenant B record (A -> B)
                 leak_upd_a = False
                 try:
-                    res_upd = self.client_a.update(id=rec_b_id, expected_version=1, patch={"content": "hacked_by_a"}, idempotency_key="leak-upd-a")
-                    if isinstance(res_upd, dict) and res_upd.get("ok") is True:
+                    res_upd_a = self.client_a.update(id=rec_b_id, expected_version=1, patch={"content": "hacked_by_a"}, idempotency_key="leak-upd-a")
+                    if isinstance(res_upd_a, dict) and res_upd_a.get("ok") is True:
                         leak_upd_a = True
                 except Exception:
                     pass
                 if leak_upd_a:
                     raise ValueError("Cross-tenant mutation: Tenant A updated Tenant B record")
+
+                # 3b. Verify Tenant B record remains completely unmutated (ID, content, version == 1)
+                res_b_verify = self.client_b.search(query=content_b, limit=5, min_relevance=0.1)
+                b_mems = _extract_memories(res_b_verify)
+                b_match = next((m for m in b_mems if m.get("id") == rec_b_id), None)
+                if not b_match or b_match.get("content") != content_b or b_match.get("version", 1) != 1:
+                    raise ValueError(f"Tenant B record state altered after cross-tenant attempt: {b_match}")
+
+                # 4. Tenant B attempts mutation on Tenant A record (B -> A)
+                leak_upd_b = False
+                try:
+                    res_upd_b = self.client_b.update(id=record_id, expected_version=2, patch={"content": "hacked_by_b"}, idempotency_key="leak-upd-b")
+                    if isinstance(res_upd_b, dict) and res_upd_b.get("ok") is True:
+                        leak_upd_b = True
+                except Exception:
+                    pass
+                if leak_upd_b:
+                    raise ValueError("Cross-tenant mutation: Tenant B updated Tenant A record")
+
+                # 4b. Verify Tenant A record remains completely unmutated (ID, updated_content, version == 2)
+                res_a_verify = self.client_a.search(query=updated_content, limit=5, min_relevance=0.1)
+                a_mems = _extract_memories(res_a_verify)
+                a_match = next((m for m in a_mems if m.get("id") == record_id), None)
+                if not a_match or a_match.get("content") != updated_content or a_match.get("version", 2) != 2:
+                    raise ValueError(f"Tenant A record state altered after cross-tenant attempt: {a_match}")
 
                 tok_a = self.session_a._tokens.access_token if self.session_a._tokens else ""
                 tok_b = self.session_b._tokens.access_token if self.session_b._tokens else ""
@@ -362,6 +353,43 @@ class ControlledMemoryAgent:
             except Exception as exc:
                 results["15_tenant_isolation"] = "FAIL"
                 details["15_tenant_isolation"] = {"error": str(exc)}
+
+            # 8. Forget (strict: explicit tombstone/deletion status and ok == True)
+            try:
+                if not record_id:
+                    raise ValueError("Cannot perform forget check: prerequisite write failed")
+                forget_key = f"c02-forget-{uuid.uuid4().hex[:8]}"
+                res_forget = self.client_a.forget(id=record_id, idempotency_key=forget_key)
+                if not isinstance(res_forget, dict):
+                    raise ValueError("memory.forget returned invalid non-dictionary envelope")
+                forget_data = res_forget.get("data", res_forget) if isinstance(res_forget, dict) else {}
+                ret_status = forget_data.get("status") or forget_data.get("state") or res_forget.get("status")
+                if ret_status not in {"forgotten", "deleted", "archived", "tombstoned"} and res_forget.get("ok") is not True:
+                    raise ValueError(f"Forget did not return explicit tombstone status: {res_forget}")
+                results["8_forget"] = "PASS"
+                details["8_forget"] = {"forgotten_id": str(record_id), "status": ret_status}
+            except Exception as exc:
+                results["8_forget"] = "FAIL"
+                details["8_forget"] = {"error": str(exc)}
+
+            # 9. Tombstone Proof (verifying the same record ID is not returned after forget)
+            try:
+                if not record_id:
+                    raise ValueError("Cannot perform tombstone check: prerequisite write failed")
+                res_tombstone = self.client_a.search(query=updated_content, limit=10, min_relevance=0.1)
+                items = _extract_memories(res_tombstone)
+                still_exists = False
+                for mem in items:
+                    if mem.get("id") == record_id:
+                        still_exists = True
+                        break
+                if still_exists:
+                    raise ValueError(f"Forgotten record {record_id} was resurrected in search results")
+                results["9_tombstone_non_resurrection"] = "PASS"
+                details["9_tombstone_non_resurrection"] = {"non_resurrected": True, "verified_record_id": str(record_id)}
+            except Exception as exc:
+                results["9_tombstone_non_resurrection"] = "FAIL"
+                details["9_tombstone_non_resurrection"] = {"error": str(exc)}
 
             # 11. Refresh & Rotation (verifying new tokens and old refresh rejection HTTP 400)
             old_refresh_code = None
@@ -453,9 +481,11 @@ class ControlledMemoryAgent:
             "timestamp_utc": timestamp,
             "base_url": self.session_a.base_url,
             "provenance": {
-                "server_sha": server_sha,
+                "audit_source_sha": audit_source_sha,
+                "server_source_sha": server_source_sha,
                 "server_digest": server_digest,
                 "server_revision": server_revision,
+                "audit_image_digest": audit_image_digest,
             },
             "scopes": [
                 "memory:read",
@@ -476,13 +506,9 @@ class ControlledMemoryAgent:
             ],
         }
 
-        raw_canonical = json.dumps(report, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        canonical_checksum = hashlib.sha256(raw_canonical).hexdigest()
-        report["checksum"] = f"sha256:{canonical_checksum}"
-
+        report["checksum"] = compute_canonical_checksum(report)
         formatted_json = json.dumps(report, indent=2, sort_keys=True) + "\n"
-        file_checksum = hashlib.sha256(formatted_json.encode("utf-8")).hexdigest()
-        report["file_sha256"] = f"sha256:{file_checksum}"
+        file_sha256 = f"sha256:{hashlib.sha256(formatted_json.encode('utf-8')).hexdigest()}"
 
         if output_json_path:
             p = Path(output_json_path)
@@ -498,13 +524,15 @@ class ControlledMemoryAgent:
                 f"- **Versão do Agente:** `{self.AGENT_VERSION}`",
                 f"- **Versão do SDK:** `{self.SDK_VERSION}`",
                 f"- **Base URL Staging:** `{self.session_a.base_url}`",
-                f"- **Server Source SHA:** `{server_sha}`",
+                f"- **Audit Source SHA:** `{audit_source_sha}`",
+                f"- **Server Source SHA:** `{server_source_sha}`",
                 f"- **Server Image Digest:** `{server_digest}`",
                 f"- **Server Active Revision:** `{server_revision}`",
+                f"- **Audit Image Digest:** `{audit_image_digest}`",
                 f"- **Report ID:** `{report_id}`",
                 f"- **Canonical JSON Artifact:** [`{json_name}`](./{json_name})",
                 f"- **Checksum do Payload Canônico (SHA-256):** `{report['checksum']}`",
-                f"- **Checksum do Arquivo JSON (SHA-256):** `{report['file_sha256']}`",
+                f"- **Checksum do Arquivo JSON (SHA-256):** `{file_sha256}`",
                 "",
                 "---",
                 "",

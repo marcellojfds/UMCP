@@ -12,6 +12,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .checksums import compute_canonical_checksum
 from .client import MemoryClient, ProtocolError
 from .cloud import CloudOAuthTransport
 from .oauth import (
@@ -380,9 +381,11 @@ class SDKConformanceRunner:
 def generate_c01_report(
     *,
     base_url: str,
-    server_sha: str = "367cd365df43f9282f5155394cd39275169bf8f2",
+    audit_source_sha: str,
+    server_source_sha: str = "367cd365df43f9282f5155394cd39275169bf8f2",
     server_digest: str = "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
     server_revision: str = "umcp-cloud-staging-00018-f78",
+    audit_image_digest: str = "sha256:unknown",
     transport_results: dict[str, Any] | None = None,
     output_json_path: Path | str | None = None,
     output_md_path: Path | str | None = None,
@@ -422,9 +425,11 @@ def generate_c01_report(
         "created_at": created_at,
         "base_url": base_url,
         "provenance": {
-            "server_sha": server_sha,
+            "audit_source_sha": audit_source_sha,
+            "server_source_sha": server_source_sha,
             "server_digest": server_digest,
             "server_revision": server_revision,
+            "audit_image_digest": audit_image_digest,
         },
         "scopes": [
             "memory:read",
@@ -444,13 +449,9 @@ def generate_c01_report(
         ],
     }
 
-    raw_canonical = json.dumps(report_body, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    canonical_checksum = hashlib.sha256(raw_canonical).hexdigest()
-    report_body["checksum"] = f"sha256:{canonical_checksum}"
-
+    report_body["checksum"] = compute_canonical_checksum(report_body)
     formatted_json = json.dumps(report_body, indent=2, sort_keys=True) + "\n"
-    file_checksum = hashlib.sha256(formatted_json.encode("utf-8")).hexdigest()
-    report_body["file_sha256"] = f"sha256:{file_checksum}"
+    file_sha256 = f"sha256:{hashlib.sha256(formatted_json.encode('utf-8')).hexdigest()}"
 
     if output_json_path:
         p = Path(output_json_path)
@@ -466,13 +467,15 @@ def generate_c01_report(
             f"- **Versão do SDK:** `{report_body['sdk_version']}`",
             f"- **Protocolo:** `{report_body['protocol_version']}`",
             f"- **Base URL Staging:** `{base_url}`",
-            f"- **Server Source SHA:** `{server_sha}`",
+            f"- **Audit Source SHA:** `{audit_source_sha}`",
+            f"- **Server Source SHA:** `{server_source_sha}`",
             f"- **Server Image Digest:** `{server_digest}`",
             f"- **Server Active Revision:** `{server_revision}`",
+            f"- **Audit Image Digest:** `{audit_image_digest}`",
             f"- **Report ID:** `{report_id}`",
             f"- **Canonical JSON Artifact:** [`{json_name}`](./{json_name})",
             f"- **Checksum do Payload Canônico (SHA-256):** `{report_body['checksum']}`",
-            f"- **Checksum do Arquivo JSON (SHA-256):** `{report_body['file_sha256']}`",
+            f"- **Checksum do Arquivo JSON (SHA-256):** `{file_sha256}`",
             "",
             "---",
             "",

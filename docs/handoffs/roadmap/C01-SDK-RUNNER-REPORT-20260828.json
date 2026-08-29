@@ -1,7 +1,7 @@
 {
   "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
-  "checksum": "sha256:6a146b196dd036fc8661d5007ca556cf9fa4239a30d69f36e6e603c93ad59125",
-  "created_at": "2026-08-29T13:21:50.298664Z",
+  "checksum": "sha256:a85b2ea0ee5fa0b34259c95b28073d336efa3f81d8e6fd224417ab86ece0a1a5",
+  "created_at": "2026-08-29T14:07:05.108478Z",
   "limitations": [
     "Private managed beta only; not approved for public distribution or external users",
     "Operates with authorized test identity and synthetic test payloads only"
@@ -31,11 +31,13 @@
   },
   "protocol_version": "omp.mcp.v0",
   "provenance": {
+    "audit_image_digest": "sha256:c39b3d02785b0a4f817da4074136b4d662c49085499e6cebbf8a69b96ccbedea",
+    "audit_source_sha": "72b9fad4d9ed6b54f44150d19fc3d3edef67e1ab",
     "server_digest": "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
     "server_revision": "umcp-cloud-staging-00018-f78",
-    "server_sha": "96f5391a61801469e3cdbe1ec249689f6f7b00de"
+    "server_source_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
   },
-  "report_id": "c01-1b8ae7c74738",
+  "report_id": "c01-3894497a69e4",
   "scopes": [
     "memory:read",
     "memory:write",
