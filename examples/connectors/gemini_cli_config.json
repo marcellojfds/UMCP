@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "umcp-vault": {
+      "httpUrl": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp",
+      "auth": {
+        "type": "oauth2",
+        "authorizationUrl": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/authorize",
+        "tokenUrl": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/token",
+        "scopes": [
+          "memory:read",
+          "memory:write",
+          "memory:delete"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "UMCP Memory Vault (Staging)",
+  "description": "Universal Memory Context Protocol - Portable Memory Vault for ChatGPT",
+  "mcp_endpoint": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp",
+  "transport": "streamable-http",
+  "authentication": {
+    "type": "oauth2",
+    "authorization_endpoint": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/authorize",
+    "token_endpoint": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/token",
+    "revocation_endpoint": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/revoke",
+    "scopes": [
+      "memory:read",
+      "memory:write",
+      "memory:delete"
+    ],
+    "pkce": "S256"
+  },
+  "tools": [
+    "memory.write",
+    "memory.search",
+    "memory.update",
+    "memory.forget"
+  ]
+}

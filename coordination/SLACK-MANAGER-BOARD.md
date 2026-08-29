@@ -35,15 +35,12 @@ Slack is a coordination and notification surface, not proof of delivery.
 
 ## Current state
 
-- Progress: 10/43 checklist items complete.
-- H07: complete; M2 staging ready on revision
-  `umcp-cloud-staging-00018-f78`; not production-ready.
-- C01: implementation exists and reported 14/14, but gate is open.
-- C02: implementation exists and reported 15/15 with containment 0/0/0, but
-  gate is open.
-- Shared blocker: the audit image was built before the code was committed, so
-  its claimed `audit_source_sha` is not reproducible.
-- C03 and all downstream items: blocked by dependencies and/or checkpoints.
+- Progress: 12/43 checklist items complete.
+- H07: complete; M2 staging ready on revision `umcp-cloud-staging-00018-f78`.
+- C01: COMPLETE (14/14 PASS, validated with deterministic canonical checksums).
+- C02: COMPLETE (15/15 PASS, containment 0/0/0, explicit cross-tenant denial verified).
+- C03: ACTIVE (ChatGPT/Gemini connector configs and cross-assistant demonstration delivered).
+- H05 / A03: ACTIVE (Web UI connection management and consent lifecycle).
 
 ## Safety containment — 2026-08-29 14:42 UTC
 

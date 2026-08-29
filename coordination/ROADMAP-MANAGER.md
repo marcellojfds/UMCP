@@ -19,6 +19,8 @@ last_reconciled_sha: a9e7b5deefeb0f43799e95a09a263bea5a5757d6
 
 ## Events
 
+- reconciled | 2026-08-29 | C01,C02 | canonical=965044a | evidence=C01 14/14, C02 15/15, containment 0/0/0 verified with deterministic checksums
+- active | 2026-08-29 | C03,H05 | scope=ChatGPT custom app config, Gemini CLI config, cross-assistant demonstration and minimal web UI
 - reconciled | 2026-08-26 | R00-R02,H01-H06 | canonical=9bd105d535a30ccbbf72a2d31d54327ee90f5196 | evidence=handoffs and current local acceptance checks reconciled
 - decision-needed | 2026-08-26 | H07 | requires=CP-1,CP-2,CP-3 | approval=general approval recorded; concrete external scope remains required
 - reconciled | 2026-08-26T11:39:46Z | R00-R02,H01-H06 | canonical=9bd105d535a30ccbbf72a2d31d54327ee90f5196 | result=H07 checkpoint-blocked; heartbeat=umcp-roadmap-heartbeat; stop_at=2026-08-26T12:39:46Z
