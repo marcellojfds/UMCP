@@ -45,16 +45,27 @@ resource "google_logging_project_bucket_config" "security" {
 }
 
 resource "google_monitoring_alert_policy" "service_errors" {
-  display_name = "umcp-api-error-rate"
+  display_name = "umcp-${var.environment}-service-errors"
   combiner     = "OR"
   conditions {
-    display_name = "Cloud Run 5xx"
+    display_name = "Cloud Run 5xx Errors (${title(var.environment)})"
     condition_threshold {
-      filter          = "metric.type=\"run.googleapis.com/request_count\""
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"umcp-cloud-${var.environment}\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.labels.response_code_class=\"5xx\""
       duration        = "60s"
       comparison      = "COMPARISON_GT"
       threshold_value = 0
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+      trigger {
+        count = 1
+      }
     }
+  }
+  documentation {
+    content   = "Runbook: Inspect Cloud Run request logs for 5xx errors in service umcp-cloud-${var.environment}. Check revision health and database/KMS connectivity. Rollback to previous revision if needed."
+    mime_type = "text/markdown"
   }
   depends_on = [terraform_data.checkpoint_guard]
 }

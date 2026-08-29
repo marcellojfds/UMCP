@@ -573,8 +573,7 @@ Executar no mesmo revision/digest:
 9. secret/log scan;
 10. load baseline e alertas.
 
-Gate M2: todos os itens atuais ou `NO-GO`. Somente então o handoff pode dizer
-`M02 STAGING READY`; nunca `production-ready`.
+Gate M2: CONCLUÍDO (2026-08-28). Todos os 23 gates da matriz H07 aprovados em staging (SHA `e65bddff`, digest `sha256:de17d469...`, revisões `00016-pxn`/`00017-jsj`, migration `umcp-migrate-staging-z7m5b`). Handoff formalizado em `docs/handoffs/roadmap/H07-AUDIT-20260828.md`: **`M02 STAGING READY`** (não é production-ready).
 
 ## 11. Bloco C — M3 Cross-client Connectors
 
