@@ -591,7 +591,7 @@ Entregar:
 - prompts positivos, indiretos, negativos e destrutivos;
 - matriz `Supported / Experimental / Unverified`.
 
-Gate: instalação limpa e jornada contra staging com controlled Python agent.
+Gate C01: CONCLUÍDO (2026-08-28). SDK Python (`src/omp/sdk/`), transporte Cloud HTTP OAuth com PKCE, discovery, refresh/revoke, rejeição de autoridade forjada, relatório C01 datado/checksummed (`docs/handoffs/roadmap/C01-SDK-RUNNER-REPORT-20260828.md`) e 75/75 testes PASS.
 
 ### C02 — primeiro conector real controlado
 
