@@ -9,9 +9,18 @@ import sys
 from pathlib import Path
 
 repo_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(repo_root / "src"))
 
-from omp.sdk.checksums import compute_canonical_checksum, compute_file_sha256
+
+def compute_canonical_checksum(payload: dict) -> str:
+    """Compute the report checksum without importing the application package."""
+    clean_payload = {key: value for key, value in payload.items() if key != "checksum"}
+    canonical_bytes = json.dumps(clean_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(canonical_bytes).hexdigest()}"
+
+
+def compute_file_sha256(file_path: Path) -> str:
+    """Compute the SHA-256 digest of a report file using only the standard library."""
+    return f"sha256:{hashlib.sha256(file_path.read_bytes()).hexdigest()}"
 
 
 def verify_report(json_path: Path, md_path: Path) -> bool:
