@@ -215,6 +215,8 @@ def _execute_audit_job(
                 "--vpc-egress=private-ranges-only",
                 f"--set-env-vars={env_vars}",
                 "--set-secrets=OMP_DATABASE_URL=umcp-database-url:1",
+                "--command=python",
+                "--args=-m,omp.sdk.audit_entrypoint",
                 "--max-retries=0",
                 "--task-timeout=20m",
             ]
