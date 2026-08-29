@@ -1,5 +1,6 @@
 """Thin Python client for the OMP MCP contract."""
 
+from .agent import ControlledMemoryAgent
 from .client import MCPClient, MemoryClient, OfficialStdioTransport, ProtocolError
 from .cloud import CloudOAuthTransport
 from .oauth import OAuthSession, TokenData, generate_pkce_pair
@@ -15,4 +16,5 @@ __all__ = [
     "TokenData",
     "generate_pkce_pair",
     "generate_c01_report",
+    "ControlledMemoryAgent",
 ]

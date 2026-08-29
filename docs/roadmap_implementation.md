@@ -602,7 +602,7 @@ Executar write/capture, recall, update, forget, revoke, unauthorized e
 provenance em um agente Python controlado pelo projeto. Registrar versão,
 data, scopes, report ID e limitações.
 
-Gate: nenhum mock/sim no report real; revoke e tenant isolation verdes.
+Gate C02: CONCLUÍDO (2026-08-28). Controlled Python Agent (`ControlledMemoryAgent` em `src/omp/sdk/agent.py`) executou os 15 passos da jornada E2E com 15/15 PASS, zero mocks no report real, revoke/tombstone/provenance/isolamento validados e relatório formalizado em `docs/handoffs/roadmap/C02-CONTROLLED-AGENT-REPORT-20260828.md`.
 
 ### C03 — primeira superfície externa real
 
