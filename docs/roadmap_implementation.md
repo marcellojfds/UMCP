@@ -573,7 +573,7 @@ Executar no mesmo revision/digest:
 9. secret/log scan;
 10. load baseline e alertas.
 
-Gate M2: CONCLUÍDO (2026-08-28). Todos os 23 gates da matriz H07 aprovados em staging (SHA `e65bddff`, digest `sha256:de17d469...`, revisões `00016-pxn`/`00017-jsj`, migration `umcp-migrate-staging-z7m5b`). Handoff formalizado em `docs/handoffs/roadmap/H07-AUDIT-20260828.md`: **`M02 STAGING READY`** (não é production-ready).
+Gate M2: CONCLUÍDO (2026-08-28). Todos os 23 gates da matriz H07 aprovados em staging (SHA `367cd365df43f9282f5155394cd39275169bf8f2`, digest `sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d`, revisão `umcp-cloud-staging-00018-f78`, migration `umcp-migrate-staging-w9ld8`, drill KMS hosted e drill de restore hosted real com Backup ID `1787875200000` / Restore Op ID `20230b7b-50c0-461e-84ec-cfc900000032`). Handoff formalizado em `docs/handoffs/roadmap/H07-AUDIT-20260828.md`: **`M02 STAGING READY`** (não é production-ready).
 
 ## 11. Bloco C — M3 Cross-client Connectors
 
@@ -591,7 +591,7 @@ Entregar:
 - prompts positivos, indiretos, negativos e destrutivos;
 - matriz `Supported / Experimental / Unverified`.
 
-Gate C01: CONCLUÍDO (2026-08-28). SDK Python (`src/omp/sdk/`), transporte Cloud HTTP OAuth com PKCE, discovery, refresh/revoke, rejeição de autoridade forjada, relatório C01 datado/checksummed (`docs/handoffs/roadmap/C01-SDK-RUNNER-REPORT-20260828.md`) e 75/75 testes PASS.
+Gate C01: CONCLUÍDO (2026-08-28). SDK Python (`src/omp/sdk/`), transporte Cloud HTTP OAuth com PKCE e loopback RFC 8252, discovery, refresh/revoke, rejeição de autoridade forjada, relatório C01 datado/checksummed (`docs/handoffs/roadmap/C01-SDK-RUNNER-REPORT-20260828.json` e `.md`), 14/14 capacidades supported e 80/80 testes unitários/contrato PASS.
 
 ### C02 — primeiro conector real controlado
 
@@ -602,7 +602,7 @@ Executar write/capture, recall, update, forget, revoke, unauthorized e
 provenance em um agente Python controlado pelo projeto. Registrar versão,
 data, scopes, report ID e limitações.
 
-Gate C02: CONCLUÍDO (2026-08-28). Controlled Python Agent (`ControlledMemoryAgent` em `src/omp/sdk/agent.py`) executou os 15 passos da jornada E2E com 15/15 PASS, zero mocks no report real, revoke/tombstone/provenance/isolamento validados e relatório formalizado em `docs/handoffs/roadmap/C02-CONTROLLED-AGENT-REPORT-20260828.md`.
+Gate C02: CONCLUÍDO (2026-08-28). Controlled Python Agent (`ControlledMemoryAgent` em `src/omp/sdk/agent.py`) executou os 15 passos da jornada E2E fail-closed contra o Cloud Run staging real com 15/15 PASS, zero mocks no report real, revoke/tombstone/provenance/isolamento validados e relatório formalizado em `docs/handoffs/roadmap/C02-CONTROLLED-AGENT-REPORT-20260828.json` e `.md`.
 
 ### C03 — primeira superfície externa real
 
@@ -939,9 +939,9 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 - [x] H04 | model=terra | depends=H01,H03 | checkpoint=- | title=Implementar OAuth OIDC consentimento e revogação
 - [x] H05 | model=luna | depends=H04 | checkpoint=- | title=Entregar login e consent UX
 - [x] H06 | model=terra | depends=H01,H04 | checkpoint=- | title=Fechar tenancy RLS KMS e recuperação hosted
-- [ ] H07 | model=audit | depends=H02,H05,H06 | checkpoint=CP-1,CP-2,CP-3 | title=Integrar e auditar M2 em staging
-- [ ] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
-- [ ] C02 | model=luna | depends=C01 | checkpoint=- | title=Comprovar primeiro conector real controlado
+- [x] H07 | model=audit | depends=H02,H05,H06 | checkpoint=CP-1,CP-2,CP-3 | title=Integrar e auditar M2 em staging
+- [x] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
+- [x] C02 | model=luna | depends=C01 | checkpoint=- | title=Comprovar primeiro conector real controlado
 - [ ] C03 | model=luna | depends=C02 | checkpoint=CP-4 | title=Comprovar primeira superfície externa real
 - [ ] C04 | model=luna | depends=C03 | checkpoint=CP-4 | title=Comprovar segunda superfície externa real
 - [ ] C05L | model=luna | depends=C03,C04 | checkpoint=- | title=Entregar SDK TypeScript recipes e matriz M3

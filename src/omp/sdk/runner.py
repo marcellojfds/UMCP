@@ -108,16 +108,16 @@ def generate_c01_report(
         json_name = Path(output_json_path).name if output_json_path else "c01-report.json"
         md_content = f"""# C01 — Relatório de Conformance do SDK Python e Runner Comum
 
-**Data:** {created_at}  
-**Versão do SDK:** `1.0.0`  
-**Protocolo:** `omp.mcp.v0`  
-**Base URL Staging:** `{base_url}`  
-**Server Source SHA:** `{server_sha}`  
-**Server Image Digest:** `{server_digest}`  
-**Server Active Revision:** `{server_revision}`  
-**Report ID:** `{report_id}`  
-**Canonical JSON Artifact:** [`{json_name}`](./{json_name})  
-**Checksum (SHA-256):** `{report_body["checksum"]}`  
+- **Data:** {created_at}
+- **Versão do SDK:** `1.0.0`
+- **Protocolo:** `omp.mcp.v0`
+- **Base URL Staging:** `{base_url}`
+- **Server Source SHA:** `{server_sha}`
+- **Server Image Digest:** `{server_digest}`
+- **Server Active Revision:** `{server_revision}`
+- **Report ID:** `{report_id}`
+- **Canonical JSON Artifact:** [`{json_name}`](./{json_name})
+- **Checksum (SHA-256):** `{report_body["checksum"]}`
 
 
 ---

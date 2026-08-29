@@ -1,58 +1,44 @@
 # C02 — Relatório de Execução do Controlled Python Agent
 
-**Data:** 2026-08-28T22:02:00Z  
-**Versão do Agente:** `1.0.0`  
-**Versão do SDK:** `1.0.0`  
-**Protocolo:** `omp.mcp.v0`  
-**Base URL Staging:** `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app`  
-**Server Source SHA:** `e65bddff517633a2982a4ac5abb3851a1a43e68c`  
-**Server Image Digest:** `sha256:de17d469904f0b8c6d4e13480a85ec6fd7494c089ba5dedab7175839307d5629`  
-**Server Active Revision:** `umcp-cloud-staging-00017-jsj`  
-**Migration Head:** `0011_oauth_authorization_codes`  
-**Report ID:** `c02-4f7e2a91b8d3`  
-**Checksum:** `sha256:d82e14902c57b8a13f0987c654d3210abcedf78901234567890abcdef1234567`  
+- **Data:** 2026-08-29T01:56:48.467197Z
+- **Versão do Agente:** `1.0.0`
+- **Versão do SDK:** `1.0.0`
+- **Base URL Staging:** `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app`
+- **Server Source SHA:** `367cd365df43f9282f5155394cd39275169bf8f2`
+- **Server Image Digest:** `sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d`
+- **Server Active Revision:** `umcp-cloud-staging-00018-f78`
+- **Report ID:** `c02-79d8097732ce`
+- **Canonical JSON Artifact:** [`C02-CONTROLLED-AGENT-REPORT-20260828.json`](./C02-CONTROLLED-AGENT-REPORT-20260828.json)
+- **Checksum (SHA-256):** `sha256:a5f391386b7f55bdc779ff97a1ed35cbde7de16b1fa142976f1c895211cd4e7b`
 
 ---
 
-## 1. Escopos e Identidade
+## 1. Resultados dos 15 Passos da Jornada
 
-- **Escopos Utilizados:** `memory:read`, `memory:write`, `memory:delete`, `memory:export`, `connections:manage`
-- **Modelo de Autorização:** OAuth 2.0 PKCE (S256) com rotação automática de refresh token e revogação imediata.
-
----
-
-## 2. Resultados dos 15 Passos da Jornada E2E
-
-| # | Passo da Jornada | Status | Evidência Operacional |
-| :-: | :--- | :---: | :--- |
-| **1** | `discovery` | **PASS** | Metadados de `oauth-protected-resource` e `oauth-authorization-server` resolvidos |
-| **2** | `oauth_pkce_login` | **PASS** | Sessão autenticada via fluxo PKCE S256 e token emitido |
-| **3** | `mcp_initialize` | **PASS** | Protocolo negociado (`2025-03-26`) e capacidades registradas |
-| **4** | `mcp_tools_list` | **PASS** | Ferramentas disponíveis confirmadas (`memory.write`, `memory.search`, etc.) |
-| **5** | `synthetic_write` | **PASS** | Inserção sintética de memória com proveniência e chave de idempotência |
-| **6** | `recall_search` | **PASS** | Busca semântica recuperou o registro sintético criado |
-| **7** | `update` | **PASS** | Atualização de conteúdo e incremento de versão |
-| **8** | `forget` | **PASS** | Soft-delete do registro com marcação de tombstone |
-| **9** | `tombstone_non_resurrection`| **PASS** | Busca subsequente confirma que registro apagado não ressuscita |
-| **10**| `provenance_preservation` | **PASS** | Metadados de ator e confiança preservados ao longo do ciclo |
-| **11**| `refresh_rotation` | **PASS** | Rotação de refresh token concluída e família atualizada |
-| **12**| `token_revocation` | **PASS** | Revogação de token aceita pelo servidor (`POST /revoke` 200) |
-| **13**| `unauthorized_after_revoke` | **PASS** | Chamada posterior rejeitada fail-closed (`401 Unauthorized`) |
-| **14**| `forged_authority_rejection`| **PASS** | Tentativas de enviar `owner_id`/`tenant_id` rejeitadas no cliente (`invalid_argument`) |
-| **15**| `tenant_isolation` | **PASS** | Políticas RLS e isolamento transacional garantem separação estrita de dados |
+| # | Passo | Status |
+| :-: | :--- | :---: |
+| `10_provenance_preservation` | `10_provenance_preservation` | **PASS** |
+| `11_refresh_rotation` | `11_refresh_rotation` | **PASS** |
+| `12_token_revocation` | `12_token_revocation` | **PASS** |
+| `13_unauthorized_after_revoke` | `13_unauthorized_after_revoke` | **PASS** |
+| `14_forged_authority_rejection` | `14_forged_authority_rejection` | **PASS** |
+| `15_tenant_isolation` | `15_tenant_isolation` | **PASS** |
+| `1_discovery` | `1_discovery` | **PASS** |
+| `2_oauth_pkce_login` | `2_oauth_pkce_login` | **PASS** |
+| `3_mcp_initialize` | `3_mcp_initialize` | **PASS** |
+| `4_mcp_tools_list` | `4_mcp_tools_list` | **PASS** |
+| `5_synthetic_write` | `5_synthetic_write` | **PASS** |
+| `6_recall_search` | `6_recall_search` | **PASS** |
+| `7_update` | `7_update` | **PASS** |
+| `8_forget` | `8_forget` | **PASS** |
+| `9_tombstone_non_resurrection` | `9_tombstone_non_resurrection` | **PASS** |
 
 ---
 
-## 3. Resumo da Execução
+## 2. Resumo da Execução
 
 - **Total de Passos:** 15
 - **Passos Aprovados:** 15
 - **Passos Falhos:** 0
-- **Mocks no Report Real:** Zero
-
----
-
-## 4. Limitações e Segurança
-
-1. Executado com dados e identidades estritamente sintéticos no projeto de staging `umcp-mcp-staging-20260825`.
-2. Zero tokens, segredos, códigos ou credenciais persistidos em logs ou relatórios.
+- **Zero Mocks no Relatório Real:** Sim
+- **Zero Segredos / Dados Pessoais:** Sim

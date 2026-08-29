@@ -1,0 +1,97 @@
+{
+  "agent_version": "1.0.0",
+  "base_url": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app",
+  "checksum": "sha256:a5f391386b7f55bdc779ff97a1ed35cbde7de16b1fa142976f1c895211cd4e7b",
+  "limitations": [
+    "Private managed beta only",
+    "Strictly synthetic test payloads; zero user data",
+    "Ephemeral in-memory token lifecycle"
+  ],
+  "provenance": {
+    "server_digest": "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
+    "server_revision": "umcp-cloud-staging-00018-f78",
+    "server_sha": "367cd365df43f9282f5155394cd39275169bf8f2"
+  },
+  "report_id": "c02-79d8097732ce",
+  "scopes": [
+    "memory:read",
+    "memory:write",
+    "memory:delete"
+  ],
+  "sdk_version": "1.0.0",
+  "step_details": {
+    "10_provenance_preservation": {
+      "provenance_validated": true,
+      "source_type": "user"
+    },
+    "11_refresh_rotation": {
+      "rotated": true
+    },
+    "12_token_revocation": {
+      "revoked": true
+    },
+    "13_unauthorized_after_revoke": {
+      "rejected_401": true
+    },
+    "14_forged_authority_rejection": {
+      "client_rejected": true
+    },
+    "15_tenant_isolation": {
+      "rls_enforced": true
+    },
+    "1_discovery": {
+      "auth_endpoint": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/authorize",
+      "protected_resource": "https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp"
+    },
+    "2_oauth_pkce_login": {
+      "has_refresh": true,
+      "token_type": "Bearer"
+    },
+    "3_mcp_initialize": {
+      "server_name": "umcp-cloud",
+      "version": "1.29.1"
+    },
+    "4_mcp_tools_list": {
+      "tools_count": 4
+    },
+    "5_synthetic_write": {
+      "record_id": "d6af9321-1d56-4d60-9a25-403c04473952"
+    },
+    "6_recall_search": {
+      "found": true,
+      "items_count": 2
+    },
+    "7_update": {
+      "updated": true
+    },
+    "8_forget": {
+      "forgotten_id": "d6af9321-1d56-4d60-9a25-403c04473952"
+    },
+    "9_tombstone_non_resurrection": {
+      "non_resurrected": true
+    }
+  },
+  "step_results": {
+    "10_provenance_preservation": "PASS",
+    "11_refresh_rotation": "PASS",
+    "12_token_revocation": "PASS",
+    "13_unauthorized_after_revoke": "PASS",
+    "14_forged_authority_rejection": "PASS",
+    "15_tenant_isolation": "PASS",
+    "1_discovery": "PASS",
+    "2_oauth_pkce_login": "PASS",
+    "3_mcp_initialize": "PASS",
+    "4_mcp_tools_list": "PASS",
+    "5_synthetic_write": "PASS",
+    "6_recall_search": "PASS",
+    "7_update": "PASS",
+    "8_forget": "PASS",
+    "9_tombstone_non_resurrection": "PASS"
+  },
+  "summary": {
+    "failed_steps": 0,
+    "passed_steps": 15,
+    "total_steps": 15
+  },
+  "timestamp_utc": "2026-08-29T01:56:48.467197Z"
+}

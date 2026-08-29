@@ -66,12 +66,16 @@ class CloudOAuthTransport(ToolTransport):
 
     def _unwrap_tool_result(self, res: dict[str, Any]) -> Mapping[str, Any]:
         if "result" in res:
-            content = res["result"].get("content", [])
+            res_obj = res["result"]
+            is_error = res_obj.get("isError", False)
+            content = res_obj.get("content", [])
             for item in content:
                 if isinstance(item, dict) and item.get("type") == "text":
+                    text_val = item.get("text", "{}")
                     try:
-                        parsed = json.loads(item.get("text", "{}"))
-                        # Map status/data format to envelope expected by MemoryClient
+                        parsed = json.loads(text_val)
+                        if is_error:
+                            return {"ok": False, "error": {"code": "tool_error", "message": str(parsed)}}
                         if isinstance(parsed, dict) and "status" in parsed:
                             if parsed.get("status") == "success":
                                 return {"ok": True, "data": parsed.get("data", {})}
@@ -79,8 +83,12 @@ class CloudOAuthTransport(ToolTransport):
                                 return {"ok": False, "error": parsed.get("error", {"code": "error", "message": "tool execution failed"})}
                         return {"ok": True, "data": parsed}
                     except (json.JSONDecodeError, TypeError):
-                        return {"ok": True, "data": {"raw": item.get("text")}}
-            return {"ok": True, "data": res["result"]}
+                        if is_error:
+                            return {"ok": False, "error": {"code": "tool_error", "message": text_val}}
+                        return {"ok": True, "data": {"raw": text_val}}
+            if is_error:
+                return {"ok": False, "error": {"code": "tool_error", "message": str(res_obj)}}
+            return {"ok": True, "data": res_obj}
         if "error" in res:
             err = res["error"]
             code = str(err.get("code", "mcp_error"))
@@ -106,7 +114,7 @@ class CloudOAuthTransport(ToolTransport):
                 data=payload,
                 headers={
                     "Content-Type": "application/json",
-                    "Accept": "application/json",
+                    "Accept": "application/json, text/event-stream",
                     "Authorization": f"Bearer {token}",
                 },
                 method="POST",
@@ -114,7 +122,20 @@ class CloudOAuthTransport(ToolTransport):
             try:
                 with urlopen(req, timeout=self.session.timeout) as resp:
                     raw = resp.read().decode()
-                    return json.loads(raw) if raw else {}
+                    if not raw or not raw.strip():
+                        return {}
+                    try:
+                        return json.loads(raw)
+                    except json.JSONDecodeError:
+                        # Fallback for Server-Sent Events (SSE) stream format
+                        for line in raw.splitlines():
+                            line_s = line.strip()
+                            if line_s.startswith("data:"):
+                                try:
+                                    return json.loads(line_s[5:].strip())
+                                except json.JSONDecodeError:
+                                    continue
+                        raise ProtocolError("invalid_response", f"Could not decode JSON or SSE response: {raw[:150]}")
             except HTTPError as exc:
                 status = exc.code
                 if status == 401:
