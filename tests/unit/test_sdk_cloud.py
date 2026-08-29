@@ -3,6 +3,7 @@
 import json
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
+
 import pytest
 
 from omp.sdk.client import MemoryClient, ProtocolError
@@ -37,6 +38,50 @@ def test_oauth_session_auth_url() -> None:
     assert "code_challenge_method=S256" in url
     assert "state=xyz123" in url
     assert "scope=memory%3Aread+memory%3Awrite+memory%3Adelete" in url
+
+
+def test_token_and_session_repr_redact_credentials() -> None:
+    access = "UMCPAUDIT_SECRET_access"
+    refresh = "UMCPAUDIT_SECRET_refresh"
+    session = OAuthSession("https://staging.test.invalid")
+    tokens = TokenData(
+        access_token=access,
+        token_type="Bearer",
+        expires_in=3600,
+        refresh_token=refresh,
+    )
+    session.set_tokens(tokens)
+
+    assert access not in repr(tokens)
+    assert refresh not in repr(tokens)
+    assert access not in repr(session)
+    assert refresh not in repr(session)
+
+
+def test_tool_error_preserves_explicit_server_code() -> None:
+    session = OAuthSession("https://staging.test.invalid")
+    transport = CloudOAuthTransport(session)
+    response = {
+        "result": {
+            "isError": True,
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "status": "error",
+                            "error": {"code": "not_found", "message": "not found"},
+                        }
+                    ),
+                }
+            ],
+        }
+    }
+
+    assert transport._unwrap_tool_result(response) == {
+        "ok": False,
+        "error": {"code": "not_found", "message": "not found"},
+    }
 
 
 def test_invalid_scopes_rejected() -> None:
@@ -83,10 +128,26 @@ def test_cloud_transport_rejects_forged_owner_or_tenant() -> None:
 
 def test_c01_conformance_runner_live_probes_success() -> None:
     session = OAuthSession("https://staging.test.invalid")
-    session.set_tokens(TokenData(access_token="tok123", token_type="Bearer", expires_in=3600, refresh_token="ref123"))
-    session.discover_protected_resource = MagicMock(return_value={"resource": "https://staging.test.invalid/mcp"})
-    session.discover_authorization_server = MagicMock(return_value={"issuer": "https://staging.test.invalid", "authorization_endpoint": "https://staging.test.invalid/authorize", "token_endpoint": "https://staging.test.invalid/token"})
-    session.refresh = MagicMock(return_value=TokenData(access_token="tok_new", token_type="Bearer", expires_in=3600, refresh_token="ref_new"))
+    session.set_tokens(
+        TokenData(
+            access_token="tok123", token_type="Bearer", expires_in=3600, refresh_token="ref123"
+        )
+    )
+    session.discover_protected_resource = MagicMock(
+        return_value={"resource": "https://staging.test.invalid/mcp"}
+    )
+    session.discover_authorization_server = MagicMock(
+        return_value={
+            "issuer": "https://staging.test.invalid",
+            "authorization_endpoint": "https://staging.test.invalid/authorize",
+            "token_endpoint": "https://staging.test.invalid/token",
+        }
+    )
+    session.refresh = MagicMock(
+        return_value=TokenData(
+            access_token="tok_new", token_type="Bearer", expires_in=3600, refresh_token="ref_new"
+        )
+    )
 
     def _mock_revoke(token=None, token_type_hint="access_token"):
         session._tokens = None
@@ -96,21 +157,106 @@ def test_c01_conformance_runner_live_probes_success() -> None:
 
     def _mock_rpc(method, params, retryable=False):
         if method == "initialize":
-            return {"result": {"protocolVersion": "2025-03-26", "serverInfo": {"name": "umcp-cloud", "version": "1.0"}}}
+            return {
+                "result": {
+                    "protocolVersion": "2025-03-26",
+                    "serverInfo": {"name": "umcp-cloud", "version": "1.0"},
+                }
+            }
         if method == "tools/list":
-            return {"result": {"tools": [{"name": "memory.write"}, {"name": "memory.search"}, {"name": "memory.update"}, {"name": "memory.forget"}]}}
+            return {
+                "result": {
+                    "tools": [
+                        {"name": "memory.write"},
+                        {"name": "memory.search"},
+                        {"name": "memory.update"},
+                        {"name": "memory.forget"},
+                    ]
+                }
+            }
         if method == "tools/call":
             name = params.get("name")
             args = params.get("arguments", {})
             if name == "memory.write":
-                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memory": {"id": "rec-123", "version": 1}}})}]}}
+                return {
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "status": "success",
+                                        "data": {"memory": {"id": "rec-123", "version": 1}},
+                                    }
+                                ),
+                            }
+                        ]
+                    }
+                }
             if name == "memory.search":
-                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memories": [{"memory": {"id": "rec-123", "content": args.get("query")}}]}})}]}}
+                return {
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "status": "success",
+                                        "data": {
+                                            "memories": [
+                                                {
+                                                    "memory": {
+                                                        "id": "rec-123",
+                                                        "content": args.get("query"),
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                    }
+                                ),
+                            }
+                        ]
+                    }
+                }
             if name == "memory.update":
                 content = args.get("patch", {}).get("content", "updated")
-                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"memory": {"id": "rec-123", "version": 2, "content": content}}})}]}}
+                return {
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "status": "success",
+                                        "data": {
+                                            "memory": {
+                                                "id": "rec-123",
+                                                "version": 2,
+                                                "content": content,
+                                            }
+                                        },
+                                    }
+                                ),
+                            }
+                        ]
+                    }
+                }
             if name == "memory.forget":
-                return {"result": {"content": [{"type": "text", "text": json.dumps({"status": "success", "data": {"id": args.get("id"), "status": "forgotten"}})}]}}
+                return {
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "status": "success",
+                                        "data": {"id": args.get("id"), "status": "forgotten"},
+                                    }
+                                ),
+                            }
+                        ]
+                    }
+                }
         return {"result": {}}
 
     transport = CloudOAuthTransport(session)
@@ -119,9 +265,15 @@ def test_c01_conformance_runner_live_probes_success() -> None:
     runner = SDKConformanceRunner(transport)
     with patch("omp.sdk.runner.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = [
-            HTTPError("https://staging.test.invalid/mcp", 400, "Bad Request", {}, None),  # Forged raw probe
-            HTTPError("https://staging.test.invalid/token", 400, "Bad Request", {}, None), # Old refresh probe
-            HTTPError("https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None),  # Revoke 401 probe
+            HTTPError(
+                "https://staging.test.invalid/mcp", 400, "Bad Request", {}, None
+            ),  # Forged raw probe
+            HTTPError(
+                "https://staging.test.invalid/token", 400, "Bad Request", {}, None
+            ),  # Old refresh probe
+            HTTPError(
+                "https://staging.test.invalid/mcp", 401, "Unauthorized", {}, None
+            ),  # Revoke 401 probe
         ]
         checks = runner.run_all_checks()
 

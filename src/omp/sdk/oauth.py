@@ -11,8 +11,9 @@ import threading
 import time
 import urllib.parse
 import webbrowser
-from dataclasses import dataclass
-from typing import Any, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -25,12 +26,20 @@ DEFAULT_SCOPES = ["memory:read", "memory:write", "memory:delete"]
 
 @dataclass
 class TokenData:
-    access_token: str
+    access_token: str = field(repr=False)
     token_type: str
     expires_in: int
-    refresh_token: str | None = None
+    refresh_token: str | None = field(default=None, repr=False)
     scope: str = ""
     issued_at: float = 0.0
+
+    def __repr__(self) -> str:
+        return (
+            "TokenData(access_token=<redacted>, "
+            f"token_type={self.token_type!r}, expires_in={self.expires_in!r}, "
+            f"refresh_token={'<redacted>' if self.refresh_token else None}, "
+            f"scope={self.scope!r}, issued_at={self.issued_at!r})"
+        )
 
     @property
     def is_expired(self) -> bool:
@@ -53,7 +62,9 @@ def _validate_loopback_redirect_uri(redirect_uri: str) -> tuple[str, int, str]:
     if parsed.scheme != "http":
         raise ValueError("Loopback redirect URI must use http:// scheme")
     if parsed.hostname not in {"127.0.0.1", "::1"}:
-        raise ValueError(f"Loopback redirect URI host must be literal 127.0.0.1 or ::1, got: {parsed.hostname}")
+        raise ValueError(
+            f"Loopback redirect URI host must be literal 127.0.0.1 or ::1, got: {parsed.hostname}"
+        )
     if parsed.username or parsed.password or parsed.fragment or parsed.query:
         raise ValueError("Loopback redirect URI must not contain userinfo, fragment or query")
     port = parsed.port or 8765
@@ -122,6 +133,13 @@ class OAuthSession:
         self._protected_resource_metadata: dict[str, Any] | None = None
         self._auth_server_metadata: dict[str, Any] | None = None
 
+    def __repr__(self) -> str:
+        return (
+            f"OAuthSession(base_url={self.base_url!r}, client_id={self.client_id!r}, "
+            f"redirect_uri={self.redirect_uri!r}, timeout={self.timeout!r}, "
+            f"authenticated={self._tokens is not None})"
+        )
+
     def discover_protected_resource(self) -> dict[str, Any]:
         """Fetch protected resource metadata."""
         url = f"{self.base_url}/.well-known/oauth-protected-resource/mcp"
@@ -132,7 +150,9 @@ class OAuthSession:
                 self._protected_resource_metadata = data
                 return data
         except (HTTPError, URLError, json.JSONDecodeError) as exc:
-            raise ProtocolError("discovery_failed", f"Failed to fetch protected resource metadata: {exc}") from exc
+            raise ProtocolError(
+                "discovery_failed", f"Failed to fetch protected resource metadata: {exc}"
+            ) from exc
 
     def discover_authorization_server(self) -> dict[str, Any]:
         """Fetch authorization server metadata."""
@@ -144,7 +164,9 @@ class OAuthSession:
                 self._auth_server_metadata = data
                 return data
         except (HTTPError, URLError, json.JSONDecodeError) as exc:
-            raise ProtocolError("discovery_failed", f"Failed to fetch authorization server metadata: {exc}") from exc
+            raise ProtocolError(
+                "discovery_failed", f"Failed to fetch authorization server metadata: {exc}"
+            ) from exc
 
     def get_authorization_url(
         self,
@@ -208,9 +230,13 @@ class OAuthSession:
         server.server_close()
 
         if server.received_error:
-            raise ProtocolError("access_denied", f"Authorization server returned error: {server.received_error}")
+            raise ProtocolError(
+                "access_denied", f"Authorization server returned error: {server.received_error}"
+            )
         if not server.received_code:
-            raise ProtocolError("timeout", "OAuth callback loopback server timed out waiting for authorization code")
+            raise ProtocolError(
+                "timeout", "OAuth callback loopback server timed out waiting for authorization code"
+            )
         if server.received_state != state:
             raise ProtocolError("invalid_state", "State parameter mismatch in OAuth callback")
 

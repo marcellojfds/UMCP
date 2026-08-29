@@ -12,12 +12,11 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .audit_contract import safe_error_detail
 from .checksums import compute_canonical_checksum
 from .client import MemoryClient, ProtocolError
 from .cloud import CloudOAuthTransport
 from .oauth import (
-    OAuthSession,
-    TokenData,
     _validate_loopback_redirect_uri,
     generate_pkce_pair,
 )
@@ -59,12 +58,14 @@ class SDKConformanceRunner:
                 p_res = self.session.discover_protected_resource()
                 expected_res = f"{self.session.base_url}/mcp"
                 if not isinstance(p_res, dict) or p_res.get("resource") != expected_res:
-                    raise ValueError(f"Protected resource discovery returned unexpected metadata: {p_res}")
+                    raise ValueError(
+                        f"Protected resource discovery returned unexpected metadata: {p_res}"
+                    )
                 results["protected_resource_discovery"] = "PASS"
                 details["protected_resource_discovery"] = {"resource": p_res.get("resource")}
             except Exception as exc:
                 results["protected_resource_discovery"] = "FAIL"
-                details["protected_resource_discovery"] = {"error": str(exc)}
+                details["protected_resource_discovery"] = safe_error_detail(exc)
 
             # 2. Authorization server discovery
             try:
@@ -74,7 +75,9 @@ class SDKConformanceRunner:
                     or not a_res.get("authorization_endpoint")
                     or not a_res.get("token_endpoint")
                 ):
-                    raise ValueError(f"Authorization server discovery returned incomplete metadata: {a_res}")
+                    raise ValueError(
+                        f"Authorization server discovery returned incomplete metadata: {a_res}"
+                    )
                 results["authorization_server_discovery"] = "PASS"
                 details["authorization_server_discovery"] = {
                     "authorization_endpoint": a_res.get("authorization_endpoint"),
@@ -82,7 +85,7 @@ class SDKConformanceRunner:
                 }
             except Exception as exc:
                 results["authorization_server_discovery"] = "FAIL"
-                details["authorization_server_discovery"] = {"error": str(exc)}
+                details["authorization_server_discovery"] = safe_error_detail(exc)
 
             # 3. OAuth PKCE S256 & loopback validation
             try:
@@ -103,9 +106,10 @@ class SDKConformanceRunner:
                 details["oauth_pkce_s256"] = {"pkce_method": "S256", "loopback_compliant": True}
             except Exception as exc:
                 results["oauth_pkce_s256"] = "FAIL"
-                details["oauth_pkce_s256"] = {"error": str(exc)}
+                details["oauth_pkce_s256"] = safe_error_detail(exc)
 
-            # 4. Token exchange / session validity
+            # 4. Authorization-code exchange / session validity. The hosted
+            # audit uses a synthetic pre-provisioned grant, not interactive login.
             try:
                 if not self.session._tokens or not self.session._tokens.access_token:
                     raise ValueError("No authenticated tokens present in session")
@@ -113,26 +117,37 @@ class SDKConformanceRunner:
                 if not token_val:
                     raise ValueError("Failed to retrieve valid access token")
                 results["token_exchange"] = "PASS"
-                details["token_exchange"] = {"token_type": self.session._tokens.token_type, "has_refresh": bool(self.session._tokens.refresh_token)}
+                details["token_exchange"] = {
+                    "grant_source": "synthetic_preprovisioned_authorization_code",
+                    "interactive_login_performed": False,
+                    "token_type": self.session._tokens.token_type,
+                    "has_refresh": bool(self.session._tokens.refresh_token),
+                }
             except Exception as exc:
                 results["token_exchange"] = "FAIL"
-                details["token_exchange"] = {"error": str(exc)}
+                details["token_exchange"] = safe_error_detail(exc)
 
             # 5. MCP initialize
             try:
-                init_res = self.transport._rpc("initialize", {
-                    "protocolVersion": "2025-03-26",
-                    "capabilities": {},
-                    "clientInfo": {"name": "umcp-python-sdk", "version": "1.0"},
-                })
+                init_res = self.transport._rpc(
+                    "initialize",
+                    {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {},
+                        "clientInfo": {"name": "umcp-python-sdk", "version": "1.0"},
+                    },
+                )
                 server_info = init_res.get("result", {}).get("serverInfo", {})
                 if server_info.get("name") != "umcp-cloud":
                     raise ValueError(f"Unexpected MCP serverInfo: {server_info}")
                 results["mcp_initialize"] = "PASS"
-                details["mcp_initialize"] = {"server_name": server_info.get("name"), "version": server_info.get("version")}
+                details["mcp_initialize"] = {
+                    "server_name": server_info.get("name"),
+                    "version": server_info.get("version"),
+                }
             except Exception as exc:
                 results["mcp_initialize"] = "FAIL"
-                details["mcp_initialize"] = {"error": str(exc)}
+                details["mcp_initialize"] = safe_error_detail(exc)
 
             # 6. MCP tools/list
             try:
@@ -146,7 +161,7 @@ class SDKConformanceRunner:
                 details["mcp_tools_list"] = {"tools_count": len(tool_names)}
             except Exception as exc:
                 results["mcp_tools_list"] = "FAIL"
-                details["mcp_tools_list"] = {"error": str(exc)}
+                details["mcp_tools_list"] = safe_error_detail(exc)
 
             # 7. Memory write synthetic
             write_key = f"c01-write-{uuid.uuid4().hex[:8]}"
@@ -166,22 +181,31 @@ class SDKConformanceRunner:
                 )
                 data_map = res_write.get("data", res_write) if isinstance(res_write, dict) else {}
                 record = data_map.get("memory") or data_map.get("record") or data_map
-                record_id = (record.get("id") if isinstance(record, dict) else None) or res_write.get("id")
+                record_id = (
+                    record.get("id") if isinstance(record, dict) else None
+                ) or res_write.get("id")
                 if not record_id:
                     raise ValueError(f"memory.write did not return valid record id: {res_write}")
                 results["memory_write_synthetic"] = "PASS"
                 details["memory_write_synthetic"] = {"record_id": str(record_id)}
             except Exception as exc:
                 results["memory_write_synthetic"] = "FAIL"
-                details["memory_write_synthetic"] = {"error": str(exc)}
+                details["memory_write_synthetic"] = safe_error_detail(exc)
 
             # 8. Memory search synthetic
             try:
                 if not record_id:
                     raise ValueError("Prerequisite write failed; cannot search")
                 res_search = self.client.search(query=synthetic_content, limit=5, min_relevance=0.1)
-                search_data = res_search.get("data", res_search) if isinstance(res_search, dict) else {}
-                items = search_data.get("memories") or search_data.get("matches") or search_data.get("results") or []
+                search_data = (
+                    res_search.get("data", res_search) if isinstance(res_search, dict) else {}
+                )
+                items = (
+                    search_data.get("memories")
+                    or search_data.get("matches")
+                    or search_data.get("results")
+                    or []
+                )
                 found = False
                 for m in items:
                     mem = m.get("memory", m) if isinstance(m, dict) else {}
@@ -189,12 +213,14 @@ class SDKConformanceRunner:
                         found = True
                         break
                 if not found:
-                    raise ValueError(f"Written memory {record_id} not found in search: {res_search}")
+                    raise ValueError(
+                        f"Written memory {record_id} not found in search: {res_search}"
+                    )
                 results["memory_search_synthetic"] = "PASS"
                 details["memory_search_synthetic"] = {"found": True, "items_count": len(items)}
             except Exception as exc:
                 results["memory_search_synthetic"] = "FAIL"
-                details["memory_search_synthetic"] = {"error": str(exc)}
+                details["memory_search_synthetic"] = safe_error_detail(exc)
 
             # 9. Memory update synthetic (strict: ID, content and version == 2)
             updated_content = f"{synthetic_content} updated"
@@ -208,21 +234,25 @@ class SDKConformanceRunner:
                     patch={"content": updated_content},
                     idempotency_key=update_key,
                 )
-                upd_data = res_update.get("data", res_update) if isinstance(res_update, dict) else {}
+                upd_data = (
+                    res_update.get("data", res_update) if isinstance(res_update, dict) else {}
+                )
                 upd_rec = upd_data.get("memory") or upd_data.get("record") or upd_data
                 if not isinstance(upd_rec, dict):
                     raise ValueError(f"Update returned non-dict response: {res_update}")
                 if str(upd_rec.get("id")) != str(record_id):
                     raise ValueError("Update returned mismatching record ID")
                 if upd_rec.get("content") != updated_content:
-                    raise ValueError(f"Update returned mismatching content: {upd_rec.get('content')}")
+                    raise ValueError(
+                        f"Update returned mismatching content: {upd_rec.get('content')}"
+                    )
                 if upd_rec.get("version") != 2:
                     raise ValueError(f"Update expected version 2, got {upd_rec.get('version')}")
                 results["memory_update_synthetic"] = "PASS"
                 details["memory_update_synthetic"] = {"updated": True, "new_version": 2}
             except Exception as exc:
                 results["memory_update_synthetic"] = "FAIL"
-                details["memory_update_synthetic"] = {"error": str(exc)}
+                details["memory_update_synthetic"] = safe_error_detail(exc)
 
             # 10. Memory forget synthetic (strict: ID and tombstone status)
             try:
@@ -232,15 +262,29 @@ class SDKConformanceRunner:
                 res_forget = self.client.forget(id=record_id, idempotency_key=forget_key)
                 if not isinstance(res_forget, dict):
                     raise ValueError(f"Forget returned non-dict response: {res_forget}")
-                forget_data = res_forget.get("data", res_forget) if isinstance(res_forget, dict) else {}
-                ret_status = forget_data.get("status") or forget_data.get("state") or res_forget.get("status")
-                if ret_status not in {"forgotten", "deleted", "archived", "tombstoned"} and res_forget.get("ok") is not True:
-                    raise ValueError(f"Forget did not return explicit tombstone status: {res_forget}")
+                forget_data = (
+                    res_forget.get("data", res_forget) if isinstance(res_forget, dict) else {}
+                )
+                ret_status = (
+                    forget_data.get("status")
+                    or forget_data.get("state")
+                    or res_forget.get("status")
+                )
+                if (
+                    ret_status not in {"forgotten", "deleted", "archived", "tombstoned"}
+                    and res_forget.get("ok") is not True
+                ):
+                    raise ValueError(
+                        f"Forget did not return explicit tombstone status: {res_forget}"
+                    )
                 results["memory_forget_synthetic"] = "PASS"
-                details["memory_forget_synthetic"] = {"forgotten_id": str(record_id), "status": ret_status}
+                details["memory_forget_synthetic"] = {
+                    "forgotten_id": str(record_id),
+                    "status": ret_status,
+                }
             except Exception as exc:
                 results["memory_forget_synthetic"] = "FAIL"
-                details["memory_forget_synthetic"] = {"error": str(exc)}
+                details["memory_forget_synthetic"] = safe_error_detail(exc)
 
             # 13. Forged authority rejection (strict client and server explicit rejection)
             try:
@@ -254,16 +298,25 @@ class SDKConformanceRunner:
 
                 server_rejected = False
                 token = self.session.get_valid_access_token()
-                forged_payload = json.dumps({
-                    "jsonrpc": "2.0",
-                    "id": 999,
-                    "method": "tools/call",
-                    "params": {"name": "memory.write", "arguments": {"content": "forged", "owner_id": "forged-owner-id"}},
-                }).encode("utf-8")
+                forged_payload = json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 999,
+                        "method": "tools/call",
+                        "params": {
+                            "name": "memory.write",
+                            "arguments": {"content": "forged", "owner_id": "forged-owner-id"},
+                        },
+                    }
+                ).encode("utf-8")
                 req = Request(
                     f"{self.session.base_url}/mcp",
                     data=forged_payload,
-                    headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "Authorization": f"Bearer {token}"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json, text/event-stream",
+                        "Authorization": f"Bearer {token}",
+                    },
                     method="POST",
                 )
                 try:
@@ -278,7 +331,9 @@ class SDKConformanceRunner:
                     if exc.code in {400, 403, 422}:
                         server_rejected = True
                     else:
-                        raise ValueError(f"Unexpected HTTP code on forged authority probe: {exc.code}")
+                        raise ValueError(
+                            f"Unexpected HTTP code on forged authority probe: {exc.code}"
+                        )
                 except Exception as exc:
                     raise ValueError(f"Direct probe for forged authority failed: {exc}")
 
@@ -286,21 +341,33 @@ class SDKConformanceRunner:
                     raise ValueError("Server failed to reject forged authority")
 
                 results["forged_authority_rejection"] = "PASS"
-                details["forged_authority_rejection"] = {"client_rejected": True, "server_rejected": True}
+                details["forged_authority_rejection"] = {
+                    "client_rejected": True,
+                    "server_rejected": True,
+                }
             except Exception as exc:
                 results["forged_authority_rejection"] = "FAIL"
-                details["forged_authority_rejection"] = {"error": str(exc)}
+                details["forged_authority_rejection"] = safe_error_detail(exc)
 
             # 14. Zero leakage / redaction
             try:
                 str_repr = str(self.session)
                 if self.session._tokens and self.session._tokens.access_token in str_repr:
                     raise ValueError("Access token leaked in session string representation")
+                if self.session._tokens:
+                    token_repr = repr(self.session._tokens)
+                    if self.session._tokens.access_token in token_repr:
+                        raise ValueError("Access token leaked in TokenData representation")
+                    if (
+                        self.session._tokens.refresh_token
+                        and self.session._tokens.refresh_token in token_repr
+                    ):
+                        raise ValueError("Refresh token leaked in TokenData representation")
                 results["zero_leakage_redaction"] = "PASS"
                 details["zero_leakage_redaction"] = {"redacted": True}
             except Exception as exc:
                 results["zero_leakage_redaction"] = "FAIL"
-                details["zero_leakage_redaction"] = {"error": str(exc)}
+                details["zero_leakage_redaction"] = safe_error_detail(exc)
 
             # 11. Token refresh & rotation (with old refresh token rejection proof)
             old_refresh_status = None
@@ -313,11 +380,13 @@ class SDKConformanceRunner:
                 if new_tokens.access_token == old_access or new_tokens.refresh_token == old_refresh:
                     raise ValueError("Refresh did not rotate access/refresh token pair")
                 token_endpoint = f"{self.session.base_url}/token"
-                old_ref_body = urlencode({
-                    "grant_type": "refresh_token",
-                    "refresh_token": old_refresh,
-                    "client_id": self.session.client_id,
-                }).encode("utf-8")
+                old_ref_body = urlencode(
+                    {
+                        "grant_type": "refresh_token",
+                        "refresh_token": old_refresh,
+                        "client_id": self.session.client_id,
+                    }
+                ).encode("utf-8")
                 req = Request(
                     token_endpoint,
                     data=old_ref_body,
@@ -330,12 +399,17 @@ class SDKConformanceRunner:
                 except HTTPError as exc:
                     old_refresh_status = exc.code
                 if old_refresh_status != 400:
-                    raise ValueError(f"Old refresh token was not rejected with 400 (got {old_refresh_status})")
+                    raise ValueError(
+                        f"Old refresh token was not rejected with 400 (got {old_refresh_status})"
+                    )
                 results["token_refresh_rotation"] = "PASS"
-                details["token_refresh_rotation"] = {"rotated": True, "old_refresh_rejected_status": 400}
+                details["token_refresh_rotation"] = {
+                    "rotated": True,
+                    "old_refresh_rejected_status": 400,
+                }
             except Exception as exc:
                 results["token_refresh_rotation"] = "FAIL"
-                details["token_refresh_rotation"] = {"error": str(exc)}
+                details["token_refresh_rotation"] = safe_error_detail(exc)
 
             # 12. Token revocation (with post-revoke HTTP 401 proof)
             active_access_before_revoke = None
@@ -348,11 +422,17 @@ class SDKConformanceRunner:
                 if not revoked or self.session._tokens is not None:
                     raise ValueError("Token revocation failed to clear local session")
                 mcp_endpoint = f"{self.session.base_url}/mcp"
-                probe_payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}).encode("utf-8")
+                probe_payload = json.dumps(
+                    {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+                ).encode("utf-8")
                 req = Request(
                     mcp_endpoint,
                     data=probe_payload,
-                    headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", "Authorization": f"Bearer {active_access_before_revoke}"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json, text/event-stream",
+                        "Authorization": f"Bearer {active_access_before_revoke}",
+                    },
                     method="POST",
                 )
                 try:
@@ -361,12 +441,18 @@ class SDKConformanceRunner:
                 except HTTPError as exc:
                     post_revoke_status = exc.code
                 if post_revoke_status != 401:
-                    raise ValueError(f"Revoked access token was not rejected with 401 (got {post_revoke_status})")
+                    raise ValueError(
+                        f"Revoked access token was not rejected with 401 (got {post_revoke_status})"
+                    )
                 results["token_revocation"] = "PASS"
-                details["token_revocation"] = {"revoked": True, "revoke_status": 200, "post_revoke_status": 401}
+                details["token_revocation"] = {
+                    "revoked": True,
+                    "revoke_status": 200,
+                    "post_revoke_status": 401,
+                }
             except Exception as exc:
                 results["token_revocation"] = "FAIL"
-                details["token_revocation"] = {"error": str(exc)}
+                details["token_revocation"] = safe_error_detail(exc)
 
         finally:
             if self.session and self.session._tokens:
@@ -382,6 +468,8 @@ def generate_c01_report(
     *,
     base_url: str,
     audit_source_sha: str,
+    audit_cycle_id: str = "audit-local-unverified",
+    negative_results: dict[str, str] | None = None,
     server_source_sha: str = "367cd365df43f9282f5155394cd39275169bf8f2",
     server_digest: str = "sha256:764263db4907ffbbbd50e77ab7d12e8d88cde2b5990a9879a40ddbd0976e4f1d",
     server_revision: str = "umcp-cloud-staging-00018-f78",
@@ -420,6 +508,7 @@ def generate_c01_report(
 
     report_body = {
         "report_id": report_id,
+        "audit_cycle_id": audit_cycle_id,
         "sdk_version": "1.0.0",
         "protocol_version": "omp.mcp.v0",
         "created_at": created_at,
@@ -438,6 +527,7 @@ def generate_c01_report(
         ],
         "matrix": matrix,
         "test_results": results,
+        "negative_results": negative_results or {},
         "summary": {
             "total_capabilities": len(ALL_CAPABILITIES),
             "supported_count": len(supported),
@@ -446,6 +536,7 @@ def generate_c01_report(
         "limitations": [
             "Private managed beta only; not approved for public distribution or external users",
             "Operates with authorized test identity and synthetic test payloads only",
+            "OAuth evidence uses a synthetic pre-provisioned authorization code; no interactive login was performed",
         ],
     }
 
@@ -496,18 +587,20 @@ def generate_c01_report(
             st = "**Supported**" if cap in supported else "*Unverified*"
             md_lines.append(f"| `{cap}` | {st} |")
 
-        md_lines.extend([
-            "",
-            "---",
-            "",
-            "## 3. Resumo da Verificação",
-            "",
-            f"- **Total de Capacidades:** {len(ALL_CAPABILITIES)}",
-            f"- **Suportadas e Validadas:** {len(supported)}",
-            f"- **Não Verificadas / Pendentes:** {len(unverified)}",
-            "- **Zero Mocks no Relatório Real:** Sim",
-            "- **Zero Segredos / Dados Pessoais:** Sim",
-        ])
+        md_lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## 3. Resumo da Verificação",
+                "",
+                f"- **Total de Capacidades:** {len(ALL_CAPABILITIES)}",
+                f"- **Suportadas e Validadas:** {len(supported)}",
+                f"- **Não Verificadas / Pendentes:** {len(unverified)}",
+                "- **Zero Mocks no Relatório Real:** Sim",
+                "- **Zero Segredos / Dados Pessoais:** Sim",
+            ]
+        )
         p_md = Path(output_md_path)
         p_md.parent.mkdir(parents=True, exist_ok=True)
         p_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")

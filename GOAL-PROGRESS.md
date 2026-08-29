@@ -1,6 +1,58 @@
 # UMCP roadmap progress
 
-## Active milestone: G00 — Integration Recovery
+## Active milestone: W01R1 — C01/C02 controlled integration and remediation
+
+### Milestone contract (frozen before remediation)
+
+- **Outcome:** reconcile W01-W04 on one local line, repair the W05 fail-open
+  findings, and accept C01 then C02 only from one immutable, redacted staging
+  audit cycle tied to a clean source commit.
+- **Acceptance command:** local audit-contract tests and
+  `python3 -S scripts/verify_checksums.py` pass; after an immutable image is
+  published by digest, `python3 scripts/run_c01_c02_audit.py` exits zero only
+  for C01 14/14, C02 15/15, all required negatives, containment 0/0/0,
+  matching provenance, checksums and redaction in one `audit_cycle_id`.
+- **Demo:** the single audit wrapper builds no evidence itself; it validates
+  immutable image metadata, runs C01 before C02, runs containment last, stages
+  reports, scans all allowed sinks, and replaces canonical reports only after
+  every gate passes.
+- **Paths:** `Dockerfile.audit`, `src/omp/sdk/`,
+  `scripts/run_c01_c02_audit.py`, `scripts/verify_checksums.py`, focused tests,
+  C01/C02/containment reports and handoffs, checklist lines C01/C02,
+  coordination board/state, and this progress file.
+- **Dependencies:** local base `305568a3cc7be1987e0b85d4e8342a339521fb27`;
+  integrated W01-W04; existing staging project
+  `umcp-mcp-staging-20260825` in `us-central1`; server revision/digest/SHA from
+  H07; cumulative external spend ceiling US$10.
+- **Gates:** clean Git source; OCI revision label and baked source SHA equal
+  `audit_source_sha`; immutable digest only; strict report schemas/totals;
+  explicit negative results; exact integer containment 0/0/0; repr-safe
+  credentials; sentinel scan of stdout/stderr/logs/artifacts; no unsupported
+  OAuth-login or RLS claim; checksums; sequential C01 then C02 reconciliation.
+- **Rollback:** delete only the temporary audit/containment Cloud Run jobs and
+  retain the prior canonical reports/checklist unless every gate passes; the
+  hosted server revision remains unchanged.
+- **Out of scope:** production, service deployment, new services, external
+  users, C03 execution, Git push/PR/tag/release, real data, holdout, secrets in
+  evidence, and any spend beyond US$10.
+
+### Current W01R1 local evidence
+
+- **Integration line:** W02 acceptance freeze, W03 preflight, W04 gap map and
+  W01 verifier/handoff were ancestry- and scope-checked, then cherry-picked
+  linearly over `305568a3cc7be1987e0b85d4e8342a339521fb27`.
+- **Focused tests:** 19 passed across audit contract, stdlib verifier,
+  credential repr, explicit server error propagation, C01 runner and C02
+  agent; `py_compile` and focused Ruff `F/I/UP` checks pass.
+- **Fail-closed probes:** `omp.sdk.audit_entrypoint` without complete
+  provenance exits 1; the wrapper rejects `unknown` and `:latest` before any
+  cloud call; the current canonical reports are intentionally rejected because
+  they predate `audit_cycle_id` and remain historical.
+- **External state:** no image published and no Cloud Run job executed during
+  remediation. Next safe boundary is a clean local source commit, followed by
+  the single authorized image build/push and two necessary staging jobs.
+
+### Prior milestone record: G00 — Integration Recovery
 
 ### Milestone contract (frozen before implementation)
 

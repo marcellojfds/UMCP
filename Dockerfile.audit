@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+ARG AUDIT_SOURCE_SHA
+RUN python -c "import re,sys; value=sys.argv[1]; assert re.fullmatch(r'[0-9a-f]{40}', value); assert value not in {'unknown','default','latest'}" "${AUDIT_SOURCE_SHA}"
+
+LABEL org.opencontainers.image.title="umcp-c01-c02-audit" \
+      org.opencontainers.image.revision="${AUDIT_SOURCE_SHA}"
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UMCP_AUDIT_IMAGE_SOURCE_SHA="${AUDIT_SOURCE_SHA}"
+
+WORKDIR /app
+COPY pyproject.toml README.md alembic.ini ./
+COPY src ./src
+COPY migrations ./migrations
+RUN pip install --no-cache-dir .
+
+USER 65532:65532
+ENTRYPOINT ["python", "-m", "omp.sdk.audit_entrypoint"]
