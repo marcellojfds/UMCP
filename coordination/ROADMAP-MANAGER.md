@@ -1,13 +1,13 @@
 # UMCP Roadmap Manager
 
-manager_status: stopped
-canonical_ref: b462bccec5bdea2db40d6aaac30e3cdd449e503d
+manager_status: preparing
+canonical_ref: b74bb1d415a1d8e45d01030fb57e9c3693fc4a1e
 active_id: none
 active_kind: none
 active_thread_id: none
 active_host_id: none
 wait_cursor: none
-cadence_minutes: 5
+cadence_minutes: 10
 progress_minutes: 30
 run_mode: manual
 started_at: 2026-08-27T21:57:53-03:00
@@ -70,6 +70,7 @@ last_reconciled_sha: b462bccec5bdea2db40d6aaac30e3cdd449e503d
 - reconciled | 2026-08-29 | H07 | canonical=b462bccec5bdea2db40d6aaac30e3cdd449e503d | result=GO retained; staging=umcp-cloud-staging-00018-f78; server_sha=367cd365df43f9282f5155394cd39275169bf8f2; decision=M02 STAGING READY, not production-ready
 - reconciliation | 2026-08-29 | C01,C02 | candidate=b462bccec5bdea2db40d6aaac30e3cdd449e503d | result=gates reopened; hosted results=14/14 and 15/15; containment=0/0/0; blocker=audit image was built before delivery commit and reports audit_source_sha=72b9fad4, so evidence is not reproducible from the claimed SHA
 - stopped | 2026-08-29 | manager | reason=direct-session-handoff-requested; active=none; checklist=10/43; next=C01 clean-SHA audit rerun, then C02 and C03/CP-4
+- resumed | 2026-08-29 | manager | purpose=private controlled MVP usable through ChatGPT and Gemini with auth/account UI and cross-assistant transfer; cadence=10m; board=coordination/SLACK-MANAGER-BOARD.md; first_wave=W01-W06; no release authorization
 
 ## Resumption boundary
 
