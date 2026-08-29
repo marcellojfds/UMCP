@@ -1,5 +1,9 @@
 # H07 resumption handoff — 2026-08-27
 
+> **Histórico supersedido.** H07 foi posteriormente concluído. Para retomar o
+> estado atual, use `docs/handoffs/roadmap/MVP-RESUMPTION-20260829.md` e
+> `docs/handoffs/roadmap/H07-AUDIT-20260828.md`.
+
 **Decision at handoff:** `NO-GO — H07 and C02 remain unchecked.`
 
 This records the current staging foundation and the precise remaining work for

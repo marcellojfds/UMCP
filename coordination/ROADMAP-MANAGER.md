@@ -1,7 +1,7 @@
 # UMCP Roadmap Manager
 
 manager_status: stopped
-canonical_ref: 1908307e2e574e32e5ce3ea324793b0d828c6d12
+canonical_ref: b462bccec5bdea2db40d6aaac30e3cdd449e503d
 active_id: none
 active_kind: none
 active_thread_id: none
@@ -13,9 +13,9 @@ run_mode: manual
 started_at: 2026-08-27T21:57:53-03:00
 stop_at: none
 next_progress_at: none
-last_announced_completed: 9
+last_announced_completed: 10
 recovery_attempt: 0
-last_reconciled_sha: 9bd105d535a30ccbbf72a2d31d54327ee90f5196
+last_reconciled_sha: b462bccec5bdea2db40d6aaac30e3cdd449e503d
 
 ## Events
 
@@ -67,10 +67,21 @@ last_reconciled_sha: 9bd105d535a30ccbbf72a2d31d54327ee90f5196
 - decision-needed | 2026-08-26T17:30:00Z | H07 | owner_direction=1A,2A,3A accepted | remaining=exact auditor identity/IAM binding; IdP and synthetic-account creation boundary; KMS key/failure method; isolated restore target; load ceiling and rollback conditions
 - remediation | 2026-08-27 | H07 | result=private Cloud SQL, runtime service account, Secret Manager database injection, VPC connector and Cloud KMS envelope-key wiring provisioned in authorized staging; readyz=200 on umcp-cloud-staging-00010-2bp; exact unauthenticated POST /mcp=401
 - stopped | 2026-08-27 | manager | reason=user-requested-handoff-to-new-session | candidate=1908307e2e574e32e5ce3ea324793b0d828c6d12 | checklist=9/43; H07 and C02 remain NO-GO pending OAuth endpoint implementation, OAuth migration rollout and clean same-revision audit
+- reconciled | 2026-08-29 | H07 | canonical=b462bccec5bdea2db40d6aaac30e3cdd449e503d | result=GO retained; staging=umcp-cloud-staging-00018-f78; server_sha=367cd365df43f9282f5155394cd39275169bf8f2; decision=M02 STAGING READY, not production-ready
+- reconciliation | 2026-08-29 | C01,C02 | candidate=b462bccec5bdea2db40d6aaac30e3cdd449e503d | result=gates reopened; hosted results=14/14 and 15/15; containment=0/0/0; blocker=audit image was built before delivery commit and reports audit_source_sha=72b9fad4, so evidence is not reproducible from the claimed SHA
+- stopped | 2026-08-29 | manager | reason=direct-session-handoff-requested; active=none; checklist=10/43; next=C01 clean-SHA audit rerun, then C02 and C03/CP-4
 
 ## Resumption boundary
 
-The next item is H07. Before dispatching it, record explicit, non-secret scope:
+The next item is C01, executed directly without the manager unless the owner
+explicitly requests coordination. Read
+`docs/handoffs/roadmap/MVP-RESUMPTION-20260829.md`. The minimum reconciliation
+is a new immutable audit image built from clean
+`b462bccec5bdea2db40d6aaac30e3cdd449e503d`, a matching
+`audit_source_sha`, C01 14/14, C02 15/15 and containment 0/0/0. Only then may
+C01/C02 be marked and C03 become dependency-ready.
+
+Before any later external-client dispatch, record explicit, non-secret scope:
 
 - CP-1: GCP project, region, budget, owner and blast radius.
 - CP-2: IdP, redirect URIs, scopes, email path and cost boundary.

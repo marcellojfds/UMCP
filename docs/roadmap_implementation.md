@@ -2,7 +2,7 @@
 title: UMCP Roadmap Implementation Guide
 status: active
 confidence: repository-grounded
-updated: 2026-08-28
+updated: 2026-08-29
 baseline_roadmap: docs/CODEX_DELIVERY_ROADMAP.md
 baseline_candidate: codex/m01-local-integrated@faeadaf
 current_checkout_at_inventory: terra-alpha-recovery@2c94d55
@@ -22,10 +22,12 @@ A leitura executiva é:
 
 - **M0 está concluído apenas como readiness local em uma branch candidata.**
 - **M1 está concluído apenas como readiness local em uma branch candidata.**
-- **M2 não está concluído.** Existe infraestrutura e um endpoint GCP, mas o
-  gateway hospedado, OAuth/OIDC, consentimento, RLS efetiva, KMS integrado,
-  restore e operação ainda não passam o Gate M2.
-- **M3 possui contrato e receita sintética, não dois conectores reais.**
+- **M2 está concluído em staging.** H07 demonstrou gateway, OAuth, tenancy/RLS,
+  KMS, restore e operação na revisão `umcp-cloud-staging-00018-f78`. Isso não
+  significa production-ready.
+- **M3 está em execução.** C01/C02 possuem implementação e uma rodada hosted
+  verde, mas permanecem abertos até a auditoria ser repetida por uma imagem
+  construída de um SHA limpo e reproduzível. C03–C05 continuam pendentes.
 - **M4–M8 permanecem majoritariamente por implementar.**
 - **Nenhuma entrega posterior ao Alpha está integrada em `main`.**
 - **O primeiro uso externo será private managed beta; M7 open source vem
@@ -591,7 +593,13 @@ Entregar:
 - prompts positivos, indiretos, negativos e destrutivos;
 - matriz `Supported / Experimental / Unverified`.
 
-Gate C01: CONCLUÍDO (2026-08-28). SDK Python (`src/omp/sdk/`), transporte Cloud HTTP OAuth com PKCE e loopback RFC 8252, discovery, refresh/revoke, rejeição de autoridade forjada, relatório C01 datado/checksummed (`docs/handoffs/roadmap/C01-SDK-RUNNER-REPORT-20260828.json` e `.md`), 14/14 capacidades supported e 80/80 testes unitários/contrato PASS.
+Estado C01 (2026-08-29): implementação pronta e rodada hosted 14/14 PASS, com
+artefatos datados/checksummed. Gate reaberto até repetir a auditoria usando uma
+imagem construída de um commit limpo cujo SHA seja exatamente o
+`audit_source_sha`. A rodada atual usa o digest imutável
+`sha256:c39b3d02785b0a4f817da4074136b4d662c49085499e6cebbf8a69b96ccbedea`,
+mas registra `72b9fad4...` enquanto o código executado foi commitado somente em
+`b462bcce...`. Ver `docs/handoffs/roadmap/MVP-RESUMPTION-20260829.md`.
 
 ### C02 — primeiro conector real controlado
 
@@ -602,7 +610,11 @@ Executar write/capture, recall, update, forget, revoke, unauthorized e
 provenance em um agente Python controlado pelo projeto. Registrar versão,
 data, scopes, report ID e limitações.
 
-Gate C02: CONCLUÍDO (2026-08-28). Controlled Python Agent (`ControlledMemoryAgent` em `src/omp/sdk/agent.py`) executou os 15 passos da jornada E2E fail-closed contra o Cloud Run staging real com 15/15 PASS, zero mocks no report real, revoke/tombstone/provenance/isolamento validados e relatório formalizado em `docs/handoffs/roadmap/C02-CONTROLLED-AGENT-REPORT-20260828.json` e `.md`.
+Estado C02 (2026-08-29): implementação pronta e rodada hosted 15/15 PASS, com
+contenção final `active_tokens=0`, `active_codes=0` e
+`active_test_tenants=0`. Gate reaberto pelo mesmo desvio de proveniência da
+imagem de auditoria de C01; fechar somente após reexecução limpa vinculada ao
+SHA exato. Ver `docs/handoffs/roadmap/MVP-RESUMPTION-20260829.md`.
 
 ### C03 — primeira superfície externa real
 
@@ -940,8 +952,8 @@ que aparecem combinadas nas descrições acima. `checkpoint` remete à seção 1
 - [x] H05 | model=luna | depends=H04 | checkpoint=- | title=Entregar login e consent UX
 - [x] H06 | model=terra | depends=H01,H04 | checkpoint=- | title=Fechar tenancy RLS KMS e recuperação hosted
 - [x] H07 | model=audit | depends=H02,H05,H06 | checkpoint=CP-1,CP-2,CP-3 | title=Integrar e auditar M2 em staging
-- [x] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
-- [x] C02 | model=luna | depends=C01 | checkpoint=- | title=Comprovar primeiro conector real controlado
+- [ ] C01 | model=luna | depends=H07 | checkpoint=- | title=Entregar runner comum e SDK Python
+- [ ] C02 | model=luna | depends=C01 | checkpoint=- | title=Comprovar primeiro conector real controlado
 - [ ] C03 | model=luna | depends=C02 | checkpoint=CP-4 | title=Comprovar primeira superfície externa real
 - [ ] C04 | model=luna | depends=C03 | checkpoint=CP-4 | title=Comprovar segunda superfície externa real
 - [ ] C05L | model=luna | depends=C03,C04 | checkpoint=- | title=Entregar SDK TypeScript recipes e matriz M3
@@ -991,5 +1003,6 @@ O roadmap somente estará entregue quando:
 - claims públicas corresponderem literalmente às evidências;
 - publicação ocorrer somente após autorização separada.
 
-Até lá, o estado honesto do projeto é: **Alpha local material, M1 local
-demonstrável, hosted staging parcial e roadmap de produto em execução.**
+Até lá, o estado honesto do projeto é: **M2 staging-ready; SDK/agent M3
+implementados com reauditoria de proveniência pendente; nenhuma superfície
+externa, produção ou beta aberto.**
