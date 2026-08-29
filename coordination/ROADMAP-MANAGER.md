@@ -1,11 +1,11 @@
 # UMCP Roadmap Manager
 
-manager_status: waiting_owner_decision
-canonical_ref: a9e7b5deefeb0f43799e95a09a263bea5a5757d6
-active_id: none
-active_kind: none
-active_thread_id: none
-active_host_id: none
+manager_status: running
+canonical_ref: 1742751a6a2c6338124b6253e47e12a3eca68b23
+active_id: W01R1
+active_kind: integration-remediation
+active_thread_id: 01a04e8a-7759-71d0-8b58-7197260aec67
+active_host_id: local
 wait_cursor: none
 cadence_minutes: 10
 progress_minutes: 30
@@ -79,6 +79,8 @@ last_reconciled_sha: a9e7b5deefeb0f43799e95a09a263bea5a5757d6
 - coordination-failure | 2026-08-29T14:42:22Z | W06 | result=NO-GO | reason=no shared lock/CAS; stale READY rows; divergent bases; C01-C02 dependency violation; acceptance freeze raced execution
 - containment | 2026-08-29T14:42:22Z | manager | action=paused all six lane schedulers; heartbeat changed to monitor-only; no new dispatch or integration pending owner direction
 - decision-needed | 2026-08-29T14:42:22Z | owner | options=authorize one controlled integration/remediation task and staging Artifact Registry publication after P0 fixes; or keep system paused | external_scope=existing staging project/region/registry only; no production/release
+- owner-authorized | 2026-08-29 | W01R1 | instruction=volte a rodar | scope=one controlled integration/remediation task; publish immutable audit image only after P0 fixes; staging=umcp-mcp-staging-20260825/us-central1; budget_usd=10; no production/release/new services/external users
+- dispatch | 2026-08-29 | W01R1 | base=1742751a6a2c6338124b6253e47e12a3eca68b23 | thread=01a04e8a-7759-71d0-8b58-7197260aec67 | host=local | model=gpt-5.6-sol/high | lane=single controlled integration-remediation; six recurring schedulers remain paused
 
 ## Resumption boundary
 

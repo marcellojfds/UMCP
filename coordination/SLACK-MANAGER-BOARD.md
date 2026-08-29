@@ -50,8 +50,9 @@ Slack is a coordination and notification surface, not proof of delivery.
 - All six lane schedulers are `PAUSED` after the independent coordination
   review found no shared lock/CAS, stale `READY` rows and divergent worktree
   bases. The manager heartbeat is active in monitor-only mode.
-- No new worker may be dispatched and no divergent delivery may be integrated
-  until the owner authorizes one controlled integration/remediation path.
+- The owner authorized one controlled integration/remediation path. W01R1 is
+  active in task `01a04e8a-7759-71d0-8b58-7197260aec67`; no second worker may
+  be dispatched while it is active.
 - W01 delivered a stdlib-only checksum verifier and a locally built clean-SHA
   image, but did not publish or run it in staging. C01/C02 remain open.
 - W05 found additional P0 defects that must be repaired before publication:
@@ -86,7 +87,7 @@ Slack is a coordination and notification surface, not proof of delivery.
 
 ### W01 — C01/C02 clean-SHA audit rerun
 
-- Status: `BLOCKED / REMEDIATION REQUIRED`
+- Status: `ACTIVE / W01R1 CONTROLLED REMEDIATION`
 - Owner: Luna 1
 - Depends on: H07
 - Exclusive write ownership: `scripts/verify_checksums.py`, regenerated C01,
@@ -101,6 +102,9 @@ Slack is a coordination and notification surface, not proof of delivery.
   `1ebfaab004...`; hosted acceptance not run. Requires P0 remediation, a
   controlled integration SHA, and explicit authorization to publish the audit
   image to the existing staging Artifact Registry.
+- Active executor: `01a04e8a-7759-71d0-8b58-7197260aec67`, based on canonical
+  coordination SHA `1742751a...`; authorized staging scope is limited to the
+  existing project/region/registry and a cumulative US$10 ceiling.
 
 ### W02 — Freeze C01/C02 acceptance
 
