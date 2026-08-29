@@ -1,19 +1,26 @@
-"""OAuth 2.0 PKCE client and session management for UMCP Cloud SDK."""
+"""OAuth 2.0 PKCE client and loopback session management for UMCP Cloud SDK."""
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import http.server
 import json
 import os
+import threading
 import time
 import urllib.parse
+import webbrowser
 from dataclasses import dataclass
 from typing import Any, Mapping
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from .client import ProtocolError
+
+DEFAULT_CLIENT_ID = "umcp-python-sdk"
+DEFAULT_LOOPBACK_REDIRECT = "http://127.0.0.1:8765/callback"
+DEFAULT_SCOPES = ["memory:read", "memory:write", "memory:delete"]
 
 
 @dataclass
@@ -40,20 +47,76 @@ def generate_pkce_pair() -> tuple[str, str]:
     return code_verifier, code_challenge
 
 
+def _validate_loopback_redirect_uri(redirect_uri: str) -> tuple[str, int, str]:
+    """Validate that the redirect URI is a literal loopback IPv4/IPv6 address."""
+    parsed = urllib.parse.urlsplit(redirect_uri)
+    if parsed.scheme != "http":
+        raise ValueError("Loopback redirect URI must use http:// scheme")
+    if parsed.hostname not in {"127.0.0.1", "::1"}:
+        raise ValueError(f"Loopback redirect URI host must be literal 127.0.0.1 or ::1, got: {parsed.hostname}")
+    if parsed.username or parsed.password or parsed.fragment or parsed.query:
+        raise ValueError("Loopback redirect URI must not contain userinfo, fragment or query")
+    port = parsed.port or 8765
+    path = parsed.path or "/callback"
+    return str(parsed.hostname), port, path
+
+
+class _LoopbackCallbackHandler(http.server.BaseHTTPRequestHandler):
+    """Silent HTTP request handler for capturing OAuth authorization code."""
+
+    def log_message(self, format: str, *args: Any) -> None:
+        # Suppress access logs to avoid recording codes, state or paths
+        pass
+
+    def do_GET(self) -> None:
+        parsed = urllib.parse.urlsplit(self.path)
+        params = urllib.parse.parse_qs(parsed.query)
+
+        server: _LoopbackServer = self.server  # type: ignore
+
+        if parsed.path == server.expected_path:
+            server.received_code = params.get("code", [""])[0]
+            server.received_state = params.get("state", [""])[0]
+            server.received_error = params.get("error", [""])[0]
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(
+                b"<!DOCTYPE html><html><body style='font-family:sans-serif;padding:40px;text-align:center;'>"
+                b"<h2>UMCP Authentication Complete</h2>"
+                b"<p>You can close this tab and return to the application.</p>"
+                b"</body></html>"
+            )
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+
+class _LoopbackServer(http.server.HTTPServer):
+    def __init__(self, host: str, port: int, path: str) -> None:
+        super().__init__((host, port), _LoopbackCallbackHandler)
+        self.expected_path = path
+        self.received_code: str = ""
+        self.received_state: str = ""
+        self.received_error: str = ""
+
+
 class OAuthSession:
-    """Manages OAuth 2.0 PKCE discovery, token exchange, rotation, and revocation."""
+    """Manages OAuth 2.0 PKCE discovery, loopback login, token rotation, and revocation."""
 
     def __init__(
         self,
         base_url: str,
         *,
-        client_id: str = "umcp-staging-h07-audit",
-        redirect_uri: str | None = None,
+        client_id: str = DEFAULT_CLIENT_ID,
+        redirect_uri: str = DEFAULT_LOOPBACK_REDIRECT,
         timeout: float = 10.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.client_id = client_id
-        self.redirect_uri = redirect_uri or f"{self.base_url}/oauth/callback"
+        self.redirect_uri = redirect_uri
         self.timeout = timeout
         self._tokens: TokenData | None = None
         self._protected_resource_metadata: dict[str, Any] | None = None
@@ -91,7 +154,11 @@ class OAuthSession:
         scopes: list[str] | None = None,
     ) -> str:
         """Construct the authorization URL with PKCE parameters."""
-        scope_str = " ".join(scopes or ["memory:read", "memory:write", "memory:delete", "memory:export", "connections:manage"])
+        selected_scopes = scopes or DEFAULT_SCOPES
+        for sc in selected_scopes:
+            if sc not in {"memory:read", "memory:write", "memory:delete"}:
+                raise ValueError(f"Scope {sc} is not supported by UMCP authorization server")
+        scope_str = " ".join(selected_scopes)
         params = {
             "response_type": "code",
             "client_id": self.client_id,
@@ -102,6 +169,56 @@ class OAuthSession:
             "code_challenge_method": "S256",
         }
         return f"{self.base_url}/authorize?{urllib.parse.urlencode(params)}"
+
+    def login_via_loopback(
+        self,
+        *,
+        scopes: list[str] | None = None,
+        timeout: float = 120.0,
+        open_browser: bool = True,
+    ) -> TokenData:
+        """Start ephemeral loopback server, open browser for consent, and exchange code."""
+        host, port, path = _validate_loopback_redirect_uri(self.redirect_uri)
+        code_verifier, code_challenge = generate_pkce_pair()
+        state = base64.urlsafe_b64encode(os.urandom(24)).decode().rstrip("=")
+
+        auth_url = self.get_authorization_url(
+            state=state,
+            code_challenge=code_challenge,
+            scopes=scopes,
+        )
+
+        server = _LoopbackServer(host, port, path)
+        server.timeout = 1.0
+
+        def _run_server() -> None:
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                if server.received_code or server.received_error:
+                    break
+                server.handle_request()
+
+        thread = threading.Thread(target=_run_server, daemon=True)
+        thread.start()
+
+        if open_browser:
+            webbrowser.open(auth_url)
+
+        thread.join(timeout=timeout)
+        server.server_close()
+
+        if server.received_error:
+            raise ProtocolError("access_denied", f"Authorization server returned error: {server.received_error}")
+        if not server.received_code:
+            raise ProtocolError("timeout", "OAuth callback loopback server timed out waiting for authorization code")
+        if server.received_state != state:
+            raise ProtocolError("invalid_state", "State parameter mismatch in OAuth callback")
+
+        return self.exchange_code(
+            code=server.received_code,
+            code_verifier=code_verifier,
+            redirect_uri=self.redirect_uri,
+        )
 
     def exchange_code(
         self,
@@ -123,7 +240,7 @@ class OAuthSession:
         token_data = TokenData(
             access_token=data["access_token"],
             token_type=data.get("token_type", "Bearer"),
-            expires_in=int(data.get("expires_in", 3600)),
+            expires_in=int(data.get("expires_in", 600)),
             refresh_token=data.get("refresh_token"),
             scope=data.get("scope", ""),
             issued_at=time.time(),
@@ -135,6 +252,7 @@ class OAuthSession:
         """Refresh the access token using the current refresh token."""
         if not self._tokens or not self._tokens.refresh_token:
             raise ProtocolError("unauthorized", "No refresh token available")
+        old_token = self._tokens.access_token
         url = f"{self.base_url}/token"
         payload = {
             "grant_type": "refresh_token",
@@ -142,11 +260,15 @@ class OAuthSession:
             "client_id": self.client_id,
         }
         data = self._post_form(url, payload)
+        new_access = data["access_token"]
+        new_refresh = data.get("refresh_token") or self._tokens.refresh_token
+        if new_access == old_token:
+            raise ProtocolError("rotation_failed", "Access token was not rotated upon refresh")
         token_data = TokenData(
-            access_token=data["access_token"],
+            access_token=new_access,
             token_type=data.get("token_type", "Bearer"),
-            expires_in=int(data.get("expires_in", 3600)),
-            refresh_token=data.get("refresh_token") or self._tokens.refresh_token,
+            expires_in=int(data.get("expires_in", 600)),
+            refresh_token=new_refresh,
             scope=data.get("scope", self._tokens.scope),
             issued_at=time.time(),
         )
@@ -171,14 +293,14 @@ class OAuthSession:
 
     def get_valid_access_token(self) -> str:
         """Return a valid access token, automatically refreshing if expired."""
-        if not self._tokens:
+        if not self._tokens or not self._tokens.access_token:
             raise ProtocolError("unauthorized", "Session is not authenticated")
         if self._tokens.is_expired and self._tokens.refresh_token:
             self.refresh()
         return self._tokens.access_token
 
     def set_tokens(self, token_data: TokenData) -> None:
-        """Directly inject active tokens into the session."""
+        """Inject active tokens into session (used for test harnesses)."""
         self._tokens = token_data
 
     def _post_form(self, url: str, form_data: Mapping[str, str]) -> dict[str, Any]:

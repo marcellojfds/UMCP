@@ -51,6 +51,26 @@ def _pkce(verifier: str) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
 
 
+def _valid_client_redirect_uri(value: str) -> bool:
+    try:
+        parsed = urllib.parse.urlsplit(value)
+    except ValueError:
+        return False
+    if (
+        not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+        or parsed.query
+    ):
+        return False
+    if parsed.scheme == "https":
+        return bool(parsed.hostname)
+    if parsed.scheme == "http":
+        return parsed.hostname in {"127.0.0.1", "::1"}
+    return False
+
+
 def _https_uri(value: str) -> bool:
     try:
         parsed = urllib.parse.urlsplit(value)
@@ -63,6 +83,7 @@ def _https_uri(value: str) -> bool:
         and not parsed.password
         and not parsed.fragment
     )
+
 
 
 def _valid_pkce_challenge(value: str) -> bool:
@@ -120,7 +141,7 @@ class OAuthConfiguration:
         try:
             clients = json.loads(clients_raw)
             if not isinstance(clients, dict) or not clients or not all(
-                isinstance(k, str) and bool(k.strip()) and isinstance(v, str) and _https_uri(v)
+                isinstance(k, str) and bool(k.strip()) and isinstance(v, str) and _valid_client_redirect_uri(v)
                 for k, v in clients.items()
             ):
                 return None
