@@ -271,6 +271,7 @@ def test_oauth_audit_runner_requires_flag_and_exact_client(tmp_path) -> None:
         loc = cb_redirect.headers["location"]
         assert loc.startswith("https://local.umcp.invalid/oauth/audit/callback#code=")
         assert "?" not in loc
+        assert "iss=https%3A%2F%2Flocal.umcp.invalid" in loc
 
 
 def test_cloud_process_stays_live_but_unready_when_postgres_is_unavailable() -> None:

@@ -158,7 +158,7 @@ class OAuthServer:
 
     def metadata(self) -> dict[str, Any]:
         base = self.config.issuer
-        return {"issuer": base, "authorization_endpoint": base + "/authorize", "token_endpoint": base + "/token", "revocation_endpoint": base + "/revoke", "response_types_supported": ["code"], "grant_types_supported": ["authorization_code", "refresh_token"], "code_challenge_methods_supported": ["S256"], "token_endpoint_auth_methods_supported": ["none"], "scopes_supported": sorted(_SCOPES)}
+        return {"issuer": base, "authorization_endpoint": base + "/authorize", "token_endpoint": base + "/token", "revocation_endpoint": base + "/revoke", "response_types_supported": ["code"], "grant_types_supported": ["authorization_code", "refresh_token"], "code_challenge_methods_supported": ["S256"], "token_endpoint_auth_methods_supported": ["none"], "authorization_response_iss_parameter_supported": True, "scopes_supported": sorted(_SCOPES)}
 
     async def begin(self, client_id: str, redirect_uri: str, scope: str, state: str, challenge: str, method: str) -> str:
         requested = frozenset(scope.split())

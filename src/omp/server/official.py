@@ -422,7 +422,7 @@ def create_cloud_http_app(
         async def oauth_callback(code: str = "", state: str = "") -> object:
             try:
                 redirect_uri, authorization_code, client_state = await oauth_server.callback(code, state)
-                query = urllib.parse.urlencode({"code": authorization_code, "state": client_state})
+                query = urllib.parse.urlencode({"code": authorization_code, "state": client_state, "iss": oauth_server.config.issuer})
                 from fastapi.responses import RedirectResponse
                 sep = "#" if redirect_uri == audit_redirect else ("&" if "?" in redirect_uri else "?")
                 return RedirectResponse(redirect_uri + sep + query, status_code=302)
