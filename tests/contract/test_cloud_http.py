@@ -21,12 +21,12 @@ from omp.cloud import LocalAgentCredentialVerifier, LocalDevelopmentTokenVerifie
 from omp.cloud.admin import LocalMailboxAuth, create_admin_app
 from omp.config import OMPSettings
 from omp.server.composition import create_cloud_demo_runtime, create_demo_runtime, create_runtime
+from omp.server.oauth import OAuthError
 from omp.server.official import (
     RejectUnconfiguredOIDCVerifier,
     create_cloud_http_app,
     create_cloud_server,
 )
-from omp.server.oauth import OAuthError
 
 
 def verifier() -> LocalDevelopmentTokenVerifier:
@@ -55,6 +55,9 @@ def test_cloud_tools_reject_owner_id_and_have_security_annotations(tmp_path) -> 
     assert "owner_id" not in tools["memory.write"].parameters["properties"]
     assert tools["memory.search"].annotations.readOnlyHint is True
     assert tools["memory.forget"].annotations.destructiveHint is True
+    assert "memory.capture" in tools
+    assert "owner_id" not in tools["memory.capture"].parameters["properties"]
+    assert tools["memory.capture"].meta["securitySchemes"][0]["type"] == "oauth2"
 
 
 @pytest.mark.parametrize("forged_field", ["owner_id", "tenant_id"])
@@ -91,6 +94,7 @@ def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
             json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
         )
         assert missing.status_code == 401
+        assert "resource_metadata=" in missing.headers["www-authenticate"]
         bad = client.post(
             "/mcp",
             headers={
@@ -201,6 +205,95 @@ def test_hosted_login_page_is_pkce_bound_and_rejects_client_authority(tmp_path) 
         assert "code_challenge_method=S256" in start.text
         assert client.get("/login?owner_id=forged").status_code == 400
         assert client.get("/login?tenant_id=forged").status_code == 400
+
+
+def test_portal_google_login_reuses_oauth_identity_and_lists_memories(tmp_path) -> None:
+    local = verifier()
+    portal_access = token(
+        local, {Scope.MEMORY_READ, Scope.MEMORY_WRITE, Scope.MEMORY_DELETE}
+    )
+
+    class StubOAuthServer:
+        config = SimpleNamespace(
+            issuer="https://local.umcp.invalid",
+            clients={},
+        )
+        client_state = ""
+
+        def metadata(self) -> dict[str, object]:
+            return {
+                "issuer": self.config.issuer,
+                "authorization_response_iss_parameter_supported": True,
+            }
+
+        async def begin(
+            self,
+            client_id: str,
+            redirect_uri: str,
+            scope: str,
+            state: str,
+            challenge: str,
+            method: str,
+            resource: str | None = None,
+        ) -> str:
+            self.client_state = state
+            assert client_id == "umcp-portal"
+            assert redirect_uri == "https://local.umcp.invalid/portal/callback"
+            assert method == "S256"
+            assert resource == "https://local.umcp.invalid/mcp"
+            return "https://accounts.google.com/o/oauth2/v2/auth?state=upstream"
+
+        async def callback(self, code: str, state: str) -> tuple[str, str, str]:
+            return (
+                "https://local.umcp.invalid/portal/callback",
+                "authorization-code",
+                self.client_state,
+            )
+
+        async def token(self, form: dict[str, str]) -> dict[str, str]:
+            assert form["client_id"] == "umcp-portal"
+            return {"access_token": portal_access, "refresh_token": "unused"}
+
+        async def revoke(self, token_value: str) -> None:
+            local.revoke(token_value)
+
+        async def verify_token(self, token_value: str):
+            return await local.verify_token(token_value)
+
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "portal.json")), kms_master_key=b"k" * 32
+    )
+    root = Path(__file__).parents[2]
+    app = create_cloud_http_app(
+        runtime,
+        local,
+        oauth_server=StubOAuthServer(),
+        web_directory=root / "apps" / "web",
+    )
+    with TestClient(app, base_url="https://local.umcp.invalid") as client:
+        start = client.get("/portal/login", follow_redirects=False)
+        assert start.status_code == 302
+        assert start.headers["location"].startswith("https://accounts.google.com/")
+        assert "HttpOnly" in start.headers["set-cookie"]
+
+        provider = client.get(
+            "/oauth/callback?code=google-code&state=upstream", follow_redirects=False
+        )
+        assert provider.status_code == 302
+        callback = client.get(provider.headers["location"], follow_redirects=False)
+        assert callback.status_code == 302
+        assert callback.headers["location"] == "/portal/#/memories"
+
+        session = client.get("/portal/api/session")
+        assert session.status_code == 200
+        memories = client.get("/portal/api/memories")
+        assert memories.status_code == 200
+        assert memories.json() == {"memories": [], "count": 0}
+
+        shell = client.get("/portal/")
+        assert shell.status_code == 200
+        bootstrap = client.get("/portal/admin-config.js")
+        assert 'window.__UMCP_GOOGLE_LOGIN_URL__ = "/portal/login"' in bootstrap.text
 
 
 def test_oauth_audit_runner_requires_flag_and_exact_client(tmp_path) -> None:
@@ -513,6 +606,20 @@ async def test_cloud_http_calls_tools_with_verified_tenant_principal(tmp_path) -
                     tools = listed.tools
                     write = next(tool for tool in tools if tool.name == "memory.write")
                     assert "owner_id" not in write.inputSchema["properties"]
+                    capture = next(tool for tool in tools if tool.name == "memory.capture")
+                    assert "owner_id" not in capture.inputSchema["properties"]
+                    assert capture.meta["securitySchemes"][0]["type"] == "oauth2"
+
+                    captured = await client.call_tool(
+                        "memory.capture",
+                        {
+                            "content": "The user prefers concise weekly summaries",
+                            "type": "preference",
+                            "reason": "The user explicitly asked ChatGPT to remember this.",
+                        },
+                    )
+                    assert "prefers concise weekly summaries" in captured.content[0].text
+                    assert "owner_id" not in captured.content[0].text
 
                     written = await client.call_tool(
                         "memory.write",

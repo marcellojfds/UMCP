@@ -8,6 +8,7 @@ WORKDIR /app
 COPY pyproject.toml README.md alembic.ini ./
 COPY src ./src
 COPY migrations ./migrations
+COPY apps/web ./apps/web
 RUN pip install --no-cache-dir .
 
 USER 65532:65532

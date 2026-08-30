@@ -31,6 +31,9 @@ _STATE_TTL = timedelta(minutes=10)
 _CODE_TTL = timedelta(minutes=2)
 _ACCESS_TTL = timedelta(minutes=10)
 _REFRESH_TTL = timedelta(days=7)
+CHATGPT_CLIENT_ID = "https://chatgpt.com/oauth/client.json"
+CHATGPT_REDIRECT_URI = "https://chatgpt.com/connector_platform_oauth_redirect"
+PORTAL_CLIENT_ID = "umcp-portal"
 
 
 class OAuthError(PermissionError):
@@ -116,7 +119,7 @@ class OAuthConfiguration:
             or not public_client_id
             or not google_redirect_uri
             or not clients_raw
-            or len(allowed) != 1
+            or not allowed
             or not all(len(item) == _SHA256_HEX and all(char in "0123456789abcdef" for char in item) for item in allowed)
             or not _https_uri(issuer)
             or google_redirect_uri != issuer + "/oauth/callback"
@@ -158,17 +161,27 @@ class OAuthServer:
 
     def metadata(self) -> dict[str, Any]:
         base = self.config.issuer
-        return {"issuer": base, "authorization_endpoint": base + "/authorize", "token_endpoint": base + "/token", "revocation_endpoint": base + "/revoke", "response_types_supported": ["code"], "grant_types_supported": ["authorization_code", "refresh_token"], "code_challenge_methods_supported": ["S256"], "token_endpoint_auth_methods_supported": ["none"], "authorization_response_iss_parameter_supported": True, "scopes_supported": sorted(_SCOPES)}
+        return {"issuer": base, "authorization_endpoint": base + "/authorize", "token_endpoint": base + "/token", "revocation_endpoint": base + "/revoke", "response_types_supported": ["code"], "grant_types_supported": ["authorization_code", "refresh_token"], "code_challenge_methods_supported": ["S256"], "token_endpoint_auth_methods_supported": ["none"], "scopes_supported": sorted(_SCOPES), "authorization_response_iss_parameter_supported": True, "client_id_metadata_document_supported": True}
 
-    async def begin(self, client_id: str, redirect_uri: str, scope: str, state: str, challenge: str, method: str) -> str:
+    def _client_redirect_allowed(self, client_id: str, redirect_uri: str) -> bool:
+        if self.config.clients.get(client_id) == redirect_uri:
+            return True
+        if client_id == CHATGPT_CLIENT_ID:
+            return redirect_uri == CHATGPT_REDIRECT_URI
+        if client_id == PORTAL_CLIENT_ID:
+            return redirect_uri == self.config.issuer + "/portal/callback"
+        return False
+
+    async def begin(self, client_id: str, redirect_uri: str, scope: str, state: str, challenge: str, method: str, resource: str | None = None) -> str:
         requested = frozenset(scope.split())
         if (
-            self.config.clients.get(client_id) != redirect_uri
+            not self._client_redirect_allowed(client_id, redirect_uri)
             or not state
             or method != "S256"
             or not _valid_pkce_challenge(challenge)
             or not requested
             or not requested <= _SCOPES
+            or (resource is not None and resource != self.config.issuer + "/mcp")
         ):
             raise OAuthError("invalid_request")
         value = _random("st_")
@@ -208,7 +221,7 @@ class OAuthServer:
                     pkce_valid = bool(verifier) and hmac.compare_digest(_pkce(verifier), row["code_challenge"]) if row is not None else False
                 except (UnicodeError, ValueError):
                     pkce_valid = False
-                if row is None or form.get("client_id") != row["client_id"] or form.get("redirect_uri") != row["redirect_uri"] or not pkce_valid:
+                if row is None or form.get("client_id") != row["client_id"] or form.get("redirect_uri") != row["redirect_uri"] or not pkce_valid or (form.get("resource") and form.get("resource") != self.config.issuer + "/mcp"):
                     raise OAuthError("invalid_grant")
                 return await self._issue(conn, row)
         if grant == "refresh_token":

@@ -5,7 +5,14 @@ import json
 from pydantic import SecretStr
 
 from omp.config import OMPSettings
-from omp.server.oauth import OAuthConfiguration, _pkce, _valid_pkce_challenge
+from omp.server.oauth import (
+    CHATGPT_CLIENT_ID,
+    CHATGPT_REDIRECT_URI,
+    OAuthConfiguration,
+    OAuthServer,
+    _pkce,
+    _valid_pkce_challenge,
+)
 
 
 def settings(**overrides: object) -> OMPSettings:
@@ -38,12 +45,21 @@ def test_oauth_configuration_fails_closed_for_missing_or_ambiguous_values() -> N
         {"oauth_google_redirect_uri": ""},
         {"oauth_clients": ""},
         {"oauth_clients": json.dumps({"mcp-client": "http://client.example.test/callback"})},
-        {"oauth_allowed_email_sha256": "a" * 64 + "," + "b" * 64},
+        {"oauth_allowed_email_sha256": ""},
         {"oauth_allowed_email_sha256": "not-a-sha256"},
         {"public_base_url": "http://staging.example.test"},
     ]
 
     assert all(OAuthConfiguration.from_settings(settings(**case)) is None for case in invalid)
+
+
+def test_oauth_configuration_accepts_multiple_explicitly_allowed_users() -> None:
+    config = OAuthConfiguration.from_settings(
+        settings(oauth_allowed_email_sha256="a" * 64 + "," + "b" * 64)
+    )
+
+    assert config is not None
+    assert config.allowed_email_digests == frozenset({"a" * 64, "b" * 64})
 
 
 def test_oauth_configuration_rejects_google_bundle_with_different_explicit_client_id() -> None:
@@ -76,3 +92,14 @@ def test_pkce_s256_is_strict_and_does_not_accept_malformed_challenges() -> None:
     assert len(challenge) == 43
     assert not _valid_pkce_challenge(challenge + "=")
     assert not _valid_pkce_challenge("!")
+
+
+def test_chatgpt_client_metadata_id_is_bound_to_the_official_redirect() -> None:
+    config = OAuthConfiguration.from_settings(settings())
+
+    assert config is not None
+    server = OAuthServer(object(), config)  # type: ignore[arg-type]
+    assert server._client_redirect_allowed(CHATGPT_CLIENT_ID, CHATGPT_REDIRECT_URI)
+    assert not server._client_redirect_allowed(
+        CHATGPT_CLIENT_ID, "https://attacker.example.test/callback"
+    )

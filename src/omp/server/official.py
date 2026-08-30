@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import html
 import json
+import secrets
 import urllib.parse
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, MutableMapping
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, cast
 
@@ -36,12 +40,13 @@ from omp.adapters.mcp.schemas import (
     MemoryType,
     Provenance,
 )
-from omp.cloud import OIDCTokenVerifier, Scope, principal_from_access_token
+from omp.cloud import OIDCTokenVerifier, Principal, Scope, principal_from_access_token
 from omp.cloud.tenant import tenant_scope
 from omp.config import OMPSettings
-from .oauth import OAuthConfiguration, OAuthError, OAuthServer
+from omp.server.admin import export_record_payload
 
 from .composition import ServerRuntime, create_fail_closed_cloud_runtime
+from .oauth import PORTAL_CLIENT_ID, OAuthConfiguration, OAuthError, OAuthServer, _pkce
 
 
 class _ExactMCPRoute(BaseRoute):
@@ -58,12 +63,16 @@ class _ExactMCPRoute(BaseRoute):
     def __init__(self, app: Any) -> None:
         self.app = app
 
-    def matches(self, scope: dict[str, Any]) -> tuple[Match, dict[str, Any]]:
+    def matches(
+        self, scope: MutableMapping[str, Any]
+    ) -> tuple[Match, MutableMapping[str, Any]]:
         if scope["type"] == "http" and scope["path"] == "/mcp":
             return Match.FULL, scope
         return Match.NONE, {}
 
-    async def handle(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+    async def handle(
+        self, scope: MutableMapping[str, Any], receive: Any, send: Any
+    ) -> None:
         child_scope = dict(scope)
         child_scope["root_path"] = f"{scope.get('root_path', '')}/mcp"
         child_scope["path"] = "/"
@@ -176,9 +185,21 @@ def create_cloud_server(
         + "/mcp"
     )
 
+    security_schemes = [
+        {
+            "type": "oauth2",
+            "scopes": ["memory:read", "memory:write", "memory:delete"],
+        }
+    ]
     server = FastMCP(
         name="umcp-cloud",
-        instructions="Use memory tools only within the scopes granted to this integration.",
+        instructions=(
+            "UMCP stores durable user memory under the identity established by OAuth. "
+            "When the user explicitly asks you to remember something, or clearly provides a "
+            "durable preference, decision, goal, or project fact worth retaining, use "
+            "memory.capture. Do not capture secrets, credentials, or transient details. "
+            "Use memory.search before answering when prior context could materially help."
+        ),
         token_verifier=verifier,
         auth=AuthSettings(
             issuer_url=cast(AnyHttpUrl, issuer_url),
@@ -200,6 +221,7 @@ def create_cloud_server(
     @server.tool(
         name="memory.write",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        meta={"securitySchemes": security_schemes},
     )
     async def memory_write_cloud(
         content: Annotated[str, Field(min_length=1, max_length=MAX_CONTENT_LENGTH)],
@@ -212,7 +234,7 @@ def create_cloud_server(
     ) -> str:
         return await _call_cloud(runtime, "memory.write", locals(), Scope.MEMORY_WRITE)
 
-    @server.tool(name="memory.search", annotations=ToolAnnotations(readOnlyHint=True))
+    @server.tool(name="memory.search", annotations=ToolAnnotations(readOnlyHint=True), meta={"securitySchemes": security_schemes})
     async def memory_search_cloud(
         query: Annotated[str, Field(min_length=1, max_length=MAX_QUERY_LENGTH)],
         space: Annotated[str | None, Field(min_length=1, max_length=128)] = None,
@@ -224,8 +246,48 @@ def create_cloud_server(
         return await _call_cloud(runtime, "memory.search", locals(), Scope.MEMORY_READ)
 
     @server.tool(
+        name="memory.capture",
+        description=(
+            "Save one concise, durable fact from the current conversation for this signed-in "
+            "user. Use only for explicit remember requests or clearly useful long-term context."
+        ),
+        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        meta={"securitySchemes": security_schemes},
+    )
+    async def memory_capture_cloud(
+        content: Annotated[str, Field(min_length=1, max_length=MAX_CONTENT_LENGTH)],
+        type: MemoryType = "fact",
+        reason: Annotated[str | None, Field(max_length=2_000)] = None,
+        source_id: Annotated[str | None, Field(max_length=256)] = None,
+        space: Annotated[str | None, Field(min_length=1, max_length=128)] = None,
+        importance: Annotated[float, Field(ge=0, le=1)] = 0.5,
+        confidence: Annotated[float, Field(ge=0, le=1)] = 0.8,
+    ) -> str:
+        normalized = " ".join(content.split())
+        identity = source_id or "chatgpt-conversation"
+        arguments: dict[str, object] = {
+            "content": normalized,
+            "type": type,
+            "provenance": Provenance(
+                source_type="conversation",
+                captured_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                source_id=source_id,
+                source_model="chatgpt",
+                evidence=reason,
+            ),
+            "idempotency_key": "capture-" + hashlib.sha256(
+                f"{identity}\0{normalized}".encode()
+            ).hexdigest()[:48],
+            "space": space,
+            "importance": importance,
+            "confidence": confidence,
+        }
+        return await _call_cloud(runtime, "memory.write", arguments, Scope.MEMORY_WRITE)
+
+    @server.tool(
         name="memory.update",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
+        meta={"securitySchemes": security_schemes},
     )
     async def memory_update_cloud(
         id: Annotated[str, Field(min_length=1, max_length=128)],
@@ -239,6 +301,7 @@ def create_cloud_server(
     @server.tool(
         name="memory.forget",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True),
+        meta={"securitySchemes": security_schemes},
     )
     async def memory_forget_cloud(
         id: Annotated[str, Field(min_length=1, max_length=128)],
@@ -402,12 +465,12 @@ def create_cloud_http_app(
 
         @app.get("/authorize")
         @app.get("/oauth/authorize")
-        async def authorize(response_type: str, client_id: str, redirect_uri: str, scope: str, state: str, code_challenge: str, code_challenge_method: str) -> object:
+        async def authorize(response_type: str, client_id: str, redirect_uri: str, scope: str, state: str, code_challenge: str, code_challenge_method: str, resource: str | None = None) -> object:
             if response_type != "code":
                 return JSONResponse({"error": "unsupported_response_type"}, 400)
             try:
                 from fastapi.responses import RedirectResponse
-                return RedirectResponse(await oauth_server.begin(client_id, redirect_uri, scope, state, code_challenge, code_challenge_method), status_code=302)
+                return RedirectResponse(await oauth_server.begin(client_id, redirect_uri, scope, state, code_challenge, code_challenge_method, resource), status_code=302)
             except OAuthError as exc:
                 return JSONResponse({"error": exc.code}, exc.status)
 
@@ -449,6 +512,143 @@ def create_cloud_http_app(
             await oauth_server.revoke(form.get("token", ""))
             return JSONResponse({}, 200, headers={"cache-control": "no-store"})
 
+        portal_redirect = oauth_server.config.issuer + "/portal/callback"
+
+        @app.get("/portal/login", include_in_schema=False)
+        async def portal_login() -> object:
+            from fastapi.responses import RedirectResponse
+
+            state = secrets.token_urlsafe(32)
+            verifier = secrets.token_urlsafe(48)
+            challenge = _pkce(verifier)
+            redirect = await oauth_server.begin(
+                PORTAL_CLIENT_ID,
+                portal_redirect,
+                "memory:read memory:write memory:delete",
+                state,
+                challenge,
+                "S256",
+                oauth_server.config.issuer + "/mcp",
+            )
+            attempt = base64.urlsafe_b64encode(
+                json.dumps({"state": state, "verifier": verifier}, separators=(",", ":")).encode()
+            ).decode().rstrip("=")
+            response = RedirectResponse(redirect, status_code=302)
+            response.set_cookie(
+                "umcp_portal_attempt",
+                attempt,
+                max_age=600,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/",
+            )
+            return response
+
+        @app.get("/portal/callback", include_in_schema=False)
+        async def portal_callback(request: Request, code: str = "", state: str = "", iss: str = "") -> object:
+            from fastapi.responses import RedirectResponse
+
+            raw_attempt = request.cookies.get("umcp_portal_attempt", "")
+            try:
+                decoded = base64.urlsafe_b64decode(raw_attempt + "=" * (-len(raw_attempt) % 4))
+                attempt = json.loads(decoded)
+                if not code or state != attempt["state"] or iss != oauth_server.config.issuer:
+                    raise ValueError
+                issued = await oauth_server.token(
+                    {
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "client_id": PORTAL_CLIENT_ID,
+                        "redirect_uri": portal_redirect,
+                        "code_verifier": attempt["verifier"],
+                        "resource": oauth_server.config.issuer + "/mcp",
+                    }
+                )
+                access_token = str(issued["access_token"])
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError, OAuthError):
+                return JSONResponse({"error": "invalid_login"}, 400, headers={"cache-control": "no-store"})
+            response = RedirectResponse("/portal/#/memories", status_code=302)
+            response.delete_cookie("umcp_portal_attempt", path="/")
+            response.set_cookie(
+                "umcp_portal_session",
+                access_token,
+                max_age=600,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/portal",
+            )
+            response.headers["cache-control"] = "no-store"
+            response.headers["referrer-policy"] = "no-referrer"
+            return response
+
+        async def portal_principal(request: Request) -> Principal | None:
+            access = request.cookies.get("umcp_portal_session", "")
+            verified = await oauth_server.verify_token(access) if access else None
+            if verified is None:
+                return None
+            try:
+                principal = principal_from_access_token(verified)
+                principal.requires(Scope.MEMORY_READ)
+            except PermissionError:
+                return None
+            return principal
+
+        @app.get("/portal/api/session", include_in_schema=False)
+        async def portal_session(request: Request) -> object:
+            principal = await portal_principal(request)
+            if principal is None:
+                return JSONResponse({"error": "authentication_required"}, 401)
+            return {
+                "subject_id": str(principal.subject_id),
+                "tenant_id": str(principal.tenant_id),
+                "expires_at": principal.expires_at.isoformat(),
+            }
+
+        async def portal_memories_for(
+            request: Request,
+        ) -> tuple[Principal, list[dict[str, Any]]] | None:
+            principal = await portal_principal(request)
+            if principal is None or runtime.service is None:
+                return None
+            owner_id = f"cloud:{principal.tenant_id}:{principal.subject_id}"
+            with tenant_scope(principal.tenant_id):
+                if hasattr(runtime.service, "list_records"):
+                    memories = list(runtime.service.list_records(owner_id=owner_id))
+                else:
+                    records = await runtime.service.export_memories(owner_id=owner_id)
+                    memories = [export_record_payload(record) for record in records]
+            for memory in memories:
+                memory.pop("owner_id", None)
+            return principal, memories
+
+        @app.get("/portal/api/memories", include_in_schema=False)
+        async def portal_memories(request: Request) -> object:
+            result = await portal_memories_for(request)
+            if result is None:
+                return JSONResponse({"error": "authentication_required"}, 401)
+            _, memories = result
+            return {"memories": [{"memory": item} for item in memories], "count": len(memories)}
+
+        @app.get("/portal/api/memories/{memory_id}", include_in_schema=False)
+        async def portal_memory(request: Request, memory_id: str) -> object:
+            result = await portal_memories_for(request)
+            if result is None:
+                return JSONResponse({"error": "authentication_required"}, 401)
+            _, memories = result
+            memory = next((item for item in memories if item["id"] == memory_id), None)
+            return memory if memory is not None else JSONResponse({"error": "not_found"}, 404)
+
+        @app.post("/portal/api/logout", include_in_schema=False)
+        async def portal_logout(request: Request) -> object:
+            token_value = request.cookies.get("umcp_portal_session", "")
+            if token_value:
+                await oauth_server.revoke(token_value)
+            response = JSONResponse({}, 200, headers={"cache-control": "no-store"})
+            response.delete_cookie("umcp_portal_session", path="/portal")
+            return response
+
         if runtime.settings.oauth_audit_runner_enabled and len(audit_clients) == 1:
             audit_client_id = audit_clients[0]
 
@@ -471,19 +671,19 @@ def create_cloud_http_app(
             async def oauth_audit_runner() -> object:
                 # This page deliberately generates PKCE material in browser memory. It
                 # never serializes a token, code, state, or identity into HTML/logs.
-                script = f"""
+                script = """
 const b64 = (bytes) => btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 const result = document.getElementById('result');
-(async () => {{
+(async () => {
   const verifier = b64(crypto.getRandomValues(new Uint8Array(48)));
   const state = b64(crypto.getRandomValues(new Uint8Array(32)));
   const challenge = b64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
-  sessionStorage.setItem('umcp_h07_audit', JSON.stringify({{state, verifier}}));
-  const response = await fetch('/oauth/audit/start', {{method:'POST', headers:{{'content-type':'application/json'}}, body:JSON.stringify({{state, code_challenge:challenge}})}});
+  sessionStorage.setItem('umcp_h07_audit', JSON.stringify({state, verifier}));
+  const response = await fetch('/oauth/audit/start', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({state, code_challenge:challenge})});
   const body = await response.json();
   if (!response.ok || typeof body.redirect !== 'string') throw new Error('authorization_start_failed');
   location.replace(body.redirect);
-}})().catch(() => {{ result.textContent = 'FAIL authorization_start'; }});
+})().catch(() => { result.textContent = 'FAIL authorization_start'; });
 """
                 return audit_page(script)
 
@@ -575,6 +775,21 @@ const result = document.getElementById('result');
             )
 
         app.mount("/web", StaticFiles(directory=str(web_directory), html=True), name="web")
+        if oauth_server is not None:
+            @app.get("/portal/admin-config.js", include_in_schema=False)
+            async def portal_admin_config() -> Response:
+                return Response(
+                    'window.__UMCP_ADMIN_API_BASE_URL__ = "/portal";\n'
+                    'window.__UMCP_GOOGLE_LOGIN_URL__ = "/portal/login";\n',
+                    media_type="application/javascript",
+                    headers={"cache-control": "no-store"},
+                )
+
+            app.mount(
+                "/portal",
+                StaticFiles(directory=str(web_directory), html=True),
+                name="portal",
+            )
 
     # This must be registered after the non-MCP routes, while still matching
     # the exact public endpoint rather than Starlette's trailing-slash mount.
@@ -594,7 +809,13 @@ def create_fail_closed_cloud_http_app(settings: OMPSettings | None = None) -> ob
     if config is None or runtime.engine is None:
         return create_cloud_http_app(runtime, RejectUnconfiguredOIDCVerifier())
     oauth = OAuthServer(runtime.engine, config)
-    return create_cloud_http_app(runtime, oauth, oauth_server=oauth)
+    web_directory = Path.cwd() / "apps" / "web"
+    return create_cloud_http_app(
+        runtime,
+        oauth,
+        oauth_server=oauth,
+        web_directory=web_directory if web_directory.is_dir() else None,
+    )
 
 
 __all__ = [

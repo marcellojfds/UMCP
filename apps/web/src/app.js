@@ -489,6 +489,14 @@ function wireLogin() {
   const adapter = getAuthAdapter();
   const admin = getAdminAdapter();
   if (!form || !status || !google) return;
+  const hostedGoogle = globalThis.__UMCP_GOOGLE_LOGIN_URL__;
+  if (typeof hostedGoogle === "string" && /^\/(?![\\/])/.test(hostedGoogle)) {
+    form.hidden = true;
+    document.querySelector(".or-divider")?.setAttribute("hidden", "");
+    status.textContent = "Redirecting to secure Google sign-in…";
+    google.addEventListener("click", () => { location.assign(hostedGoogle); });
+    return;
+  }
 
   const start = async (method, email) => {
     if (method === "google" && admin.status === "ready" && adapter.mode === "fixture") {
