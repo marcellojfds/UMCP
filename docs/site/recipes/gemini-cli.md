@@ -1,7 +1,8 @@
-# Gemini CLI recipe (not yet verified)
+# Gemini CLI recipe
 
-For Community, configure the local stdio server using the current Gemini CLI
-configuration format. For Cloud, use `httpUrl` only if the current official
-client supports it and the endpoint is authenticated. Run the generic lifecycle
-and record refresh behavior and destructive-action presentation. Gemini consumer
-web/mobile is not implied by this recipe.
+**Status:** not verified. The Gemini Spark consumer result does not establish
+Gemini CLI support.
+
+For Community development, configure the local stdio MCP using the current
+Gemini CLI format. For hosted use, verify that the current CLI supports the
+required remote HTTP/OAuth flow, then run a separate dated lifecycle report.

@@ -1,6 +1,6 @@
 ---
 title: 03 — Implementar identidade, consentimento e revogação
-status: ready-after-02
+status: historical-superseded
 order: 3
 owner: Terra high, Luna high para UX
 depends_on: 02-REMOTE-MCP-TRANSPORT.md

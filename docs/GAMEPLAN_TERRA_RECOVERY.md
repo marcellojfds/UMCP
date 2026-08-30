@@ -1,5 +1,9 @@
 # OMP Alpha — Terra Recovery Gameplan
 
+> **Gameplan histórico.** A investigação de thresholds ajudou a identificar o
+> defeito atual, mas estas instruções não são mais uma fila ativa. Consulte
+> [`known-issues.md`](known-issues.md).
+
 **Criado em:** 2026-08-20
 **Executor recomendado:** `gpt-5.6-terra`
 **Reasoning recomendado:** `xhigh` para as fases de eval/arquitetura; `high`

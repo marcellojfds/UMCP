@@ -1,5 +1,10 @@
 # Autonomous Codex coordination
 
+> **Historical coordination runbook.** Its old board path, worktree, active
+> milestone, and authorization statements are archived. New coordination must
+> start from `docs/CURRENT_STATE.md`, `GOAL-PROGRESS.md`, and
+> `coordination/ROADMAP-MANAGER.md`.
+
 The coordination system has three layers:
 
 1. Git handoffs and tested SHAs are the source of truth.

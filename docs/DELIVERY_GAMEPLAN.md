@@ -1,6 +1,10 @@
 # Gameplan de entrega — Alpha v0 do Open Memory Protocol
 
-**Status:** Fase R implementada; Fases Q/A planejadas e pendentes
+> **Plano histórico de 2026-08-20.** Seus status e próximos passos foram
+> substituídos por [`CURRENT_STATE.md`](CURRENT_STATE.md) e
+> [`roadmap.md`](roadmap.md).
+
+**Status histórico naquele momento:** Fase R implementada; Fases Q/A planejadas e pendentes
 **Baseline verificada em:** 2026-08-20
 **Objetivo:** levar o estado atual a uma entrega pública local/self-hosted, reproduzível e honesta, sem confundir o Alpha v0 com a visão completa do manifesto.
 

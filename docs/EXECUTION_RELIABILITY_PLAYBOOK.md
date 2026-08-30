@@ -1,8 +1,8 @@
 ---
 title: UMCP Codex Execution Reliability Playbook
-status: accepted
+status: historical
 confidence: confirmed
-implementation_status: proposed
+implementation_status: superseded
 applies_to_branch: terra-alpha-recovery
 evidence_branch: product/integration
 evidence_revision: 1bd460e
@@ -13,6 +13,10 @@ workstreams:
   - operations
   - agent-execution
 ---
+
+> **Historical execution playbook.** Its process lessons remain useful, but
+> branch names and active-state instructions are superseded by
+> [`CURRENT_STATE.md`](CURRENT_STATE.md) and `coordination/ROADMAP-MANAGER.md`.
 
 # UMCP — playbook de execução confiável pelo Codex
 
@@ -341,4 +345,3 @@ independente.
 - Uma branch local integrada não é main, release nem produção.
 - Evidência histórica continua útil, mas precisa ser repetida no candidato
   final quando paths relevantes mudarem.
-

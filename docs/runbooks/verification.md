@@ -1,78 +1,44 @@
-# Verification lane runbook
+# Verification runbook
 
-Run every phase from `/private/tmp/umcp-roadmap-verification` on
-`roadmap/luna-verification`.
+## Current local gates
 
-## Preflight
+From a clean worktree:
 
-```sh
-scripts/assert-worktree-context --require-clean
-scripts/capability-preflight --json docs/handoffs/roadmap/capability-preflight.json
+```bash
+./scripts/gate-fast
+./scripts/gate-postgres
+cd apps/web && npm test
 ```
 
-The capability report distinguishes missing tools and daemon/browser limits
-from product failures. A browser gate is never marked pass from a static render
-or a local-file navigation attempt.
+Use synthetic data. A skipped required dependency or missing PostgreSQL/
+pgvector environment is not a passing result.
 
-## Independent demos
+## Documentation checks
 
-```sh
-scripts/demo-local-integration
-scripts/demo-cross-client-memory
-scripts/demo-memory-inbox
-scripts/demo-concepts-and-notes
-scripts/demo-backup-delete-restore
+```bash
+git diff --check
+./scripts/assert-doc-links-claims
 ```
 
-All five demos use disposable synthetic state, print identifiers/status only,
-and return non-zero on assertion failure. The fixture is a harness test, not
-evidence that Core has implemented the behavior.
+The current status source is `docs/CURRENT_STATE.md`. Historical handoffs and
+eval reports remain evidence for their own date/SHA only.
 
-## Gate freshness
+## Hosted acceptance
 
-```sh
-scripts/check-gate-freshness docs/handoffs/roadmap/GATE-FRESHNESS.json --markdown
-```
+For an explicitly authorized staging run, record:
 
-Use only `current`, `historical`, `not-run`, or `environment-blocked`. Every
-row needs the SHA that was actually tested and a reason when it was not run or
-was blocked.
+- exact source SHA, image digest, revision, endpoint, date, and client surface;
+- OAuth discovery and callback result without codes/tokens;
+- tool list and scoped lifecycle result without memory payloads;
+- owner-isolation, refresh, expiry, revocation, and destructive-action result;
+- portal visibility for the same owner; and
+- cross-surface recall with a synthetic memory.
 
-## Stagnation
+The current P0 acceptance must prove a plain-language ChatGPT write followed by
+a plain-language Gemini Spark recall **without** setting `min_relevance`.
 
-```sh
-scripts/detect-stagnation path/to/event-log.json
-```
+## Historical verification tooling
 
-Exit 1 is an intervention signal, not a product failure: stop adding features,
-reduce to a minimal reproducer, checkpoint, try a safe alternative and update
-the milestone contract.
-
-## Integration synchronization
-
-```sh
-scripts/assert-roadmap-integration-ready --milestone M00
-```
-
-Exit 2 means `roadmap/integration` has not published
-`docs/handoffs/roadmap/M00-INTEGRATED.md`; it is a deliberate waiting state,
-not a green acceptance. Exit 1 means the handoff exists but is structurally
-incomplete. Only exit 0 permits the Verification lane to synchronize and rerun
-the next candidate.
-
-For the full M00 coordination audit across refs:
-
-```sh
-scripts/assert-m00-branch-handoffs
-```
-
-This command reads Git refs without checking out another worktree. It reports
-which Core, Experience, Verification and Integration handoffs exist; missing
-integration is `WAITING`/exit 2.
-
-## Ownership and claims
-
-Do not edit `src/omp`, migrations, `apps/web`, SDK implementation, auth/crypto/RLS
-or product copy. Findings go to
-`docs/handoffs/roadmap/findings/<milestone>-<id>.md`. No holdout, push, PR,
-deploy, real data, compromised secret, paid service or independent GO.
+Scripts and reports under `docs/handoffs/roadmap/` capture earlier milestones.
+They are useful regression inputs but their old branch/worktree instructions
+must not be resumed as current operations.

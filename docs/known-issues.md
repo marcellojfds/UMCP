@@ -1,44 +1,86 @@
-# Known issues and release blockers
+# Known issues
 
-These are intentionally visible in the `0.1.0a1` release-candidate
-documentation.
+**Updated:** 2026-08-30
+**Applies to:** private staging MVP at source
+`1233b221fd89edb1691bd6bd09c2d21eee4822bf`
 
-## Evidence blockers
+## P0 — retrieval threshold hides relevant memories
 
-- The corrected S08 handoff is present and is an explicit NO-GO: E5
-  `precision@5=0.756` on development with the frozen `0.78` threshold. The
-  holdout remains sealed and no semantic quality or Gate B GO may be claimed.
-- The separately authorized BGE S08-R3 experiment is also an explicit NO-GO:
-  `precision@5=0.000` on development with normalized CLS pooling and the
-  model-card query instruction. BGE was not integrated into runtime or
-  PostgreSQL/gateway.
-- S05-R2, holdout, clean committed SHA, remote CI/settings, and final S07-R2
-  evidence remain release gates; local package/SBOM/vulnerability gates now
-  pass in disposable environments.
-- The constraints file is verified only for Python 3.11 on macOS arm64; other
-  platforms and a clean build environment remain unverified.
-- GitHub Private Vulnerability Reporting was selected as the channel, but this
-  local session cannot enable or verify repository settings.
+`memory.search` defaults to `min_relevance=0.78`. In the verified Gemini Spark
+journey, searches for `cor` and `cor favorita` returned no result at the
+default. The same query returned the correct stored preference with
+`min_relevance=0.0`.
 
-## Product limitations
+Impact: a connected client can appear unable to share memory even though OAuth,
+owner binding, storage, and MCP calls are working.
 
-- `owner_id` is client-provided and trusted in local stdio composition. It is
-  logical scoping, not authentication or authorization; hosted multi-tenant
-  use is unsupported.
-- Memory content, provenance, evidence, relations, exports, backups, and
-  embeddings are sensitive. The operator can read database/process/files;
-  embeddings are not anonymous. Default exports omit vectors but are not safe
-  to share by default.
-- The project does not provide E2EE, zero knowledge, hosted auth, tenant
-  isolation, or a claim of scale. The file-backed demo is not production
-  evidence.
-- MCP transport support is stdio only. HTTP health/readiness is not an MCP
-  endpoint, and other language SDKs are not provided.
+Temporary diagnostic workaround:
 
-## Next decision points
+```text
+Use only Umcp Cloud memory.search with query "cor favorita", limit 10,
+and min_relevance 0.0.
+```
 
-The maintainer must review S04/S05 evidence when available, complete S07's
-clean-room audit, verify the security channel, and decide whether this remains
-an engineering preview or is eligible for a GitHub Release. A new semantic
-experiment must be authorized separately before any holdout execution. No
-publication is authorized.
+This workaround is not the intended user experience. The fix requires profile-
+specific calibration plus positive and abstention regressions.
+
+## P1 — capture provenance is ChatGPT-specific
+
+Hosted `memory.capture` currently writes `source_model="chatgpt"` for every
+caller. A capture initiated by Gemini would therefore be mislabeled.
+
+Until fixed, provenance identifies the UMCP conversation capture path but must
+not be used to attribute the client reliably.
+
+## P1 — Gemini custom apps require Spark
+
+The tested Gemini consumer integration is available under Gemini Spark, not
+the normal Gemini chat surface. The user must type `@`, select **Umcp Cloud**,
+and approve the requested tool action. Vague prompts may cause Spark to search
+other connected Google apps.
+
+For deterministic testing, explicitly say to use only `Umcp Cloud`.
+
+## P1 — staging access is allowlisted
+
+The Google OAuth server currently allows only the configured maintainer email
+digest. Other users will receive an authorization denial. This is intentional
+for private staging and must be replaced by an approved beta enrollment policy
+before invitations.
+
+## P1 — portal session is short-lived
+
+Portal access uses a short-lived UMCP access token stored in a Secure,
+HttpOnly cookie. The current portal does not rotate its session automatically;
+the user may need to sign in again after expiry.
+
+## P2 — incomplete client coverage
+
+- ChatGPT and Gemini have maintainer-account evidence only.
+- Claude has no equivalent current real-client report.
+- Gemini normal chat, Gemini CLI, Gemini API/ADK, Claude Desktop/Code, and
+  published marketplace applications must be evaluated separately.
+
+## P2 — repository quality gates are not green
+
+The documentation reconciliation on 2026-08-30 produced these results:
+
+- Markdown link/claim check: pass across 229 files;
+- portal web tests: 12 passed;
+- Python unit and contract suite: 147 passed and 5 failed;
+- `gate-fast`: blocked by 126 existing Ruff findings; and
+- `mypy src`: blocked by 32 existing type errors.
+
+Three Python failures require the optional M1 HTTP endpoint configured by
+`M1_HTTP_URL`. The other two expose unresolved M1 Streamable HTTP contract
+regressions: the exact `/mcp` test receives 404 and the rerunnable lifecycle
+test terminates its session. These are pre-existing implementation debt, not
+documentation-check failures, and must not be represented as a green release
+gate.
+
+## Non-claims
+
+UMCP staging is not production, E2EE, zero knowledge, universally compatible,
+or a public beta. Operators with authorized access to the service, database,
+keys, exports, or backups may be able to access plaintext. Embeddings are not
+anonymous.

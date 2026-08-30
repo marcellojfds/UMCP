@@ -1,9 +1,12 @@
-# Threat-model delta — H01 GCP-targeted architecture
+# Threat-model delta — H01 GCP-targeted architecture (historical)
 
-**Status:** `design delta / no remote verification`
+**Status:** `historical-design-delta / superseded-by-staging-evidence`
 
 This delta supplements `threat-model-hosted-v1.md`. It does not reduce any
-existing no-go condition and does not prove that a GCP control exists.
+existing no-go condition. It records the risks considered before deployment;
+use [`CURRENT_STATE.md`](CURRENT_STATE.md) and
+[`threat-model-hosted-v1.md`](threat-model-hosted-v1.md) for the current private
+staging boundary.
 
 | GCP-specific threat | Required architectural control | Evidence required later | No-go condition |
 | --- | --- | --- | --- |
@@ -15,6 +18,6 @@ existing no-go condition and does not prove that a GCP control exists.
 | restore resurrects deletes | encrypted backup inventory, isolated restore, tombstone replay before traffic | H06/H07 restore exercise | traffic before tombstone/revision/RLS/key validation |
 | cost or control-plane abuse | CP-1 budget/owner/blast radius and CP-3 audit/rotation/break-glass decisions | approved budget signals and H07 exercise | paid resource or IAM/KMS action without checkpoint |
 
-The residual v1 risk remains server-decryptable operator access. No E2EE,
-zero-knowledge, universal-encryption, residency, staging, or production claim
-is allowed from this delta.
+The residual v1 risk remains server-decryptable operator access. This delta by
+itself proves no deployed control. It does not support E2EE, zero-knowledge,
+universal-encryption, residency, or production claims.

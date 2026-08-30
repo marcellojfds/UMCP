@@ -1,6 +1,6 @@
 ---
 title: 05 — Comprovar conectores em clientes reais
-status: ready-after-04
+status: historical-partially-completed
 order: 5
 owner: Luna high, Terra para correções de gateway
 depends_on: 04-MULTITENANCY-SECURITY.md

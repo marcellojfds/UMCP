@@ -1,6 +1,6 @@
 ---
 title: 04 — Fechar multi-tenancy, criptografia e recuperação
-status: ready-after-03
+status: historical-superseded
 order: 4
 owner: Terra high
 depends_on: 03-AUTH-CONSENT-REVOCATION.md

@@ -1,91 +1,64 @@
-# Protocolo MCP v0
+# UMCP protocol reference
 
-## Transporte e handshake
+UMCP has two protocol surfaces that share the application core but use
+different identity contracts.
 
-O Alpha v0 suporta somente MCP sobre stdio. O servidor usa o pacote oficial
-`mcp` instalado no projeto; clientes usam `ClientSession` e `stdio_client`.
-O protocolo MCP negociado pelo SDK instalado é `2025-11-25`. A versão do
-contrato OMP é independente e aparece em toda resposta como
-`protocol_version: "omp.mcp.v0"`, junto de um `request_id`.
+## Hosted Cloud MCP
 
-O endpoint HTTP existente, quando habilitado pela aplicação, expõe apenas
-`/healthz` e `/readyz`. Não é um endpoint MCP Streamable HTTP suportado.
+- Transport: MCP Streamable HTTP at exact path `/mcp`.
+- Authentication: UMCP OAuth discovery, authorization code + PKCE, scoped
+  UMCP access/refresh tokens.
+- Identity: derived from verified token claims; hosted tools reject client
+  `owner_id` and `tenant_id`.
+- Tools: `memory.write`, `memory.search`, `memory.capture`, `memory.update`,
+  `memory.forget`.
+- Contract reference: [`contracts/mcp/v1/`](contracts/mcp/v1/).
 
-## Tools
+The public endpoint is stateless. `/mcp/` is not an alias for `/mcp`, avoiding
+redirect and proxy-scheme ambiguity. Health/readiness use `/healthz` and
+`/readyz` and never expose configuration or identity.
 
-As únicas tools são `memory.write`, `memory.search`, `memory.update` e
-`memory.forget`. Os schemas machine-readable em
-[`docs/contracts/mcp/v0`](contracts/mcp/v0/) são o snapshot versionado de
-[`schemas.py`](../src/omp/adapters/mcp/schemas.py). Todos os objetos rejeitam
-campos desconhecidos (`additionalProperties: false`).
+## Local Community MCP
 
-Limites públicos: conteúdo 16.384 caracteres, query 4.096, `limit` máximo 50,
-timeout máximo 5.000 ms e timeout default 2.500 ms. `min_relevance` default é
-0.78. A validação ocorre antes do application service; cancelamento propaga a
-cancelled task e timeout vira `dependency_unavailable`.
+- Transport: official MCP Python SDK over stdio.
+- Identity: trusted caller-provided `owner_id`.
+- Tools: `memory.write`, `memory.search`, `memory.update`, `memory.forget`.
+- Compatibility envelope: `omp.mcp.v0`.
+- Contract reference: [`contracts/mcp/v0/`](contracts/mcp/v0/).
 
-`owner_id` vindo do payload só é aceito na composição local/stdio sem auth.
-Uma composição hosted deve injetar um principal confiável e rejeitar esse
-campo no boundary.
+The local composition is not an authentication boundary and must not be
+exposed directly to untrusted users.
 
-## Respostas e erros
+## Shared behavior
 
-Sucesso tem a forma `{protocol_version, request_id, ok: true, data}`. Erros
-públicos são estáveis: `validation_error`, `not_found`, `version_conflict`,
-`forbidden`, `rate_limited`, `dependency_unavailable` e `internal_error`.
-Mensagens são genéricas: não incluem conteúdo, query, SQL, stack trace,
-secrets, owner bruto, IDs brutos ou existência cross-owner.
+- Unknown fields are rejected.
+- Content limit: 16,384 characters.
+- Query limit: 4,096 characters.
+- Search result limit: 50.
+- `update` requires `expected_version`.
+- Write/update/forget are idempotency-aware.
+- Search with no result is a successful response with count zero.
+- Public errors use stable codes and omit SQL, stack traces, tokens, raw
+  identity, memory content, and queries.
 
-Busca sem resultados é sucesso com `data.count == 0`. `update` exige
-`expected_version`. `forget` não retorna a memória apagada e é representado
-como `forgotten` ou `already_absent`. `reason_retrieved` é o texto
-determinístico fornecido pelo core; o adapter não executa chain-of-thought nem
-cria explicações quando o core já fornece uma.
+`memory.search` currently defaults to `min_relevance=0.78`. This is a known
+calibration defect in the private staging user journey; see
+[`known-issues.md`](known-issues.md).
 
-## Descoberta
+## Hosted OAuth metadata
 
-`initialize`/`tools/list` são os métodos oficiais MCP. A descoberta OMP expõe
-`protocol_version`, `request_id`, `mcp_protocol_version`, `transport: "stdio"`,
-as quatro tools e os limites. O status do CLI também informa o backend
-selecionado (`postgres` por default ou `demo` quando explicitamente pedido),
-sem expor a URL de conexão.
+- `/.well-known/oauth-protected-resource`
+- `/.well-known/oauth-protected-resource/mcp`
+- `/.well-known/oauth-authorization-server`
+- `/authorize`
+- `/token`
+- `/revoke`
 
-## Execução
+Supported scopes are `memory:read`, `memory:write`, and `memory:delete`.
 
-Postgres exige `OMP_DATABASE_URL`, extensão pgvector e migration head aplicado
-(`0004_semantic_source_version` no estado experimental atual).
-Execute migrations separadamente antes de iniciar o servidor:
+## Administrative export/import
 
-```bash
-OMP_DATABASE_URL='postgresql+asyncpg://...' alembic upgrade head
-OMP_DATABASE_URL='postgresql+asyncpg://...' PYTHONPATH=src python -m omp.server
-```
-
-Para um harness local explicitamente rotulado:
-
-```bash
-PYTHONPATH=src python -m omp.server --demo-backend --data-file /tmp/omp-demo.json
-```
-
-## Export/import
-
-`omp.export.v0` é um documento aberto e versionado. O export é sempre
-owner-scoped no backend PostgreSQL e exige `--owner-id`; o conteúdo não inclui
-vetores por default. O documento preserva o perfil de embedding, histórico,
-relações e fingerprint de escrita necessários para um replay fiel, sem
-serializar o vetor. `omp import --dry-run` valida o pacote localmente e não
-abre uma transação de mutação. O import efetivo valida todos os registros
-antes de chamar `MemoryApplicationService.import_memories`, executa uma única
-operação transacional e retorna `imported: 0` para replay idempotente.
-
-```bash
-OMP_DATABASE_URL='postgresql+asyncpg://...' PYTHONPATH=src \
-  python -m omp.cli --json export /tmp/omp-export.json --owner-id owner-a
-PYTHONPATH=src python -m omp.cli --json import --dry-run /tmp/omp-export.json
-OMP_DATABASE_URL='postgresql+asyncpg://...' PYTHONPATH=src \
-  python -m omp.cli --json import /tmp/omp-export.json
-```
-
-Conflito com uma memória existente retorna `version_conflict`; pacote mal
-formado ou incompatível retorna `validation_error`. A flag administrativa que
-o SDK usa é um caminho local do CLI, não uma quinta tool MCP.
+`omp.export.v0` remains a local administrative format. Exports are owner-
+scoped and omit embeddings by default, but the file, history, provenance, and
+relations remain sensitive. Export/import is not an additional hosted MCP
+tool in the current MVP.

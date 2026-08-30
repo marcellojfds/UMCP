@@ -1,6 +1,6 @@
 ---
 title: 02 — Implementar o transporte MCP remoto
-status: ready-after-01
+status: historical-superseded
 order: 2
 owner: Terra high
 depends_on: 01-BASELINE-LOCAL-MCP.md

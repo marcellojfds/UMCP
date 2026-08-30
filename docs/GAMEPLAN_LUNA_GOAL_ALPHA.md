@@ -1,5 +1,8 @@
 # OMP Alpha — Gameplan de execução contínua com GPT-5.6 Luna e `/goal`
 
+> **Gameplan histórico.** Não execute este prompt nem retome seus worktrees.
+> Use [`CURRENT_STATE.md`](CURRENT_STATE.md) e [`roadmap.md`](roadmap.md).
+
 **Criado em:** 2026-08-20
 **Executor planejado:** `gpt-5.6-luna`
 **Modo recomendado:** reasoning `high`

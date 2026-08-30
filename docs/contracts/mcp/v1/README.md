@@ -1,11 +1,13 @@
-# MCP connector contract v1 — local conformance preflight
+# MCP connector contract v1 — conformance foundation
 
-**Status:** `local-synthetic-preflight`
+**Status:** `implemented-hosted-mapping + local-synthetic-fixture`
 
 This is a transport-neutral contract for the minimum connector journey used by
-M03-W0 preflight. It is intentionally exercised by typed fixtures and a local
-adapter in `examples/connectors/`; it is not a hosted endpoint or an OAuth
-implementation.
+the original M03-W0 preflight. Its typed fixtures and local adapter remain in
+`examples/connectors/` as deterministic conformance tests. The current private
+staging MCP maps the memory operations to hosted Streamable HTTP and OAuth; the
+fixture itself is still neither an endpoint nor an OAuth implementation. See
+[`../../../CURRENT_STATE.md`](../../../CURRENT_STATE.md) for the deployed boundary.
 
 The journey is:
 
@@ -27,11 +29,10 @@ The machine-readable files are:
 
 ## Boundary and labels
 
-`tested` means tested against the deterministic local adapter only. It does not
-mean a real client or provider is supported. `not-tested` is an explicit list
-of claims this preflight must not make: real ChatGPT/Claude/Gemini behavior,
-OAuth or hosted authentication, network transport, M02 implementation
-compatibility, production authorization, or deployment.
+Inside the machine-readable fixture, `tested` still means tested against the
+deterministic local adapter only. Provider and hosted compatibility claims must
+come from separate end-to-end evidence recorded in the current-state and
+support-matrix documents, never from these fixture labels.
 
 The adapter uses opaque synthetic identifiers and fixed UTC timestamps. It does
 not use secrets, PII, network calls, product imports, GCP paths, or hosted
@@ -46,6 +47,6 @@ connection-scoped: revoking `conn-chatgpt-sim` must not revoke
 `conn-claude-sim` in the same synthetic tenant. A different tenant must receive
 zero results even when it has the same scopes.
 
-The contract is independent of the M02 implementation. M03 work may map these
-operations to a real boundary later; that mapping is a dependency and is not
-claimed by this preflight.
+The contract remains implementation-independent. Hosted mappings may evolve
+without rewriting the fixture, provided their scope, consent, isolation,
+idempotency and revocation semantics stay compatible.

@@ -65,9 +65,10 @@ memórias.
 
 ## Health/readiness
 
-O app FastAPI opcional expõe somente `/healthz` (liveness) e `/readyz`
-(Postgres/pgvector/migration readiness). Nenhum deles retorna configuração,
-secrets, owner, IDs ou conteúdo. O HTTP não é transporte MCP suportado.
+O app Cloud expõe `/healthz` (liveness), `/readyz`
+(Postgres/pgvector/migration readiness) e o MCP Streamable HTTP autenticado em
+`/mcp`. O processo local stdio deste runbook continua separado. Health e
+readiness não retornam configuração, secrets, owner, IDs ou conteúdo.
 
 ## Diagnóstico
 

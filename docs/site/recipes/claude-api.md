@@ -1,7 +1,8 @@
-# Claude API recipe (not yet verified)
+# Claude acceptance recipe
 
-Use the current official Claude MCP connector documentation and a clean test
-tenant. Configure only the authorized remote endpoint, complete the supported
-bearer/OAuth path, and run the generic conformance lifecycle. Record exact
-client/version/date, granted scopes, tool annotations, redacted errors, and
-revocation. Claude Desktop/Code must receive a separate report from Claude API.
+**Status:** planned, not verified.
+
+Select one currently documented Claude MCP surface and run the same private
+staging journey: OAuth, tool discovery, capture/write, search, update, forget,
+revocation, and cross-surface recall. Claude Desktop, Claude Code, and Claude
+API are separate surfaces and require separate evidence.

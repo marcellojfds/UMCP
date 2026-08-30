@@ -1,5 +1,9 @@
 # UMCP — gameplan de produtização com Terra + Luna
 
+> **Gameplan histórico de 2026-08-21.** A visão continua como referência, mas
+> prioridades e estado foram substituídos por [`roadmap.md`](roadmap.md) e
+> [`CURRENT_STATE.md`](CURRENT_STATE.md).
+
 **Documento:** plano executivo de produto, arquitetura, segurança, open source e lançamento
 **Data-base:** 2026-08-21
 **Marca de trabalho:** **UMCP — Open Memory Protocol**

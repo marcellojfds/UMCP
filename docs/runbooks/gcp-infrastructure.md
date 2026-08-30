@@ -1,58 +1,51 @@
-# H02 GCP infrastructure review runbook
+# GCP staging operations
 
-**Status:** `local-review-only / provider actions blocked`
+**Status:** private staging exists; checked-in deployment automation remains
+fail-closed.
+**Environment:** `umcp-mcp-staging-20260825`, `us-central1`.
 
-## Purpose
+## Current deployment identity
 
-This runbook reviews the H02 Terraform and pipeline boundary without contacting
-GCP. It does not establish a project, billing account, identity, network,
-secret, KMS key, state bucket, Cloud Run service, Cloud SQL instance, staging,
-or production environment.
+The canonical current values live in [Current state](../CURRENT_STATE.md).
+Before any investigation, compare Cloud Run's active revision, image digest,
+and `source_sha` label with that file. Do not infer the current service from an
+older H07/T02 handoff.
 
-## Local review
+## Safe read-only checks
 
-Run from a clean H02 worktree:
+```bash
+gcloud run services describe umcp-cloud-staging \
+  --project umcp-mcp-staging-20260825 \
+  --region us-central1
 
-```text
-./scripts/validate-gcp-local
-terraform fmt -check -recursive ops/terraform/gcp
-git diff --check
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="umcp-cloud-staging"' \
+  --project umcp-mcp-staging-20260825 --limit=100
 ```
 
-The first command is the acceptance gate. It rejects unsafe public access,
-static keys, public SQL, local database endpoints, mutable/literal runtime
-secrets, imperative provider commands, and missing controls. `terraform fmt`
-is formatting-only. `validate` requires initialized provider plugins and is
-therefore intentionally not run in this local package; the structural verifier
-checks all H02 security invariants without provider initialization.
+Never print secret values, database URLs, bearer tokens, cookies, OAuth codes,
+memory bodies, or raw email addresses. Prefer status codes, tool names,
+redacted request IDs, revision names, digests, and counts.
 
-## External-action boundary
+## Promotion boundary
 
-Do not initialize a backend, render a provider plan, mutate a provider, or
-deploy from H02. The local `scripts/deploy-gcp.sh` always exits 78.
+`scripts/deploy-gcp.sh` intentionally exits without contacting GCP. Current
+staging promotions were operator-controlled, not a reusable production
+pipeline. A future promotion must:
 
-Before a separately approved operator introduces an external review or
-promotion procedure, the decision record must contain both CP-1 and CP-3:
+1. start from a clean committed SHA;
+2. build an immutable digest tied to that SHA;
+3. deploy a no-traffic revision;
+4. apply/verify migrations with the same image provenance;
+5. run OAuth, MCP, owner isolation, portal, and cross-client canaries;
+6. move traffic only after all gates pass; and
+7. preserve a known-good rollback revision.
 
-- CP-1: named project/environment owner, cost ceiling and alerts, region,
-  edge/domain boundary, blast radius, expiry, rollback authority and no-go;
-- CP-3: named runtime/migration/deploy/break-glass owners, WIF scope, KMS and
-  Secret Manager ownership, rotation/revocation, audit retention, TTL,
-  rollback authority and no-go.
+Database rollback uses forward fixes or a verified restore, never destructive
+schema downgrade against shared data.
 
-The operator must keep the decision record out of Terraform variables except
-for its non-secret identifier. H02 defaults (`cp1_approved=false` and
-`cp3_approved=false`) force the infrastructure guard to fail.
+## Production prohibition
 
-## State and rollback intent
-
-The future backend is a GCS state bucket configured for uniform bucket access,
-public-access prevention, versioning and retention. GCS state locking is used
-through the `gcs` backend; no backend target is committed. The deploy identity
-is the only declared state writer; runtime, worker, migration and break-glass
-identities receive no state access.
-
-Rollback for H02 is a local Git revert. For any future authorized environment,
-rollback must be approved independently, prefer an ingress stop or a
-previously reviewed immutable revision, and never use a destructive database
-downgrade. H02 makes no staging or production claim.
+This runbook does not authorize a production project, public beta, DNS/domain
+change, new user enrollment, billing expansion, IAM broadening, secret access,
+or destructive operation.

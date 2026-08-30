@@ -1,6 +1,6 @@
 ---
 title: 08 — Preparar beta fechado e release auditável
-status: ready-after-07
+status: historical-superseded
 order: 8
 owner: Terra high + Luna high + auditor independente
 depends_on: 07-TRUSTED-RECALL.md

@@ -1,8 +1,8 @@
 ---
 title: UMCP Codex Delivery Roadmap
-status: accepted
+status: historical
 confidence: confirmed
-implementation_status: proposed
+implementation_status: superseded
 applies_to_branch: terra-alpha-recovery
 updated: 2026-08-21
 workstreams:
@@ -14,6 +14,10 @@ workstreams:
 ---
 
 # UMCP — roadmap de entregas pelo Codex
+
+> **Archived plan (2026-08-21).** Do not use this file as current status or
+> dispatch instructions. See [`CURRENT_STATE.md`](CURRENT_STATE.md) and
+> [`roadmap.md`](roadmap.md).
 
 ## Checkpoint operacional — encerramento de 2026-08-21
 

@@ -1,5 +1,15 @@
-# UMCP public-site source
+# Public-site copy source
 
-This directory is the source of public-facing product copy and recipes. It is intentionally conservative: a planned Cloud API is not represented as available functionality. The static visual shell lives in [`apps/web`](../../apps/web/README.md).
+This directory contains concise onboarding and compatibility copy. The
+canonical product status is [Current state](../CURRENT_STATE.md); no page here
+may promote a stronger claim.
 
-Before publishing, run the claim review in [`claims.md`](claims.md), revalidate the official links in the compatibility matrix, and attach a conformance report for every surface promoted to **Supported**.
+Before publishing any copy:
+
+1. review [claims](claims.md);
+2. reconcile the [compatibility matrix](compatibility-matrix.md);
+3. verify links and the exact deployed SHA; and
+4. attach a dated real-client report for every surface labeled **Verified**.
+
+The current site is a private staging portal, not a marketing launch or public
+beta.

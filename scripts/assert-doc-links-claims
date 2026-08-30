@@ -10,9 +10,13 @@ from pathlib import Path
 
 LINK_RE = re.compile(r"\]\((?:<([^>]+)>|([^)#][^)]*))\)")
 REQUIRED_GUARDRAILS = {
-    "README.md": ("not E2EE", "not", "holdout has not been"),
-    "docs/privacy.md": ("não oferece E2EE", "não protegido", "embeddings são dados sensíveis"),
-    "docs/site/claims.md": ("Prohibited", "Conditional", "server-decryptable"),
+    "README.md": ("not a production service", "private staging MVP", "historical evidence"),
+    "docs/privacy.md": (
+        "Neither is end-to-end encrypted",
+        "embeddings are not anonymous",
+        "operator",
+    ),
+    "docs/site/claims.md": ("Prohibited", "server decrypts memory", "private staging"),
 }
 
 

@@ -1,6 +1,6 @@
 ---
 title: 01 — Fechar o baseline local do MCP
-status: ready-to-execute
+status: historical-superseded
 order: 1
 owner: Terra high
 depends_on: Alpha local existente

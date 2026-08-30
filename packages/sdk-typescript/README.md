@@ -11,5 +11,6 @@ await client.write({ content: "Synthetic preference", type: "preference" }, "exa
 await client.search({ query: "preference", limit: 5 });
 ```
 
-The authenticated transport is pending Terra’s Streamable HTTP implementation.
+The hosted Streamable HTTP boundary now exists, but this scaffold still does
+not implement its OAuth transport or have a separate hosted acceptance report.
 Never embed bearer tokens in browser bundles or source files.

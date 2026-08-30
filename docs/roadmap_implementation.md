@@ -1,6 +1,6 @@
 ---
 title: UMCP Roadmap Implementation Guide
-status: active
+status: historical
 confidence: repository-grounded
 updated: 2026-08-29
 baseline_roadmap: docs/CODEX_DELIVERY_ROADMAP.md
@@ -9,6 +9,10 @@ current_checkout_at_inventory: terra-alpha-recovery@2c94d55
 ---
 
 # UMCP — guia de implementação do roadmap
+
+> **Checklist histórico encerrado em 2026-08-30.** Não retome IDs, branches,
+> revisões ou caixas deste arquivo. A fila ativa está em
+> [`roadmap.md`](roadmap.md).
 
 ## 1. Propósito e decisão executiva
 

@@ -1,5 +1,9 @@
 # Plano de execução do Open Memory Protocol
 
+> **Arquivo histórico do Alpha.** Os workstreams preservam decisões e critérios
+> originais, mas não são backlog atual. Consulte
+> [`../CURRENT_STATE.md`](../CURRENT_STATE.md) e [`../roadmap.md`](../roadmap.md).
+
 ## Propósito
 
 Este diretório transforma `manifest.md` e `project-context.md` em contratos de trabalho delegáveis. Cada frente tem ownership, entradas, saídas, dependências e critérios de aceite próprios. O plano prioriza um MVP que prove utilidade antes de investir em automação sofisticada ou infraestrutura de escala.

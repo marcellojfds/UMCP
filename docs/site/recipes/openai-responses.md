@@ -1,8 +1,7 @@
-# OpenAI Responses API recipe (not yet verified)
+# OpenAI Responses API acceptance recipe
 
-Use a clean environment and an approved Cloud `/mcp` endpoint. The application
-must use the provider’s currently documented remote-MCP configuration and
-complete OAuth where requested. Run the generic conformance lifecycle; record
-the API version, model-independent client behavior, gateway SHA, scopes,
-redacted errors, and revocation result. Do not claim support before that report
-exists.
+**Status:** planned, not verified separately from the ChatGPT connected app.
+
+Use the provider's current remote-MCP configuration, complete OAuth, and run a
+dated lifecycle report against an immutable UMCP staging SHA. ChatGPT UI
+evidence does not automatically establish Responses API support.

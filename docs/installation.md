@@ -1,73 +1,89 @@
-# Installation
+# Installation and connection
 
-## Requirements
+UMCP currently has two distinct paths: the private hosted staging MVP and the
+local Community development environment.
+
+## Private hosted staging
+
+MCP endpoint:
+
+```text
+https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp
+```
+
+The endpoint advertises its OAuth metadata. A compatible client should open
+the UMCP/Google authorization flow automatically. Staging accepts only the
+allowlisted maintainer identity.
+
+### ChatGPT
+
+1. Open ChatGPT's connected-app/developer connector settings.
+2. Add the exact MCP endpoint above.
+3. Complete the UMCP Google OAuth flow with the allowlisted account.
+4. Confirm the tools include `memory.capture` and `memory.search`.
+5. Ask explicitly to remember a durable, non-sensitive preference.
+6. Verify it at the [UMCP portal](https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/).
+
+The exact ChatGPT UI and availability can change; this is a private staging
+recipe, not a published-app installation guide.
+
+### Gemini Spark
+
+1. In Gemini, open **Settings → Personal Intelligence → Connected Apps**.
+2. Under custom apps for Spark, add the exact MCP endpoint above.
+3. If Gemini requests advanced OAuth fields, use the registered public client
+   ID supplied by the UMCP operator and leave the client secret blank. Do not
+   invent or share a secret for a PKCE public client.
+4. Complete UMCP Google OAuth with the same Google identity used by the portal
+   and other clients.
+5. Switch from normal Gemini chat to **Gemini Spark**.
+6. Type `@`, then select **Umcp Cloud** from the menu.
+7. Approve the read/write tool action when Gemini asks.
+
+Diagnostic recall prompt while the retrieval issue remains open:
+
+```text
+Use only the Umcp Cloud memory.search tool. Search for my preference with
+limit 10 and min_relevance 0.0. Do not search other connected apps.
+```
+
+## Owner portal
+
+Open:
+
+```text
+https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/
+```
+
+Select **Sign in**, use the same Google account, and open **Memories**. The
+portal session and MCP clients resolve to the same server-derived owner only
+when the verified Google subject is the same.
+
+## Local development setup
+
+Requirements:
 
 - Python 3.11;
-- PostgreSQL 16 with the `vector` extension for the supported backend;
-- `omp-migrate` migrations applied to `0004_semantic_source_version`; and
-- Docker for the disposable local PostgreSQL gate.
-
-## Install from a checkout
+- Docker; and
+- PostgreSQL 16 with pgvector for the supported database gate.
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e '.[dev]'
-```
-
-The package is named `open-memory-protocol` and the planned RC version is
-`0.1.0a1`. For the verified Python 3.11/macOS arm64 environment, install with
-`constraints/py311-macos-arm64.txt`; other platforms remain unverified.
-
-## Start disposable PostgreSQL
-
-From the repository root:
-
-```bash
 docker compose -f ops/postgres/compose.yaml up -d --wait
 export OMP_DATABASE_URL='postgresql+asyncpg://omp_test:omp_test@127.0.0.1:55433/omp_test'
 OMP_DATABASE_URL="$OMP_DATABASE_URL" alembic upgrade head
+./scripts/gate-fast
+./scripts/gate-postgres
 ```
 
-This compose file binds to loopback and uses a container tmpfs. It is for
-development and verification, not a production backup or retention policy.
-Run `docker compose -f ops/postgres/compose.yaml down` when finished.
-
-## Verify the installation
+Stop the disposable database with:
 
 ```bash
-OMP_DATABASE_URL="$OMP_DATABASE_URL" OMP_BACKEND=postgres omp status --json
-OMP_DATABASE_URL="$OMP_DATABASE_URL" OMP_BACKEND=postgres omp eval smoke --json
-OMP_DATABASE_URL="$OMP_DATABASE_URL" PYTHONPATH=src python examples/e2e_two_clients.py
+docker compose -f ops/postgres/compose.yaml down
 ```
 
-The full database gate is `./scripts/gate-postgres`; it checks PostgreSQL 16,
-pgvector, migration head, integration tests, E2E, and downgrade/upgrade.
-
-The optional semantic runtime is deliberately separate and offline-only:
-
-```bash
-python -m pip install -e '.[semantic]'
-export OMP_EMBEDDING_PROVIDER=e5
-export OMP_EMBEDDING_PROFILE_ID=semantic
-export OMP_EMBEDDING_PROFILE_VERSION=e5-small-v2-s09
-export OMP_EMBEDDING_DIMENSION=384
-export OMP_SEMANTIC_MODEL_ROOT=/secure/operator/cache/e5-small-v2
-```
-
-The model directory must already contain the exact pinned revision configured
-by `OMP_SEMANTIC_MODEL_REVISION`; the runtime never downloads or falls back to
-another provider.
-
-## Explicit demo mode
-
-For a file-backed smoke without PostgreSQL, every command must opt in:
-
-```bash
-python -m omp.cli --demo-backend --data-file /tmp/omp-demo.json status --json
-python -m omp.cli --demo-backend --data-file /tmp/omp-demo.json eval smoke --json
-```
-
-This mode is not the supported release backend and must not be used to claim
-PostgreSQL, privacy, retrieval, or multi-user readiness.
+The optional file-backed mode is a deterministic demo fixture, not hosted or
+multi-user evidence.

@@ -1,6 +1,6 @@
 ---
 title: 07 — Validar captura e recall confiáveis
-status: ready-after-06
+status: historical-active-problem-moved-to-roadmap
 order: 7
 owner: Terra high, Luna para feedback UX
 depends_on: 06-PRODUCT-UX-AND-LANDING.md

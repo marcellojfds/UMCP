@@ -1,113 +1,75 @@
-# Privacidade do Open Memory Protocol Alpha v0
+# UMCP privacy boundary
 
-## Escopo da garantia
+**Updated:** 2026-08-30
 
-O Alpha v0 é um software local/self-hosted. Ele não oferece E2EE, zero
-knowledge, autenticação hosted ou isolamento de tenants não confiáveis. O
-operador da instância e qualquer pessoa com acesso ao banco, processo, backup
-ou arquivo exportado pode ler dados de memória.
+UMCP has a local/self-hosted composition and a private hosted staging
+composition. Neither is end-to-end encrypted or zero knowledge. The service
+must decrypt memory content to retrieve it; authorized operators with access
+to runtime, database, keys, exports, or backups may be able to read it.
 
-No transporte local atual, `owner_id` é fornecido pelo cliente e tratado como
-confiável. Ele separa dados logicamente, mas não substitui autenticação nem
-autorização. Uma implantação exposta a usuários não confiáveis precisa de um
-boundary de identidade que ainda não existe neste projeto.
+## Identity and owner scope
 
-## Inventário de dados
+In hosted staging, the OAuth client never supplies `owner_id` or `tenant_id`.
+UMCP verifies its own access token, derives the principal and tenant, and maps
+them to an internal owner scope. Google establishes identity during OAuth but
+clients receive UMCP tokens, not authority to select another owner.
 
-| Dado | Local | Sensibilidade | Estado atual |
-|---|---|---|---|
-| conteúdo e memória corrente | PostgreSQL | alta | plaintext para o operador |
-| histórico de versões | PostgreSQL | alta | apagado pelo forget online |
-| provenance/evidence | PostgreSQL | alta | plaintext para o operador |
-| embeddings `hash/v1` | PostgreSQL/pgvector | alta | sensíveis; não são anônimos |
-| embeddings semânticos experimentais | PostgreSQL/pgvector paralelo 384d | alta | local-only, revisão pinada; E5 e BGE S08 quality NO-GO |
-| relações, type, state, space e timestamps | PostgreSQL | média/alta | metadata pesquisável |
-| owner e IDs | PostgreSQL/requests | média/alta | owner não deve entrar em logs |
-| ledger de update/forget | PostgreSQL | média | metadata-only, sem conteúdo |
-| exports `omp.export.v0` | arquivo escolhido pelo usuário | alta | vetores omitidos por default |
-| configuração e URL do banco | ambiente/processo | alta | segredo não deve ser logado |
-| logs | stderr/destino do operador | baixa por design | allowlist sem payload |
-| eval artifacts | workspace/CI | baixa apenas se sintéticos | dados reais são proibidos por default |
-| backups | responsabilidade do operador | alta | runbook lógico testável; retenção é do operador |
+In local stdio, `owner_id` is caller-provided and trusted. That composition is
+for a trusted local process only and must not be exposed directly to untrusted
+users.
 
-## Fluxo de dados atual
+## Data inventory
 
-```text
-cliente local
-  -> MCP stdio (conteúdo, query, owner_id)
-  -> adapter/gateway/application service
-  -> embedding local selecionado (hash/v1; E5 experimental sem fallback; BGE não integrado)
-  -> PostgreSQL + pgvector
+| Data | Location | Sensitivity |
+| --- | --- | --- |
+| Memory content and versions | PostgreSQL | high |
+| Provenance/evidence | PostgreSQL | high |
+| Embeddings and searchable metadata | PostgreSQL/pgvector | high; embeddings are not anonymous |
+| Relations, type, state, space, timestamps | PostgreSQL | medium/high |
+| Tenant, subject, membership, credentials | PostgreSQL | high identity/security metadata |
+| OAuth state, codes, access/refresh tokens | digests in PostgreSQL | high; raw values exist transiently at client/server boundaries |
+| Portal session | Secure, HttpOnly cookie containing a short-lived UMCP access token | high |
+| Exports and backups | operator/user-controlled storage | high |
+| Application logs | Cloud/local logging | must be payload-free by design |
 
-CLI administrativo
-  <-> application service
-  <-> arquivo omp.export.v0 escolhido pelo usuário
-```
+## Capture policy
 
-O profile `hash/v1` é executado localmente e não envia conteúdo a um provedor
-externo. Adapters futuros de embedding/LLM deverão ser opt-in, documentar quais
-dados saem da instância e nunca reutilizar dados para treinamento sem escolha
-explícita do operador/usuário.
+Assistants should save only concise durable facts, preferences, decisions,
+goals, and project context that the user explicitly asks to remember or that
+is clearly useful long-term. Do not capture passwords, API keys, OAuth tokens,
+financial credentials, private keys, medical records, or transient chat text.
 
-## Retenção e exclusão
+The current MVP stores the chosen memory, not full conversation transcripts by
+default.
 
-| Superfície | Regra atual |
-|---|---|
-| memória, histórico, vetor e relações | persistem até `memory.forget` |
-| forget online | remove memória, versões, vetor e relações na mesma transação |
-| ledger de idempotência | permanece metadata-only para replay; não contém payload |
-| export | persiste até o usuário apagar o arquivo; não é revogado pelo forget do banco |
-| logs | retenção definida pelo ambiente do operador; o app não registra conteúdo por design |
-| backups | runbook de backup/restore e reaplicação de forget existe; retenção e descarte são definidos/executados pelo operador |
+## Retention and deletion
 
-O forget não apaga cópias já exportadas, logs externos indevidamente
-configurados nem backups fora do controle do processo. O restore exige
-reaplicar deleções antes de uso; como não existe uma fila externa de tombstones,
-o operador precisa preservar e aplicar a lista de deleções. Não há garantia de
-apagamento imediato de backups/exports.
+- Active memory persists until update/lifecycle change or `memory.forget`.
+- Forget removes the tested online memory records transactionally in the
+  application path.
+- OAuth tokens expire and can be revoked; revocation does not delete memories.
+- Portal logout revokes its current token and clears the portal cookie.
+- Exports and backups are separate copies and are not automatically revoked by
+  deleting the online record.
+- A restore process must preserve/reapply deletion state before serving data.
 
-## Controles implementados e evidência
+## Current controls
 
-- Schemas estritos e limites de entrada: testes de contrato MCP.
-- Owner isolation no repository: suíte PostgreSQL real.
-- Forget transacional e cascade: testes de integração e E2E.
-- Export owner-scoped e sem embeddings por default: testes unitários,
-  integração e E2E.
-- Logging por allowlist sem conteúdo/query/owner bruto: observability tests,
-  scan de canário/secrets/PII sintético em stderr e trace-capture de teste.
-- Erros públicos sem SQL, stack trace ou payload: testes de contrato.
-- Secrets encapsulados por `SecretStr` e omitidos do resumo de configuração.
+- strict schemas and bounded inputs;
+- server-derived hosted owner/tenant context;
+- scoped UMCP tokens with expiry, refresh rotation, and revocation;
+- PostgreSQL tenant context and RLS-oriented hosted schema;
+- owner-scoped repository/application operations;
+- KMS-backed hosted envelope-encryption path;
+- payload-free application observability contract; and
+- server-owned portal cookies and same-origin APIs.
 
-Esses controles reduzem exposição acidental; eles não protegem contra um
-operador malicioso, dump do banco, processo comprometido ou cliente que possa
-forjar outro `owner_id`.
+These controls reduce risk but do not establish production audit, E2EE,
+operator blindness, immediate backup deletion, or universal client safety.
 
-## Claim matrix
+## Staging policy
 
-| Afirmação | Classificação | Base |
-|---|---|---|
-| persistência local em PostgreSQL | garantido no ambiente suportado | gate Postgres/E2E |
-| separação lógica por owner | mitigado no modo local confiável | filtros e testes cross-owner |
-| logs do aplicativo sem conteúdo por default | garantido para logger do OMP | allowlist e canary scan |
-| forget remove os dados online do banco | garantido no escopo transacional testado | integration/E2E |
-| embeddings não saem no export padrão | garantido | contrato `omp.export.v0` |
-| operador não consegue ler memórias | não protegido | dados em plaintext |
-| tenant não consegue forjar identidade | não protegido | auth hosted ausente |
-| E2EE/zero knowledge | futuro, não disponível | Gate F |
-| apagamento imediato de backups/exports | não protegido | cópias externas ao processo; deleções são reaplicadas no restore |
-| privacidade de embeddings | não protegido | embeddings são dados sensíveis |
-
-## Responsabilidades do operador
-
-- restringir acesso ao host, banco, socket/processo e arquivos exportados;
-- usar credenciais próprias e nunca versionar `.env` ou URLs com secrets;
-- criptografar disco/backups quando necessário;
-- definir retenção e descarte de logs/backups;
-- não expor o servidor como serviço multiusuário sem autenticação/autorização;
-- revisar qualquer provider externo antes de habilitá-lo.
-
-## Antes de um release público
-
-Ainda são obrigatórios: threat model revisado, teste de backup/restore/delete,
-scan de secrets/PII em CI, canal privado de security reporting, política de
-retenção operacional e revisão da claim matrix contra README/release notes.
+Private staging is allowlisted and should use synthetic or low-sensitivity
+data. Do not invite external users or store sensitive personal data until the
+beta privacy notice, deletion workflow, incident process, retention policy,
+and release-SHA security review are complete.

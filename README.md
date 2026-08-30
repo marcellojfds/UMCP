@@ -1,126 +1,94 @@
-# Open Memory Protocol
+# UMCP — Open Memory Protocol
 
-Open Memory Protocol (OMP) is a modular, user-owned long-term memory core for
-applications that need explicit memory lifecycle, provenance, retrieval, and
-portable export/import. The core is organized as `domain -> application <-
-adapters`; MCP, the Python SDK, and the CLI are thin interfaces over that core.
+UMCP is a user-owned memory layer for AI assistants. It gives a signed-in user
+one durable memory vault that can be reached through MCP from different model
+surfaces, while keeping identity, lifecycle, provenance, and deletion under
+server control.
 
-## Status
+## Current status
 
-This repository contains the unreleased `open-memory-protocol` `0.1.0a1`
-engineering preview. It is not an audited release candidate: the corrected
-semantic development gate is currently NO-GO, and no tag, GitHub Release, or
-PyPI publication has been created.
+UMCP is a **private staging MVP**, not a production service or public release.
+The current deployed path has been exercised with one maintainer account:
 
-The supported path is local/self-hosted PostgreSQL 16 with pgvector and MCP
-over stdio. The default embedding profile is local deterministic `hash/v1`
-(dimension 64) for compatibility and rollback. The experimental E5 profile
-uses a parallel 384-dimensional store, but the corrected S08 development gate
-returned `precision@5=0.756` against `0.800`. The separately authorized BGE
-S08-R3 development experiment also returned NO-GO (`precision@5=0.000`) with
-the same frozen threshold; BGE is not in the runtime or package. The
-file-backed backend is an explicitly labelled demo harness, not release or
-production evidence.
+- Google OAuth establishes the UMCP owner server-side;
+- ChatGPT can connect to the hosted Streamable HTTP MCP and save memory;
+- Gemini can connect as a custom app in **Gemini Spark** and read the same
+  owner's memory;
+- the UMCP portal displays memories stored for the signed-in owner; and
+- PostgreSQL/pgvector, tenant scoping, OAuth token ledgers, and the hosted MCP
+  boundary are implemented in the staging line.
 
-## What is available
+The cross-surface MVP was verified on 2026-08-30: Gemini retrieved the exact
+preference `A cor favorita de Marcello é roxo.` from UMCP. The deployed source
+for that verification is `1233b221fd89edb1691bd6bd09c2d21eee4822bf`.
 
-- Four MCP tools: `memory.write`, `memory.search`, `memory.update`, and
-  `memory.forget`.
-- A thin Python SDK using the official MCP client over stdio.
-- A local CLI for status, lifecycle operations, smoke checks, and versioned
-  export/import.
-- Strict request validation, owner-scoped repository operations, optimistic
-  version checks, idempotency, transactional forget, and PostgreSQL E2E paths
-  covered by the available Alpha handoffs.
-- `omp.export.v0` owner-scoped export/import. Embeddings are omitted by
-  default, but exports remain sensitive files.
+The MVP still has an important retrieval defect: the default
+`min_relevance=0.78` can hide a relevant result. The verified Gemini lookup
+required `min_relevance=0.0`. Fixing and recalibrating retrieval is the first
+product priority; see [Current state](docs/CURRENT_STATE.md) and
+[Known issues](docs/known-issues.md).
 
-These are implementation claims bounded by the evidence in the [privacy
-claim matrix](docs/privacy.md), [threat model](docs/threat-model.md), [MCP
-protocol](docs/protocol.md), and [Alpha handoffs](docs/handoffs/alpha/).
+## Hosted staging
 
-## Important limitations
+- Landing and portal:
+  `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/`
+- MCP endpoint:
+  `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp`
+- Health:
+  `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/healthz`
 
-OMP Alpha is not E2EE, zero knowledge, hosted auth, or a hosted multi-tenant
-service. In local stdio composition, `owner_id` is supplied by the client and
-trusted. It is a logical partition, not authentication or authorization; do
-not expose this composition to untrusted users.
+Staging is restricted to the allowlisted test identity. Do not treat these
+URLs as a public beta invitation or production SLA.
 
-The operator or anyone with access to the database, process, exports, or
-backups can read memory data. Content, provenance/evidence, relations,
-exports, backups, and embeddings are sensitive; embeddings are not anonymous.
-Forget removes the tested online database records transactionally, but does
-not revoke copies already exported or retained in backups. The project makes
-no scale claim.
+## Hosted tools
 
-The corrected S08 handoff is a formal NO-GO and the holdout has not been
-executed. See the [known issues](docs/known-issues.md) and [Alpha progress
-handoff](docs/handoffs/alpha/GOAL-PROGRESS.md).
+The authenticated Cloud MCP exposes:
 
-## Quickstart: supported PostgreSQL path
+- `memory.write`
+- `memory.search`
+- `memory.capture`
+- `memory.update`
+- `memory.forget`
 
-Requires Python 3.11, Docker, and a local checkout.
+Hosted callers never supply `owner_id` or `tenant_id`. UMCP derives both from
+the verified OAuth principal. The local Community/stdio interface remains a
+separate compatibility path where `owner_id` is caller-provided and must not
+be exposed to untrusted users.
+
+## Local development
+
+Requires Python 3.11 and Docker:
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e '.[dev]'
-
-docker compose -f ops/postgres/compose.yaml up -d --wait
-export OMP_DATABASE_URL='postgresql+asyncpg://omp_test:omp_test@127.0.0.1:55433/omp_test'
-OMP_DATABASE_URL="$OMP_DATABASE_URL" alembic upgrade head
-
-OMP_DATABASE_URL="$OMP_DATABASE_URL" OMP_BACKEND=postgres omp status --json
-OMP_DATABASE_URL="$OMP_DATABASE_URL" OMP_BACKEND=postgres omp eval smoke --json
-OMP_DATABASE_URL="$OMP_DATABASE_URL" PYTHONPATH=src \
-  python examples/e2e_two_clients.py
-```
-
-The database is disposable and bound to loopback. Stop it when finished:
-
-```bash
-docker compose -f ops/postgres/compose.yaml down
-```
-
-For a no-PostgreSQL smoke, opt into the file backend explicitly:
-
-```bash
-python -m omp.cli --demo-backend --data-file /tmp/omp-demo.json status --json
-python -m omp.cli --demo-backend --data-file /tmp/omp-demo.json eval smoke --json
-```
-
-The demo does not demonstrate PostgreSQL, multi-user isolation, privacy,
-retrieval quality, or production readiness.
-
-## Documentation
-
-- [Installation](docs/installation.md)
-- [MCP integration](docs/mcp.md)
-- [Python SDK](docs/sdk.md)
-- [CLI](docs/cli.md)
-- [Support matrix](docs/support-matrix.md)
-- [Known issues](docs/known-issues.md) and [roadmap](docs/roadmap.md)
-- [Protocol reference](docs/protocol.md) and [memory model](docs/memory-model.md)
-- [Privacy](docs/privacy.md), [threat model](docs/threat-model.md), and
-  [eval plan](docs/EVALS_PLAN.md)
-- [Local MCP runbook](docs/runbooks/mcp-local.md)
-
-The release-facing documents are English. Some historical design records and
-privacy baselines are currently Portuguese and remain linked as source
-evidence.
-
-## Development
-
-```bash
 ./scripts/gate-fast
 ./scripts/gate-postgres
 ```
 
-`gate-fast` runs Ruff, strict mypy, and unit/contract tests. `gate-postgres`
-fails closed when PostgreSQL 16, pgvector, or the migration head is missing;
-it runs the real integration and E2E suites without silent skips.
+The PostgreSQL gate uses a disposable PostgreSQL 16 + pgvector environment.
+The file-backed backend is a demo fixture only.
+
+## Documentation
+
+Start with the [documentation index](docs/README.md):
+
+- [Current deployed state](docs/CURRENT_STATE.md)
+- [Installation and connection](docs/installation.md)
+- [MCP contract](docs/mcp.md)
+- [Compatibility matrix](docs/support-matrix.md)
+- [Known issues](docs/known-issues.md)
+- [Roadmap](docs/roadmap.md)
+- [Privacy](docs/privacy.md) and [hosted threat model](docs/threat-model-hosted-v1.md)
+
+ADRs, handoffs, evaluation reports, old gameplans, and workstream plans are
+historical evidence. They are not current status unless the documentation
+index explicitly promotes them.
+
+## Project policy
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the
-[Code of Conduct](CODE_OF_CONDUCT.md) before opening a change. The project is
-licensed under [Apache-2.0](LICENSE).
+[Code of Conduct](CODE_OF_CONDUCT.md). The project is licensed under
+[Apache-2.0](LICENSE).

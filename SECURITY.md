@@ -1,43 +1,42 @@
 # Security policy
 
-## Status
+## Status and scope
 
-Open Memory Protocol is an alpha, local/self-hosted project. This policy is
-for reporting implementation vulnerabilities; it is not a promise of hosted
-security, tenant isolation, E2EE, zero knowledge, or privacy from an operator.
+UMCP is a private staging MVP and local/self-hosted engineering project. This
+policy covers implementation vulnerabilities in this repository and the
+maintainer-operated staging service. It does not promise production readiness,
+an SLA, E2EE, zero knowledge, or protection from an authorized operator.
 
 ## Reporting a vulnerability
 
 Use GitHub Private Vulnerability Reporting in the repository Security tab. Do
-not put secrets, memory contents, embeddings, exports, or exploit details in a
-public issue or pull request. This local S06 session did not change GitHub
-repository settings, so the maintainer must enable and verify the private
-reporting channel before publication.
+not open a public issue containing exploit details, credentials, tokens,
+memory content, embeddings, database URLs, exports, or personal data.
 
-There is no separate security email published at this time. If private
-reporting is unavailable, do not disclose sensitive details publicly; contact
-the repository maintainers through a private GitHub channel and state that the
-report is security-sensitive.
+If private reporting is unavailable, contact the maintainer through a private
+GitHub channel and identify the message as security-sensitive. No separate
+security email or response-time SLA is currently published.
 
-Please include the affected version/commit, deployment mode, reproduction
-steps using synthetic data, impact, and any suggested mitigation. Redact real
-memory content and credentials.
+Include:
 
-## Scope and response
+- affected commit, deployment mode, and client surface;
+- a synthetic-data reproduction;
+- impact and likely boundary crossed;
+- redacted logs or request identifiers; and
+- a suggested mitigation if available.
 
-Supported scope is the code and release artifacts in this repository. The
-supported runtime is local/self-hosted with PostgreSQL 16 + pgvector and MCP
-stdio. A deployment that exposes `owner_id` to untrusted users is outside the
-Alpha security boundary: in local stdio composition `owner_id` is client-
-provided and trusted, not an authentication credential.
+## Security boundaries
 
-The maintainers will acknowledge reports when practical, assess severity, and
-coordinate a fix or advisory. No response-time SLA is promised for this alpha.
+- Hosted MCP verifies UMCP tokens and derives owner/tenant server-side.
+- Local stdio trusts caller-provided `owner_id` and is not a remote
+  authorization boundary.
+- Memory content, provenance, vectors, OAuth/session data, exports, and
+  backups are sensitive.
+- The hosted server decrypts memory for retrieval; privileged operator access
+  remains a modeled risk.
+- A cross-owner read/write, raw token or memory payload in logs, OAuth bypass,
+  RLS bypass, plaintext fallback after KMS failure, or resurrection after
+  forget/restore is a release-blocking issue.
 
-## Sensitive data model
-
-Memory content, provenance/evidence, relations, exports, backups, and
-`hash/v1` embeddings are sensitive. Embeddings are not anonymous. The default
-export omits vectors, but exports remain sensitive and can be copied outside
-the database. See [`docs/privacy.md`](docs/privacy.md) and
-[`docs/threat-model.md`](docs/threat-model.md).
+See [Privacy](docs/privacy.md), the [hosted threat model](docs/threat-model-hosted-v1.md),
+and [Known issues](docs/known-issues.md).

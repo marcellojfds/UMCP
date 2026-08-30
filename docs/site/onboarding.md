@@ -1,28 +1,29 @@
-# Onboarding contract
+# Private staging onboarding
 
-## Community (available Alpha path)
+## Prerequisites
 
-1. Install the local PostgreSQL prerequisites and run the documented stdio
-   setup in [`docs/installation.md`](../installation.md).
-2. Treat `owner_id` as a trusted local partition only; it is not identity.
-3. Connect a local MCP client using the stdio recipe.
-4. Try a synthetic write, search, update, and forget. Exports are sensitive.
+- an allowlisted Google account;
+- access to the private staging MCP endpoint; and
+- a compatible ChatGPT connected-app or Gemini Spark custom-app surface.
 
-## Cloud (blocked pending Terra adapters)
+## Connect
 
-The Cloud UI may expose these steps only once the server supplies the listed
-capabilities:
+1. Add
+   `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp`
+   to the client.
+2. Complete the UMCP Google OAuth flow.
+3. Confirm the client discovers the hosted memory tools.
+4. Ask the client to save a synthetic durable preference.
+5. Sign into the [portal](https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/)
+   with the same Google account and confirm the memory is visible.
+6. In another verified surface, ask UMCP to retrieve the preference.
 
-1. Request a passwordless email sign-in link from a server-side endpoint. The
-   response must be anti-enumeration and redirects must be allowlisted.
-2. Exchange the verified callback for an HttpOnly, Secure session. The browser
-   never accepts client-provided tenant or `owner_id`.
-3. Display connections and their granted scopes. Consent and revocation are
-   server operations authenticated from the session.
-4. Require a preview and clear confirmation for forget, credential revocation,
-   and account deletion. Use server-issued idempotency keys where the contract
-   requires them.
-5. Show export/deletion state and an audit-safe receipt, not sensitive payload
-   or tokens.
+Gemini custom apps are tested in **Gemini Spark**. Type `@` and select
+**Umcp Cloud**; normal Gemini chat does not expose this custom app in the
+verified flow.
 
-The current web shell remains unavailable until this adapter is implemented.
+## Safety
+
+Use synthetic or low-sensitivity data in staging. Do not store credentials,
+payment data, private keys, access tokens, medical records, or other secrets.
+Staging is server-decryptable and operated by the maintainer.

@@ -1,6 +1,11 @@
 # Cloud multi-tenant migration and recovery plan v1
 
-**Status:** implementation contract; migrations are not yet authorized or applied.
+**Status:** staging schema path implemented; production migration and restore policy remain pending.
+
+This document is the durable migration/recovery contract. The private staging
+MVP has applied its required schema migrations, but that does not constitute a
+production cutover or a verified production restore exercise. Current runtime
+facts live in [`../CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ## Forward path
 
@@ -27,9 +32,9 @@ Restore into isolation, validate revision/inventory, apply all durable
 tombstones newer than the backup point, validate RLS/encryption/key access, and
 only then allow traffic. A restore that cannot reapply deletions is unusable.
 
-## Current local implementation boundary
+## Current implementation boundary
 
-In the local Cloud PostgreSQL composition, a successful `memory.forget` writes
+In the Cloud PostgreSQL implementation, a successful `memory.forget` writes
 a tenant-scoped, content-free `deletion_tombstones` record in the same
 transaction as the deletion. The record contains only the tenant, memory
 reference, timestamp and `memory.forget` reason; it does not retain content,

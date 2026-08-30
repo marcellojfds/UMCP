@@ -1,40 +1,45 @@
-# Threat model — UMCP Cloud v1 design
+# Threat model — UMCP hosted v1
 
-**Status:** design baseline, not evidence of implementation (2026-08-21).
+**Status:** implemented private-staging baseline; production review pending.
+**Updated:** 2026-08-30.
 
 ## Boundaries and assets
 
 ```text
-untrusted MCP client -> HTTPS gateway -> verified Principal -> core -> PostgreSQL/RLS
-                                                       \-> signed queue -> worker
-KMS/secret manager <----------------------------------------^       |
-backup/export/audit sinks <-----------------------------------------+
+untrusted MCP client
+  -> HTTPS Cloud Run endpoint
+  -> UMCP OAuth token verification
+  -> server-derived Principal / tenant scope
+  -> application service
+  -> PostgreSQL + pgvector / tenant controls
+  -> KMS-backed encryption path
+
+Google OAuth -> UMCP identity mapping -> UMCP token ledgers
+Portal browser -> Secure HttpOnly UMCP session -> same-origin portal API
 ```
 
-Assets are memory content, provenance, embeddings, tenant membership, tokens,
-PATs, consent, DEKs, encrypted exports, tombstones, audit events and backups.
-Trust boundaries are client/gateway, gateway/core, core/database, worker/queue,
-service/KMS, and service/backup sink. The privileged operator can access the
-server in v1 and is an explicitly modeled threat.
+Assets include memory content, provenance, embeddings, tenant membership,
+authorization codes, access/refresh tokens, portal sessions, encryption keys,
+exports, deletion state, audit records, and backups.
 
-## STRIDE and abuse cases
+## Primary threats and controls
 
-| Threat | Mandatory control | Verification gate |
+| Threat | Current control | Remaining work |
 | --- | --- | --- |
-| spoofed token, tenant or `owner_id` | verified issuer/signature/audience/expiry; principal-derived tenant; reject hosted owner field | invalid-token and cross-tenant suite |
-| token/PAT replay or theft | PKCE, short token expiry, refresh rotation, hash-only PAT, revocation, nonce/idempotency | replay/revocation tests and log scan |
-| cross-tenant SQL or worker tampering | transaction tenant context, FORCE RLS, composite FKs, signed envelope | repository and job adversarial tests |
-| ciphertext swapping or stale key use | AEAD AAD tenant/record/key binding; versioned key resolver | swap/rotation/KMS failure tests |
-| destructive operation repudiation | principal/credential/request/action audit record without payload | audit completeness test |
-| memory, email or bearer leak | allowlist telemetry, redaction, generic errors, no payload in audit | canary log/trace/artifact scans |
-| queue flood, expensive search, stream disconnect | quotas, limits, rate limiting, cancellation, bounded retry/DLQ | load and backpressure tests |
-| forget racing export/re-embed/restore | durable tombstone, transactional state machine, deletion replay before service | concurrent delete and restore tests |
-| malicious memory prompt injection | memory treated as untrusted retrieved data; tool schema/scope checks | integration fixtures |
-| privileged break-glass abuse | separate role, justification, TTL and alert/audit | access-review exercise |
+| Forged owner/tenant | Hosted schemas reject caller owner/tenant; verified token derives principal | Repeat adversarial test on every release SHA |
+| OAuth code/token replay | PKCE, short-lived codes/access tokens, refresh rotation, digested ledgers, revocation | Client-specific expiry/revoke acceptance |
+| Cross-tenant database access | Transaction tenant context, owner-scoped services, RLS-oriented schema and composite constraints | Independent production review and continuous regression |
+| Token, email, or memory leak | Payload-free logging contract, generic errors, redacted evidence policy | Automated Cloud Logging/artifact canary scan per release |
+| Ciphertext swap or key failure | Tenant/record binding and KMS-backed hosted path | Release-SHA swap/rotation/failure/restore exercise |
+| Malicious memory prompt injection | Retrieved memory is data, not instructions; bounded MCP tools/scopes | More client-side prompt-injection conformance cases |
+| Unauthorized destructive action | `memory:delete` scope, explicit tool approval, idempotency | Portal forget confirmation and audit receipt |
+| Deleted data resurrected by restore | Recovery/tombstone design and hosted drills exist | Formal retention and release restore acceptance |
+| Abuse or expensive search | Input/result limits | Edge quotas, rate limits, SLOs, alerts, and cost controls |
+| Privileged operator abuse | Separate cloud identities and audit design | Access review, break-glass exercise, operational policy |
 
-## Residual risk and no-go
+## Residual risk and no-go conditions
 
-Server-decryptable processing means privileged server access remains material.
-There is no E2EE/zero-knowledge claim. Any bypass of RLS, unsigned worker
-execution, KMS plaintext fallback, raw sensitive data in logs, or restore that
-resurrects deleted data is P0 and blocks release.
+UMCP v1 is server-decryptable. There is no E2EE or zero-knowledge claim.
+Production/public-beta promotion is blocked by any demonstrated OAuth bypass,
+cross-owner access, RLS bypass, plaintext fallback, sensitive logging,
+unbounded abuse path, or restore that makes forgotten data available again.

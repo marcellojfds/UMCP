@@ -1,5 +1,8 @@
 # Plano de execução por sessões — qualidade e Alpha v0
 
+> **Plano histórico de 2026-08-20.** Não reutilize suas branches, sessões ou
+> autorizações. Consulte [`CURRENT_STATE.md`](CURRENT_STATE.md).
+
 **Coordenado em:** 2026-08-20
 **Repositório remoto:** `https://github.com/marcellojfds/UMCP.git`
 **Estado remoto observado:** público, branch default `main`, vazio

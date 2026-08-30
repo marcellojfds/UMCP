@@ -1,6 +1,12 @@
 # Cloud principal and worker-envelope contract v1
 
-**Status:** design contract for Waves 2–4; no hosted endpoint exists yet.
+**Status:** principal boundary implemented in private staging; worker envelope remains a design contract.
+
+The current hosted MCP validates its authenticated principal at the gateway and
+exposes the memory tools described below. The signed asynchronous worker
+envelope is retained as a future boundary; it is not part of the current MVP.
+See [`../CURRENT_STATE.md`](../CURRENT_STATE.md) for deployed evidence and
+known gaps.
 
 ## Principal
 

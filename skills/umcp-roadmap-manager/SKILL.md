@@ -15,11 +15,16 @@ user's primary working tree untouched.
 
 Resolve the repository root, then read in this order:
 
-1. `docs/CODEX_DELIVERY_ROADMAP.md`;
-2. `docs/roadmap_implementation.md`;
-3. `docs/EXECUTION_RELIABILITY_PLAYBOOK.md`;
-4. `coordination/ROADMAP-MANAGER.md` if it exists;
-5. the handoff for the last completed checklist item.
+1. `docs/CURRENT_STATE.md`;
+2. `GOAL-PROGRESS.md`;
+3. `docs/roadmap.md`;
+4. `docs/known-issues.md`;
+5. `coordination/ROADMAP-MANAGER.md` if it exists; and
+6. the historical handoff for the selected roadmap item only.
+
+The old Codex delivery roadmap, implementation checklist, gameplans, and
+workstream plans are historical. Never resume their stale active IDs or
+revision numbers unless the current roadmap explicitly reactivates an item.
 
 The implementation checklist between `roadmap-manager:start` and
 `roadmap-manager:end` defines IDs, models, dependencies, checkpoints and

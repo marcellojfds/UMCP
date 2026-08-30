@@ -1,6 +1,10 @@
 # Plano de evals — Alpha v0
 
-**Status:** aprovado para implementação, ainda não executado
+> **Plano histórico.** Os relatórios executados estão em `evals/reports/`; o
+> problema de retrieval atual está em [`known-issues.md`](known-issues.md) e a
+> remediação ativa em [`roadmap.md`](roadmap.md).
+
+**Status histórico naquele momento:** aprovado para implementação, ainda não executado
 **Gate alvo:** Gate B de retrieval
 **Backend obrigatório:** PostgreSQL 16 + pgvector, sem fake/file como evidência
 

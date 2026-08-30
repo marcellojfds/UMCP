@@ -5,5 +5,6 @@ another computer. Copy `skills/umcp-roadmap-manager/` into that computer's
 Codex skills directory, preserving the `references/` and `scripts/` folders,
 then invoke `$umcp-roadmap-manager` from the UMCP project.
 
-The canonical resume state is `coordination/ROADMAP-MANAGER.md`; do not resume
-from a dirty primary checkout. Start executors from its `canonical_ref`.
+The canonical product state is `docs/CURRENT_STATE.md`; manager run state is
+`coordination/ROADMAP-MANAGER.md`. Do not resume an archived task ID or start
+executors from a dirty primary checkout.

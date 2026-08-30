@@ -1,6 +1,6 @@
 ---
 title: 06 — Entregar UX do produto e Landing pública
-status: landing-authorized-product-controls-after-05
+status: historical-partially-completed
 order: 6
 owner: Luna high
 depends_on: 05-REAL-CLIENT-CONNECTORS.md for authenticated controls

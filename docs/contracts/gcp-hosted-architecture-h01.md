@@ -1,10 +1,12 @@
-# GCP hosted architecture — H01 design contract
+# GCP hosted architecture — H01 historical design contract
 
-**Status:** `local-design-frozen / external-actions-not-authorized`
+**Status:** `historical-baseline / superseded-by-private-staging-evidence`
 
-This contract defines the interfaces that H02--H06 must implement. It does
-not describe remote state. The GCP gap report remains the source of truth for
-the unsafe proposal and its unresolved P0/P1 findings.
+This contract records the pre-deployment architecture baseline that guided
+H02--H06. It must not be read as current remote-state evidence. The private
+staging implementation and its remaining gaps are documented in
+[`../CURRENT_STATE.md`](../CURRENT_STATE.md), the runbooks, and the current
+threat model.
 
 ## Target topology and controls
 
@@ -56,8 +58,7 @@ local implementation and documentation possible.
 
 ## Claims boundary
 
-This document permits only the claim that a local GCP-targeted architecture is
-frozen. It prohibits claims that any GCP control exists or works, including
-private networking, least-privilege IAM/WIF, Secret Manager/KMS integration,
-OAuth/OIDC, RLS, backup/restore, hosted MCP, staging, production, or regional
-residency.
+This historical document alone permits no runtime claim. Current claims about
+private staging require the evidence indexed by `docs/CURRENT_STATE.md`.
+Production, E2EE/zero-knowledge, verified backup/restore, and regional-residency
+claims remain prohibited without new evidence.

@@ -1,8 +1,8 @@
 ---
 title: UMCP Portable Memory — Product Vision
-status: accepted
+status: vision-reference
 confidence: confirmed
-implementation_status: proposed
+implementation_status: partially-implemented
 applies_to_branch: terra-alpha-recovery
 updated: 2026-08-21
 workstreams:
@@ -13,6 +13,9 @@ workstreams:
   - web
   - privacy
 ---
+
+> **Vision, not current status.** Verified behavior and active priorities live
+> in [`CURRENT_STATE.md`](CURRENT_STATE.md) and [`roadmap.md`](roadmap.md).
 
 # UMCP Portable Memory — visão de produto de longo prazo
 
@@ -455,4 +458,3 @@ A visão está materializada quando uma pessoa consegue:
 
 Até esses comportamentos estarem testados, a visão permanece aceita como
 produto, mas sua implementação continua parcial.
-

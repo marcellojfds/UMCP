@@ -1,17 +1,17 @@
 # Public claim gate
 
-Use this table in landing copy, docs, demos, and social metadata. A design ADR is not implementation evidence.
+Use these labels in landing copy, demos, README text, and social metadata.
 
-| Copy | Status now | Evidence required before use |
+| Claim | Current status | Allowed wording |
 | --- | --- | --- |
-| “User-controlled memory” | Not enabled for Cloud | End-to-end inspect, correct, export, delete, and revoke journeys |
-| “Encrypted in transit and at rest” | Not enabled | TLS and storage/backup verification in authorized staging |
-| “Memory content is encrypted with per-tenant keys” | Not enabled | Ciphertext-at-rest, swap, rotation, KMS failure, and restore tests |
-| “End-to-end encrypted” / “zero knowledge” | Prohibited in v1 | A materially different architecture and independent audit |
-| “Everything is encrypted” | Prohibited | It is inaccurate for metadata and indexable vectors |
-| “Works everywhere” | Prohibited | Surface-specific conformance evidence, never a blanket badge |
-| “Compatible” | Conditional | Protocol compatibility only; distinguish from tested integration |
-| “Supported” | Conditional | Authenticated write → search → update → forget report for this exact surface/version |
+| User-owned portable memory | Private-MVP evidence | “One signed-in owner accessed the same UMCP memory from ChatGPT, Gemini Spark, and the UMCP portal in private staging.” |
+| Google OAuth login | Implemented and privately verified | Scope to UMCP staging and the allowlisted account |
+| Server-derived owner isolation | Implemented and tested | Do not imply independent production audit or operator blindness |
+| Encrypted in transit/at rest | Architecture and staging controls exist | Do not use as a blanket marketing claim until release-SHA evidence is reconciled |
+| End-to-end encrypted / zero knowledge | Prohibited | The server decrypts memory for retrieval |
+| Works everywhere | Prohibited | List only individually verified surfaces |
+| Production-ready | Prohibited | Current environment is private staging |
+| Public beta | Prohibited | Enrollment, policy, support, and readiness gates are not complete |
 
-Cloud v1 is designed to be server-decryptable for retrieval. Do not imply that
-operators cannot access plaintext. See the [hosted threat model](../threat-model-hosted-v1.md).
+Never include real memory content, emails, OAuth codes, bearer/refresh tokens,
+cookies, database URLs, or secret values in public evidence.

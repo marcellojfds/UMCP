@@ -1,55 +1,95 @@
-# Roadmap
+# UMCP roadmap
 
-The roadmap separates the private managed MVP path from later open-source and
-public-release work. Current operational status is tracked in
-[`roadmap_implementation.md`](roadmap_implementation.md) and the current resume
-handoff is
-[`MVP-RESUMPTION-20260829.md`](handoffs/roadmap/MVP-RESUMPTION-20260829.md).
+**Updated:** 2026-08-30
+**Current stage:** private staging MVP
 
-## Current position — 2026-08-29
+This is the only active product roadmap. Older gameplans, checklists, and
+handoffs are historical evidence; they do not reopen completed work or restore
+old priorities.
 
-- M2 is staging-ready on `umcp-cloud-staging-00018-f78`; this is not a
-  production or public-beta claim.
-- C01/C02 implementation exists and produced 14/14 plus 15/15 hosted results,
-  with containment at 0/0/0. Their gates remain open pending one clean rerun
-  from an audit image tied to the exact committed source SHA.
-- C03 is the next product step: one authorized external client surface under
-  CP-4. No landing page, dashboard or third-party invitation is ready yet.
-- The first go-to-market step is a private managed beta. Open-source release
-  remains after the operated private beta, as defined by blocks B and O.
+## P0 — make the verified MVP natural and reliable
 
-## Productization program
+### R1. Retrieval that works without prompt engineering
 
-The long-term portable-memory product direction and its Codex delivery sequence
-are maintained separately so they do not imply that Alpha capabilities are
-already released:
+- replace the unsafe universal `min_relevance=0.78` behavior with a calibrated
+  retrieval policy for the active embedding profile;
+- add Portuguese and English cross-client regression cases;
+- guarantee that a direct durable preference is returned for a direct query;
+- retain meaningful abstention for unrelated queries; and
+- make clients omit retrieval tuning parameters in normal use.
 
-- [Portable Memory product vision](PRODUCT_VISION_PORTABLE_MEMORY.md)
-- [Codex delivery roadmap](CODEX_DELIVERY_ROADMAP.md)
-- [Terra/Luna productization gameplan](GAMEPLAN_PRODUCTIZATION_TERRA_LUNA.md)
-- [Codex execution reliability playbook](EXECUTION_RELIABILITY_PLAYBOOK.md)
+Acceptance: ChatGPT writes a synthetic preference and Gemini answers it with a
+plain-language `@Umcp Cloud` prompt, without mentioning tool parameters.
 
-## Historical Alpha release-candidate track
+### R2. Client-neutral capture and provenance
 
-- **Committed:** keep the public docs, protocol schemas, privacy claims, and
-  support matrix aligned with executable behavior.
-- **Required before publication:** obtain the missing S04 retrieval report and
-  S05 privacy/operations handoff; run the S07 build, clean-room, link, secret,
-  and package audit; enable/verify private vulnerability reporting.
-- **Planned publication:** GitHub Release only. PyPI is not part of this plan.
+- stop hardcoding `source_model="chatgpt"` in `memory.capture`;
+- derive safe client/source metadata from the authenticated MCP context where
+  available;
+- preserve explicit user intent and evidence without storing full conversation
+  transcripts by default; and
+- add conformance tests for ChatGPT and Gemini capture.
 
-## Alpha follow-ups
+### R3. One clean end-to-end acceptance suite
 
-- reproducible dependency constraints and release provenance;
-- verified backup, restore, forget, retention, outage, and incident runbooks;
-- an explicit maintainer decision on `hash/v1` after the frozen eval report;
-- additional regression coverage for privacy and cross-owner behavior.
+- automate OAuth discovery, tool sync, write/capture, portal visibility, and
+  cross-surface recall against one immutable staging SHA;
+- record redacted reports for ChatGPT and Gemini;
+- verify refresh, revoke, expiry, and owner isolation in the same release
+  candidate; and
+- make the report fail closed when evidence is missing.
 
-## Hosted capabilities that were future work at Alpha
+## P1 — complete the private beta product
 
-- a trusted identity/authentication boundary and hosted tenant isolation;
-- client-side encryption or another reviewed cryptographic design;
-- embedding providers, reranking, consolidation, and other quality work with
-  new evals and budgets;
-- transports and SDKs beyond Python/MCP stdio;
-- scale/load claims backed by measurements.
+### B1. Login and connection experience
+
+- replace the minimal OAuth handoff page with branded, accessible guidance;
+- show connected clients, scopes, last synchronization, and revocation state;
+- provide client-specific setup instructions without exposing owner IDs or
+  secrets; and
+- make OAuth errors actionable and safely redacted.
+
+### B2. Memory portal controls
+
+- add search, filtering, provenance, edit/correct, forget confirmation, and
+  export;
+- show when a memory was captured and which client supplied it;
+- surface conflicts and superseded memories; and
+- preserve server-owned authorization for every action.
+
+### B3. Claude acceptance
+
+- select one officially supported Claude surface;
+- complete OAuth and the same owner-bound lifecycle journey;
+- verify cross-surface recall with ChatGPT and Gemini; and
+- mark Claude supported only after a dated report exists.
+
+## P2 — readiness beyond the owner-only MVP
+
+- production environment separation and migration policy;
+- rate limits, abuse controls, operational SLOs, alerts, and incident process;
+- backup/restore and deletion-retention acceptance on the release SHA;
+- security review of OAuth, RLS, KMS, logs, exports, and portal controls;
+- dependency and supply-chain release gates; and
+- private-beta terms, privacy communication, support channel, and account
+  deletion workflow.
+
+## Explicitly deprioritized
+
+The following do not block the current MVP:
+
+- public marketplace publication;
+- a broad open beta;
+- PyPI/npm distribution;
+- native mobile applications;
+- autonomous consolidation or knowledge graphs;
+- billing and team workspaces;
+- “works everywhere” compatibility; and
+- E2EE/zero-knowledge claims without a different reviewed architecture.
+
+## Evidence policy
+
+No roadmap checkbox or old handoff is a support claim. A capability moves to
+verified only when the exact surface, date, deployed source SHA, and user
+journey are recorded in [Current state](CURRENT_STATE.md) or a linked current
+acceptance report.
