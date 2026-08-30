@@ -323,7 +323,7 @@ def create_cloud_http_app(
                 arguments = payload.get("params", {}).get("arguments", {})
             except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
                 arguments = {}
-            if isinstance(arguments, dict) and "owner_id" in arguments:
+            if isinstance(arguments, dict) and {"owner_id", "tenant_id"} & set(arguments):
                 return JSONResponse(
                     {"error": "invalid request"},
                     status_code=400,
@@ -344,6 +344,50 @@ def create_cloud_http_app(
         return JSONResponse({"status": "ready" if ready else "not_ready"}, 200 if ready else 503)
 
     if oauth_server is not None:
+        @app.get("/login", include_in_schema=False)
+        async def login_page(request: Request) -> object:
+            """Render the hosted Google handoff without creating browser authority.
+
+            OAuth clients provide their already-generated PKCE request.  The
+            page only preserves those protocol fields for the server's
+            allowlisted ``/authorize`` endpoint; it never receives or renders
+            an owner or tenant identifier.
+            """
+            from fastapi.responses import HTMLResponse
+
+            if {"owner_id", "tenant_id"} & set(request.query_params):
+                return JSONResponse({"error": "invalid_request"}, 400, headers={"cache-control": "no-store"})
+            protocol_fields = (
+                "response_type",
+                "client_id",
+                "redirect_uri",
+                "scope",
+                "state",
+                "code_challenge",
+                "code_challenge_method",
+            )
+            supplied = {field: request.query_params[field] for field in protocol_fields if field in request.query_params}
+            ready = len(supplied) == len(protocol_fields) and supplied.get("code_challenge_method") == "S256"
+            href = "/authorize?" + urllib.parse.urlencode(supplied) if ready else "#oauth-client-required"
+            disabled = "" if ready else " disabled aria-disabled=\"true\""
+            message = (
+                "Continue to Google to authorize this connection."
+                if ready
+                else "Open this page from a compatible client OAuth request to continue with Google."
+            )
+            return HTMLResponse(
+                "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+                "<title>Sign in to UMCP</title><main><h1>Sign in to UMCP</h1>"
+                f"<p>{html.escape(message)}</p><a role=\"button\" href=\"{html.escape(href, quote=True)}\"{disabled}>Continue with Google</a>"
+                "<p>UMCP verifies identity and assigns the owner and vault server-side.</p></main>",
+                headers={
+                    "cache-control": "no-store",
+                    "pragma": "no-cache",
+                    "referrer-policy": "no-referrer",
+                    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+                },
+            )
+
         @app.get("/.well-known/oauth-protected-resource")
         async def protected_metadata() -> dict[str, object]:
             return {"resource": oauth_server.config.issuer + "/mcp", "authorization_servers": [oauth_server.config.issuer], "scopes_supported": sorted({"memory:read", "memory:write", "memory:delete"})}

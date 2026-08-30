@@ -57,6 +57,26 @@ def test_cloud_tools_reject_owner_id_and_have_security_annotations(tmp_path) -> 
     assert tools["memory.forget"].annotations.destructiveHint is True
 
 
+@pytest.mark.parametrize("forged_field", ["owner_id", "tenant_id"])
+def test_cloud_mcp_rejects_client_supplied_authority(tmp_path, forged_field: str) -> None:
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+    )
+    app = create_cloud_http_app(runtime, verifier())
+    with TestClient(app, base_url="https://local.umcp.invalid") as client:
+        response = client.post(
+            "/mcp",
+            headers={"accept": "application/json, text/event-stream"},
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"arguments": {forged_field: "forged"}},
+            },
+        )
+    assert response.status_code == 400
+
+
 def test_cloud_http_is_fail_closed_and_health_is_separate(tmp_path) -> None:
     runtime = create_cloud_demo_runtime(
         OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
@@ -131,6 +151,56 @@ def test_oauth_form_endpoints_receive_starlette_request_objects(tmp_path) -> Non
         assert client.get("/oauth/audit-runner").status_code == 404
         assert client.get("/oauth/audit/callback").status_code == 404
         assert client.post("/oauth/audit/start", json={}).status_code == 404
+
+
+def test_hosted_login_page_is_pkce_bound_and_rejects_client_authority(tmp_path) -> None:
+    """The hosted sign-in page is an OAuth handoff, never a tenant selector."""
+
+    class StubOAuthServer:
+        config = SimpleNamespace(
+            issuer="https://local.umcp.invalid",
+            clients={"test-client": "https://client.example.test/callback"},
+        )
+
+        def metadata(self) -> dict[str, str]:
+            return {"issuer": self.config.issuer}
+
+        async def token(self, form: dict[str, str]) -> dict[str, str]:
+            raise OAuthError("unsupported_grant_type")
+
+        async def revoke(self, token: str) -> None:
+            return None
+
+    runtime = create_cloud_demo_runtime(
+        OMPSettings(demo_data_file=str(tmp_path / "cloud.json")), kms_master_key=b"k" * 32
+    )
+    app = create_cloud_http_app(runtime, verifier(), oauth_server=StubOAuthServer())
+    with TestClient(app, base_url="https://local.umcp.invalid") as client:
+        landing = client.get("/login")
+        assert landing.status_code == 200
+        assert "Continue with Google" in landing.text
+        assert "owner_id" not in landing.text
+        assert "tenant_id" not in landing.text
+        assert landing.headers["cache-control"] == "no-store"
+        assert "frame-ancestors 'none'" in landing.headers["content-security-policy"]
+
+        start = client.get(
+            "/login",
+            params={
+                "response_type": "code",
+                "client_id": "test-client",
+                "redirect_uri": "https://client.example.test/callback",
+                "scope": "memory:read",
+                "state": "client-state",
+                "code_challenge": "a" * 43,
+                "code_challenge_method": "S256",
+            },
+        )
+        assert start.status_code == 200
+        assert 'href="/authorize?' in start.text
+        assert "code_challenge_method=S256" in start.text
+        assert client.get("/login?owner_id=forged").status_code == 400
+        assert client.get("/login?tenant_id=forged").status_code == 400
 
 
 def test_oauth_audit_runner_requires_flag_and_exact_client(tmp_path) -> None:
