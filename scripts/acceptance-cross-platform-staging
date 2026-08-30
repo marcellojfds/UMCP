@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Fail-closed acceptance gate for the real three-client staging journey.
+
+The runner deliberately consumes only redacted evidence emitted by the three
+clients.  It never accepts a health check, tools/list-only result, synthetic
+persona, or a reused access token as proof of cross-platform interoperability.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+CLIENTS = ("chatgpt", "claude", "gemini")
+REQUIRED = {
+    "client",
+    "connection_id",
+    "identity_subject_digest",
+    "vault_id_digest",
+    "access_token_digest",
+    "oauth_pkce_s256",
+    "google_login",
+    "hosted_login_page",
+    "write_memory_id",
+    "read_memory_ids",
+    "semantic_read_memory_ids",
+    "owner_tenant_forgery_rejected",
+    "revocation_verified",
+}
+
+
+def fail(message: str) -> None:
+    raise ValueError(message)
+
+
+def load(path: Path) -> dict[str, object]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        fail(f"{path}: evidence must be a JSON object")
+    missing = REQUIRED - value.keys()
+    if missing:
+        fail(f"{path}: missing fields {', '.join(sorted(missing))}")
+    return value
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--evidence-dir", type=Path, required=True)
+    args = parser.parse_args()
+
+    reports = {client: load(args.evidence_dir / f"{client}.json") for client in CLIENTS}
+    if tuple(report["client"] for report in reports.values()) != CLIENTS:
+        fail("reports must be named and identify ChatGPT, Claude, and Gemini")
+    if not all(report["oauth_pkce_s256"] is True and report["google_login"] is True and report["hosted_login_page"] is True for report in reports.values()):
+        fail("each client must prove hosted Google OAuth with PKCE S256")
+    if len({report["connection_id"] for report in reports.values()}) != len(CLIENTS):
+        fail("each platform must have an independently revocable connection")
+    if len({report["access_token_digest"] for report in reports.values()}) != len(CLIENTS):
+        fail("access-token reuse between platforms is forbidden")
+    if len({report["identity_subject_digest"] for report in reports.values()}) != 1 or len({report["vault_id_digest"] for report in reports.values()}) != 1:
+        fail("the same Google identity must resolve to one stable owner/vault")
+    written = {str(report["write_memory_id"]) for report in reports.values()}
+    if len(written) != 1:
+        fail("all reports must reference the same created memory ID")
+    memory_id = written.pop()
+    if not all(memory_id in report["read_memory_ids"] and memory_id in report["semantic_read_memory_ids"] for report in reports.values()):
+        fail("each client must prove ID and semantic read of the shared memory")
+    if not all(report["owner_tenant_forgery_rejected"] is True and report["revocation_verified"] is True for report in reports.values()):
+        fail("forgery rejection and individual revocation must be proven per client")
+    print(json.dumps({"status": "PASS", "clients": list(CLIENTS), "evidence_digest": hashlib.sha256("".join(sorted((args.evidence_dir / f"{client}.json").read_text(encoding="utf-8") for client in CLIENTS)).encode()).hexdigest()}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        raise SystemExit(1)
