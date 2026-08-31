@@ -8,6 +8,13 @@ test("browser bootstrap enables only an explicitly configured same-origin Admin 
   assert.equal(getAdminAdapter({ __UMCP_ADMIN_API_BASE_URL__: "/admin" }).status, "ready");
 });
 
+test("account preview is opt-in and restricted to local hosts", async () => {
+  const local = getAdminAdapter({ location: { hostname: "127.0.0.1", search: "?preview=account" } });
+  assert.equal(local.status, "ready");
+  assert.equal((await local.session()).preview_mode, true);
+  assert.equal(getAdminAdapter({ location: { hostname: "umcp.example", search: "?preview=account" } }), unavailableAdapter);
+});
+
 test("HTTP adapter carries CSRF only after verified callback", async () => {
   const requests = [];
   const adapter = createHttpAdminAdapter({ fetchImpl: async (url, options) => {

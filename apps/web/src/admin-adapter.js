@@ -15,6 +15,7 @@ export const unavailableAdapter = Object.freeze({
 export function getAdminAdapter(scope = globalThis) {
   const adapter = scope.__UMCP_ADMIN_ADAPTER__;
   if (adapter && adapter.status === "ready") return adapter;
+  if (accountPreviewEnabled(scope)) return createAccountPreviewAdapter();
 
   // A deployment may opt in to an Admin API mounted on the current origin.
   // Reject protocol-relative URLs so a bootstrap value can never redirect
@@ -60,3 +61,4 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
     logout: () => request("/api/logout", { method: "POST" }),
   });
 }
+import { accountPreviewEnabled, createAccountPreviewAdapter } from "./account-preview.js";

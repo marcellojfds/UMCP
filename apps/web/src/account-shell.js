@@ -52,7 +52,7 @@ export function renderAccountShell({ path, title, lede = "", session = {}, conte
       </details>
     </aside>
     <section class="account-workspace">
-      <header class="account-topbar"><a class="account-mobile-brand" href="#/dashboard">UMCP</a><form class="vault-search" role="search"><label class="sr-only" for="vault-search-input">Search your memories</label><span aria-hidden="true">⌕</span><input id="vault-search-input" name="query" type="search" placeholder="Search your memories…" autocomplete="off"><kbd>⌘ K</kbd><button class="sr-only" type="submit">Search memories</button></form><span class="vault-label">Personal vault</span></header>
+      <header class="account-topbar"><a class="account-mobile-brand" href="#/dashboard">UMCP</a><form class="vault-search" role="search"><label class="sr-only" for="vault-search-input">Search your memories</label><span aria-hidden="true">⌕</span><input id="vault-search-input" name="query" type="search" placeholder="Search your memories…" autocomplete="off"><kbd>⌘ K</kbd><button class="sr-only" type="submit">Search memories</button></form><span class="vault-label">Personal vault</span></header>${session.preview_mode ? '<div class="account-preview-banner" role="status"><strong>Local preview</strong><span>Sample data only · actions do not affect your vault</span></div>' : ""}
       <main class="account-main" id="account-main"><header class="account-page-header"><div><p class="account-eyebrow">Personal vault</p><h1>${escapeHtml(title)}</h1>${lede ? `<p>${escapeHtml(lede)}</p>` : ""}</div>${toolbar}</header>${content}</main>
     </section>
   </div>`;

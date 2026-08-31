@@ -155,6 +155,8 @@ body.account-mode > #main { min-height: 100vh; }
 .account-workspace { min-width: 0; }
 .account-topbar { height: 68px; position: sticky; top: 0; z-index: 4; display: grid; grid-template-columns: minmax(260px, 560px) auto; align-items: center; justify-content: space-between; gap: 2rem; padding: 0 clamp(1.25rem, 4vw, 3.5rem); border-bottom: 1px solid #dedcd5; background: rgba(247,246,242,.94); backdrop-filter: blur(14px); }
 .account-mobile-brand { display: none; }
+.account-preview-banner { display: flex; justify-content: center; gap: .55rem; padding: .42rem 1rem; border-bottom: 1px solid #e7c9b8; background: #fff3eb; color: #774a37; font-size: .72rem; }
+.account-preview-banner strong { font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
 .vault-search { min-width: 0; display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; align-items: center; padding: .45rem .65rem; border: 1px solid #dedcd5; border-radius: 9px; background: #eeece6; color: #76776f; }
 .vault-search:focus-within { border-color: #aaa9a1; background: #fff; box-shadow: 0 0 0 3px rgba(54,55,53,.06); }
 .vault-search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: .88rem; }
