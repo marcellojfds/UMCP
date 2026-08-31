@@ -2,7 +2,7 @@
 
 **Last reconciled:** 2026-08-30  
 **Environment:** private GCP staging  
-**Canonical source:** `1233b221fd89edb1691bd6bd09c2d21eee4822bf`
+**Canonical source:** `7ceb8dbbf559b78b6d2cdf09a6d0792098b0a992`
 
 ## Deployment
 
@@ -11,10 +11,10 @@
 | GCP project | `umcp-mcp-staging-20260825` |
 | Region | `us-central1` |
 | Cloud Run service | `umcp-cloud-staging` |
-| Active revision | `umcp-cloud-staging-chatgpt-mvp2` |
+| Active revision | `umcp-cloud-staging-account-vault` |
 | MCP endpoint | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp` |
 | Portal | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/` |
-| Image digest | `sha256:689666f65458dee80f9fbade2b78c32fdab7235ac09b42b91adc0ca55ef1028d` |
+| Image digest | `sha256:fa621a6b97c8b3d4133a22f23da5a511f48f27a7b39130a69b26102cfde57268` |
 
 Staging is allowlisted for the maintainer identity. It is not production,
 public beta, or a general availability claim.
@@ -55,6 +55,8 @@ A cor favorita de Marcello é roxo.
 - `memory.write`, `memory.search`, `memory.capture`, `memory.update`, and
   `memory.forget`.
 - Owner portal session, list, detail, and logout endpoints.
+- Authenticated personal-vault shell with persistent account navigation, search,
+  memory cards, pinned notes, and memory detail inspector.
 - PostgreSQL/pgvector persistence and hosted tenant context.
 - Deployment provenance headers and immutable image/source metadata.
 
