@@ -168,9 +168,9 @@ body.account-mode > #main { min-height: 100vh; }
 .account-page-header > div > p:last-child { max-width: 620px; margin: 0; color: #72736d; font-size: 1rem; }
 .account-eyebrow { margin: 0; color: #8a6657; font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .account-page-actions { display: flex; gap: .5rem; align-items: center; }
-.icon-button { width: 38px; height: 38px; border: 1px solid #d4d2ca; border-radius: 7px; background: transparent; color: #777870; cursor: pointer; }
+.icon-button { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #d4d2ca; border-radius: 7px; background: transparent; color: #777870; text-decoration: none; cursor: pointer; }
 .icon-button.is-active { background: #fff; color: #292a27; }
-.vault-stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #d9d7cf; border-radius: 12px; background: var(--vault-panel); overflow: hidden; }
+.vault-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); border: 1px solid #d9d7cf; border-radius: 12px; background: var(--vault-panel); overflow: hidden; }
 .vault-stats a { min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: .8rem; padding: 1.35rem 1.5rem; text-decoration: none; border-right: 1px solid #e1dfd8; }
 .vault-stats a:last-child { border-right: 0; }
 .vault-stats a:hover { background: #fbfaf7; }
@@ -204,9 +204,26 @@ body.account-mode > #main { min-height: 100vh; }
 .vault-empty .button { margin-top: 1rem; }
 .vault-filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: 1rem; }
 .vault-filterbar > span { margin-right: auto; color: #7f8079; font-size: .76rem; }
-.filter-chip { padding: .45rem .75rem; border: 1px solid #d8d6ce; border-radius: 999px; background: transparent; color: #696a64; font: 11px var(--mono); cursor: pointer; }
+.filter-chip { display: inline-flex; align-items: center; padding: .45rem .75rem; border: 1px solid #d8d6ce; border-radius: 999px; background: transparent; color: #696a64; font: 11px var(--mono); text-decoration: none; cursor: pointer; }
 .filter-chip:hover, .filter-chip.is-active { border-color: #aaa8a0; background: #fff; color: #292a27; }
+.vault-advanced-filters { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)) auto; gap: .75rem; align-items: end; margin: 0 0 1rem; padding: 1rem; border: 1px solid #d9d7cf; border-radius: 10px; background: #fff; }
+.vault-advanced-filters[hidden] { display: none; }
+.vault-advanced-filters label { display: grid; gap: .35rem; color: #777870; font: 10px var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+.vault-advanced-filters select { min-height: 40px; padding: .55rem .65rem; border: 1px solid #cfcdc5; border-radius: 6px; background: #fff; color: #292a27; font: 13px Arial, sans-serif; }
+.vault-filter-actions { display: flex; align-items: center; gap: .75rem; }
+.vault-filter-actions .button { padding: .55rem .8rem; }
+.vault-filter-actions a { color: #6f706a; font-size: .76rem; }
 .vault-memory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.vault-memory-grid.is-list { grid-template-columns: 1fr; }
+.vault-memory-grid.is-list .vault-memory-card { display: grid; grid-template-columns: minmax(160px, .35fr) minmax(0, 1fr) auto; gap: 1rem; align-items: center; }
+.vault-memory-grid.is-list .vault-memory-card__meta { margin: 0; }
+.vault-memory-grid.is-list .vault-memory-card footer { min-width: 130px; margin: 0; padding: 0; border: 0; }
+.account-app[aria-busy="true"] .account-workspace::before { content: ""; position: fixed; z-index: 10; top: 0; left: 248px; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--orange), transparent); animation: vault-loading 1s linear infinite; }
+@keyframes vault-loading { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.inbox-review { max-width: 920px; }
+.inbox-review > header { align-items: center; }
+.inbox-review > header p:last-child { max-width: 600px; margin: .45rem 0 0; color: #777870; font-size: .84rem; }
+.inbox-count { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #fff0e9; color: #9c4e32; font: 12px var(--mono); }
 .account-control-card { max-width: 900px; padding: 1.5rem; }
 .account-control-card dl { border-top: 1px solid #dedcd5; }
 .account-control-card dl div { display: grid; grid-template-columns: minmax(130px, .35fr) 1fr; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid #dedcd5; }
@@ -240,7 +257,7 @@ body.account-mode > #main { min-height: 100vh; }
   .account-app { display: block; min-height: calc(100vh - 66px); }
   .account-sidebar { position: fixed; inset: auto 0 0; width: 100%; height: 66px; flex-direction: row; padding: .35rem .5rem; border: 0; border-top: 1px solid #3b3c38; }
   .account-brand, .account-sidebar > .account-nav__link, .account-sidebar__spacer, .account-profile { display: none; }
-  .account-nav { width: 100%; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; }
+  .account-nav { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: 0; }
   .account-nav__link { min-height: 56px; display: grid; place-items: center; align-content: center; gap: .15rem; padding: .2rem; border-radius: 7px; font-size: .62rem; }
   .account-nav__link.is-active { box-shadow: inset 0 2px var(--orange); }
   .account-nav__link svg { width: 18px; height: 18px; }
@@ -254,6 +271,11 @@ body.account-mode > #main { min-height: 100vh; }
   .vault-stats a { border-right: 0; border-bottom: 1px solid #e1dfd8; }
   .vault-stats a:last-child { border-bottom: 0; }
   .vault-memory-grid { grid-template-columns: 1fr; }
+  .vault-memory-grid.is-list .vault-memory-card { display: block; }
+  .vault-memory-grid.is-list .vault-memory-card__meta { margin-bottom: .65rem; }
+  .vault-memory-grid.is-list .vault-memory-card footer { margin-top: .8rem; padding-top: .7rem; border-top: 1px solid #eeece7; }
+  .vault-advanced-filters { grid-template-columns: 1fr; }
+  .account-app[aria-busy="true"] .account-workspace::before { left: 0; }
   .memory-detail-layout { grid-template-columns: 1fr; }
   .memory-inspector { grid-row: 1; }
   .card-actions { flex-wrap: wrap; }

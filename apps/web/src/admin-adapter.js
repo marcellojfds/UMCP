@@ -3,8 +3,13 @@
  * A trusted server injects this adapter after session verification. It must
  * derive principal and tenant from the session; no method accepts owner_id.
  */
+import { accountPreviewEnabled, createAccountPreviewAdapter } from "./account-preview.js";
+
+const previewAdapters = new WeakMap();
+
 export const unavailableAdapter = Object.freeze({
   status: "unavailable",
+  features: Object.freeze({ memoryWrite: false, memoryDelete: false, connections: false, agents: false, accountOperations: false }),
   async listMemories() { throw new Error("The authenticated administrative API is not available."); },
   async requestMagicLink() { throw new Error("The server-side email flow is not available."); },
   async exportTenant() { throw new Error("The authenticated administrative API is not available."); },
@@ -15,7 +20,10 @@ export const unavailableAdapter = Object.freeze({
 export function getAdminAdapter(scope = globalThis) {
   const adapter = scope.__UMCP_ADMIN_ADAPTER__;
   if (adapter && adapter.status === "ready") return adapter;
-  if (accountPreviewEnabled(scope)) return createAccountPreviewAdapter();
+  if (accountPreviewEnabled(scope)) {
+    if (!previewAdapters.has(scope)) previewAdapters.set(scope, createAccountPreviewAdapter());
+    return previewAdapters.get(scope);
+  }
 
   // A deployment may opt in to an Admin API mounted on the current origin.
   // Reject protocol-relative URLs so a bootstrap value can never redirect
@@ -29,17 +37,25 @@ export function getAdminAdapter(scope = globalThis) {
 /** Create the browser-side transport to the server-owned Admin API. */
 export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {}) {
   let csrf = null;
+  const portalReadOnly = baseUrl === "/portal" || baseUrl.endsWith("/portal");
   async function request(path, options = {}) {
     const response = await fetchImpl(`${baseUrl}${path}`, {
       credentials: "same-origin",
       headers: { "content-type": "application/json", ...(csrf ? { "x-umcp-csrf": csrf } : {}), ...(options.headers || {}) },
       ...options,
     });
-    if (!response.ok) throw new Error("Administrative request failed");
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const error = new Error("Administrative request failed");
+      error.code = payload.error || (response.status === 401 ? "authentication_required" : "administrative_request_failed");
+      error.status = response.status;
+      throw error;
+    }
     return response.status === 204 ? null : response.json();
   }
   return Object.freeze({
     status: "ready",
+    features: Object.freeze({ memoryWrite: !portalReadOnly, memoryDelete: !portalReadOnly, connections: !portalReadOnly, agents: !portalReadOnly, accountOperations: !portalReadOnly }),
     requestMagicLink: ({ email }) => request("/api/auth/magic-link", { method: "POST", body: JSON.stringify({ email }) }),
     completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; return result; },
     session: () => request("/api/session", { method: "GET" }),
@@ -61,4 +77,3 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
     logout: () => request("/api/logout", { method: "POST" }),
   });
 }
-import { accountPreviewEnabled, createAccountPreviewAdapter } from "./account-preview.js";

@@ -38,3 +38,15 @@ test("account shell escapes profile claims", () => {
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /&lt;img/);
 });
+
+test("account shell hides control-plane sections when the deployment is read-only", () => {
+  const html = renderAccountShell({
+    path: "/dashboard",
+    title: "Today",
+    features: { connections: false, agents: false },
+    content: "",
+  });
+  assert.doesNotMatch(html, />Connections</);
+  assert.doesNotMatch(html, />Agents</);
+  assert.match(html, />Inbox</);
+});

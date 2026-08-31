@@ -34,9 +34,10 @@ function navIcon(kind) {
   return `<svg aria-hidden="true" viewBox="0 0 20 20">${paths[kind] || paths.home}</svg>`;
 }
 
-export function renderAccountShell({ path, title, lede = "", session = {}, content, toolbar = "" }) {
+export function renderAccountShell({ path, title, lede = "", session = {}, content, toolbar = "", features = {} }) {
   const identity = accountIdentity(session);
-  const links = navigation.map(([href, label, icon]) => {
+  const visibleNavigation = navigation.filter(([href]) => (href !== "/connections" || features.connections !== false) && (href !== "/agents" || features.agents !== false));
+  const links = visibleNavigation.map(([href, label, icon]) => {
     const active = path === href || (href === "/memories" && path.startsWith("/memories/"));
     return `<a class="account-nav__link${active ? " is-active" : ""}" href="#${href}"${active ? ' aria-current="page"' : ""}>${navIcon(icon)}<span>${label}</span></a>`;
   }).join("");
@@ -48,7 +49,7 @@ export function renderAccountShell({ path, title, lede = "", session = {}, conte
       <a class="account-nav__link" href="#/settings/security">${navIcon("connection")}<span>Settings</span></a>
       <details class="account-profile">
         <summary><span class="account-avatar">${escapeHtml(identity.initials)}</span><span class="account-profile__copy"><strong>${escapeHtml(identity.name)}</strong><small>${escapeHtml(identity.secondary)}</small></span><span aria-hidden="true">•••</span></summary>
-        <div class="account-profile__menu"><a href="#/settings/security">Account &amp; security</a><a href="#/connections">Manage connections</a><button type="button" data-account-logout>Log out</button></div>
+        <div class="account-profile__menu"><a href="#/settings/security">Account &amp; security</a>${features.connections === false ? "" : '<a href="#/connections">Manage connections</a>'}<button type="button" data-account-logout>Log out</button></div>
       </details>
     </aside>
     <section class="account-workspace">

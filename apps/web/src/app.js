@@ -4,6 +4,14 @@ import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
 import { renderMemoryInbox } from "./memory-inbox-view.js";
 import { M1_FIXTURE_MEMORY_ID } from "./memory-inbox-contract.js";
 import { renderAccountShell } from "./account-shell.js";
+import { memoryCard, memoryStateLabel, memoryViewHash, renderAccountInbox, renderMemoryBrowser } from "./memory-vault-view.js";
+
+const landingMarkup = document.querySelector("#main")?.innerHTML || "";
+let navigationRevision = 0;
+
+function navigationIsCurrent(revision) {
+  return revision == null || revision === navigationRevision;
+}
 
 const surfaces = [
   ["ChatGPT developer mode", "Remote /mcp or private test tunnel", "Unverified"],
@@ -47,31 +55,42 @@ function renderRoutePage(path, content) {
   return true;
 }
 
-function memoryStateLabel(state) {
-  return ({ candidate: "Needs review", confirmed: "Confirmed", pinned: "Pinned", stale: "Review", active: "Active", archived: "Archived", contradicted: "Conflict", superseded: "Superseded" })[state] || state || "Memory";
-}
-
-function memoryCard(memory) {
-  const space = memory.space || "General";
-  const type = memory.type || memory.memory_type || "memory";
-  return `<article class="vault-memory-card"><div class="vault-memory-card__meta"><span class="memory-type">${escapeHtml(type)}</span><span class="memory-state memory-state--${escapeHtml(memory.state || "active")}">${escapeHtml(memoryStateLabel(memory.state))}</span></div><a href="#/memories/${encodeURIComponent(memory.id)}">${escapeHtml(memory.content)}</a><footer><span>${escapeHtml(space)}</span><span>v${escapeHtml(memory.version || 1)}</span></footer></article>`;
-}
-
 function renderAccountPage({ path, title, lede, session, content, toolbar = "", query = "" }) {
   document.body.classList.add("account-mode");
-  document.querySelector("#main").innerHTML = renderAccountShell({ path, title, lede, session, content, toolbar });
+  const features = getAdminAdapter().features || {};
+  const existing = document.querySelector(".account-app");
+  if (existing) {
+    document.querySelector(".account-main").innerHTML = `<header class="account-page-header"><div><p class="account-eyebrow">Personal vault</p><h1>${escapeHtml(title)}</h1>${lede ? `<p>${escapeHtml(lede)}</p>` : ""}</div>${toolbar}</header>${content}`;
+    document.querySelectorAll(".account-nav__link").forEach((link) => {
+      const href = link.getAttribute("href")?.slice(1) || "";
+      const active = path === href || (href === "/memories" && path.startsWith("/memories/"));
+      link.classList.toggle("is-active", active);
+      if (active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
+    });
+  } else {
+    document.querySelector("#main").innerHTML = renderAccountShell({ path, title, lede, session, content, toolbar, features });
+  }
+  document.querySelector(".account-app")?.removeAttribute("aria-busy");
   document.title = `${title} — UMCP`;
   const search = document.querySelector(".vault-search");
   const input = search?.querySelector("input");
   if (input) input.value = query;
-  search?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const value = new FormData(search).get("query")?.toString().trim() || "";
-    location.hash = value ? `#/memories?query=${encodeURIComponent(value)}` : "#/memories";
-  });
+  if (search && !search.dataset.wired) {
+    search.dataset.wired = "true";
+    search.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = new FormData(search).get("query")?.toString().trim() || "";
+      const params = new URLSearchParams(location.hash.split("?")[1] || "");
+      location.hash = memoryViewHash({ query: value, space: params.get("space") || "", state: params.get("state") || "", type: params.get("type") || "", view: params.get("view") || "cards" });
+    });
+  }
   document.removeEventListener("keydown", focusVaultSearch);
   document.addEventListener("keydown", focusVaultSearch);
-  document.querySelector("[data-account-logout]")?.addEventListener("click", () => { void accountLogout(); });
+  const logout = document.querySelector("[data-account-logout]");
+  if (logout && !logout.dataset.wired) {
+    logout.dataset.wired = "true";
+    logout.addEventListener("click", () => { void accountLogout(); });
+  }
   return true;
 }
 
@@ -87,10 +106,36 @@ async function accountLogout() {
   try {
     await adapter.logout();
     location.hash = "#login";
-    location.reload();
   } catch {
     globalThis.alert("We could not log out. Please try again.");
   }
+}
+
+function showAccountPending() {
+  const app = document.querySelector(".account-app");
+  if (app) app.setAttribute("aria-busy", "true");
+}
+
+function wireMemoryBrowser() {
+  const toggle = document.querySelector("[data-toggle-filters]");
+  const form = document.querySelector("[data-memory-filters]");
+  toggle?.addEventListener("click", () => {
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    if (form) form.hidden = expanded;
+  });
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const current = new URLSearchParams(location.hash.split("?")[1] || "");
+    const data = new FormData(form);
+    location.hash = memoryViewHash({
+      query: current.get("query") || "",
+      space: current.get("space") || "",
+      state: String(data.get("state") || ""),
+      type: String(data.get("type") || ""),
+      view: current.get("view") || "cards",
+    });
+  });
 }
 
 function unavailableRoute(path, message) {
@@ -105,16 +150,20 @@ function idempotencyKey() {
   return globalThis.crypto?.randomUUID?.() || `web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function renderAuthenticatedRoute(path, { query = "" } = {}) {
+async function renderAuthenticatedRoute(path, { query = "", space = "", state = "", type = "", view = "cards", navigationId = null } = {}) {
   const adapter = getAdminAdapter();
   const staticPage = routePages[path];
   if (!staticPage) return false;
   if (adapter.status !== "ready") return unavailableRoute(path, staticPage[2]);
-  renderRoutePage(path, `<div class="empty-state"><span class="mono">LOADING SECURE DATA</span><p>Checking the server-side session…</p></div>`);
+  if (document.querySelector(".account-app")) showAccountPending();
+  else renderRoutePage(path, `<div class="empty-state"><span class="mono">LOADING SECURE DATA</span><p>Checking the server-side session…</p></div>`);
   try {
     const session = await adapter.session();
+    if (!navigationIsCurrent(navigationId)) return true;
     if (path === "/dashboard") {
-      const [memoryResult, connectionResult] = await Promise.allSettled([adapter.listMemories(), adapter.listConnections()]);
+      const connectionRequest = adapter.features?.connections === false ? Promise.resolve({ connections: [] }) : adapter.listConnections();
+      const [memoryResult, connectionResult] = await Promise.allSettled([adapter.listMemories(), connectionRequest]);
+      if (!navigationIsCurrent(navigationId)) return true;
       const result = memoryResult.status === "fulfilled" ? memoryResult.value : { memories: [] };
       const connections = connectionResult.status === "fulfilled" ? connectionResult.value.connections || [] : [];
       const items = memoryItems(result);
@@ -123,44 +172,55 @@ async function renderAuthenticatedRoute(path, { query = "" } = {}) {
       const pinned = items.filter((memory) => memory.state === "pinned").length;
       const activeConnections = connections.filter((connection) => connection.status === "active").length;
       const recent = items.slice(0, 4);
-      const content = `<section class="vault-stats" aria-label="Vault overview"><a href="#/memories"><strong>${count}</strong><span>Memories</span><small>Your searchable vault</small></a><a href="#/inbox"><strong>${pending}</strong><span>To review</span><small>Candidates and conflicts</small></a><a href="#/connections"><strong>${activeConnections}</strong><span>Connections</span><small>Authorized clients</small></a></section>
+      const connectionStat = adapter.features?.connections === false ? "" : `<a href="#/connections"><strong>${activeConnections}</strong><span>Connections</span><small>Authorized clients</small></a>`;
+      const content = `<section class="vault-stats" aria-label="Vault overview"><a href="#/memories"><strong>${count}</strong><span>Memories</span><small>Your searchable vault</small></a><a href="#/inbox"><strong>${pending}</strong><span>To review</span><small>Candidates and conflicts</small></a>${connectionStat}</section>
         <div class="vault-dashboard-grid"><section class="vault-panel"><header><div><p class="account-eyebrow">Continue exploring</p><h2>Recent memories</h2></div><a href="#/memories">View all</a></header><div class="vault-memory-list">${recent.length ? recent.map(memoryCard).join("") : '<div class="vault-empty"><span>✦</span><h3>Your vault is ready.</h3><p>Memories captured by an authorized connection will appear here.</p></div>'}</div></section>
         <aside class="vault-panel mental-notes"><header><div><p class="account-eyebrow">Keep close</p><h2>Mental notes</h2></div><span>${pinned}</span></header>${pinned ? `<div class="vault-memory-list">${items.filter((memory) => memory.state === "pinned").slice(0, 3).map(memoryCard).join("")}</div>` : '<div class="vault-empty vault-empty--compact"><span>◇</span><h3>Nothing pinned yet</h3><p>Pin an important memory to keep it within reach.</p></div>'}</aside></div>`;
       return renderAccountPage({ path, title: "Today", lede: "A calm overview of what your assistants remember.", session, content });
     }
     if (path === "/memories") {
       const result = await adapter.listMemories(query);
+      if (!navigationIsCurrent(navigationId)) return true;
       const items = memoryItems(result);
-      const spaces = [...new Set(items.map((memory) => memory.space).filter(Boolean))];
-      const toolbar = `<div class="account-page-actions"><button class="icon-button is-active" type="button" aria-label="Card view">▦</button><button class="icon-button" type="button" aria-label="List view" disabled>☷</button><button class="button button--dark" type="button" disabled title="Memory creation will be enabled with the next API contract">New memory</button></div>`;
-      const filters = `<div class="vault-filterbar"><span>${items.length} ${items.length === 1 ? "memory" : "memories"}</span><button type="button" class="filter-chip is-active">All</button>${spaces.slice(0, 4).map((space) => `<button type="button" class="filter-chip">${escapeHtml(space)}</button>`).join("")}<button type="button" class="filter-chip">Filters <span aria-hidden="true">＋</span></button></div>`;
-      const content = `${filters}<section class="vault-memory-grid">${items.length ? items.map(memoryCard).join("") : `<div class="vault-empty vault-empty--wide"><span>⌕</span><h2>${query ? "No matching memories" : "Your memory vault is empty"}</h2><p>${query ? `Try a different phrase or clear “${escapeHtml(query)}”.` : "Once an authorized assistant captures a memory, it will appear here with its origin and lifecycle."}</p>${query ? '<a class="button button--dark" href="#/memories">Clear search</a>' : ""}</div>`}</section>`;
-      return renderAccountPage({ path, title: "Memories", lede: "Explore, understand, and control what stays with you.", session, content, toolbar, query });
+      const browser = renderMemoryBrowser({ items, query, space, state, type, view });
+      renderAccountPage({ path, title: "Memories", lede: "Explore, understand, and control what stays with you.", session, content: browser.content, toolbar: browser.toolbar, query });
+      wireMemoryBrowser();
+      return true;
     }
     if (path === "/connections") {
+      if (adapter.features?.connections === false) return renderAccountPage({ path, title: "Connections", lede: "Connection management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Your existing memory access remains unchanged.</p></div>' });
       const result = await adapter.listConnections();
+      if (!navigationIsCurrent(navigationId)) return true;
       const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))} · last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small>${connection.status === "active" ? `<button type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been created.</li>";
       renderAccountPage({ path, title: "Connections", lede: "Choose which assistants and clients can use your vault.", session, content: `<div class="account-control-card"><p class="mono">AUTHORIZED CLIENTS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>` });
       wireConnectionActions(adapter);
       return true;
     }
     if (path === "/agents") {
+      if (adapter.features?.agents === false) return renderAccountPage({ path, title: "Agents", lede: "Agent credential management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Nothing can be issued or revoked from this deployment.</p></div>' });
       const result = await adapter.listAgentCredentials();
+      if (!navigationIsCurrent(navigationId)) return true;
       const rows = (result.credentials || []).map((credential) => `<li>${escapeHtml(credential.name)} <small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small>${!credential.revoked ? `<button type="button" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No agent credentials have been issued.</li>";
       renderAccountPage({ path, title: "Agents", lede: "Issue narrow, revocable access for your own agents.", session, content: `<div class="account-control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul><form id="agent-form"><label for="agent-name">Agent name</label><input id="agent-name" name="name" required maxlength="128"><label for="agent-expiry">Expiry (seconds)</label><input id="agent-expiry" name="expires_in_seconds" type="number" min="60" max="86400" value="3600" required><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Issue credential</button><p id="agent-action-status" role="status"></p></form></div>` });
       wireAgentActions(adapter);
       return true;
     }
     if (path === "/settings/security") {
-      renderAccountPage({ path, title: "Account & security", lede: "Manage your session, data, and account lifecycle.", session, content: `<div class="account-control-card"><p class="mono">VERIFIED SESSION</p><dl><div><dt>Account ID</dt><dd>${escapeHtml(session.subject_id)}</dd></div><div><dt>Vault ID</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Scopes</dt><dd>${escapeHtml((session.scopes || []).join(", "))}</dd></div></dl><div class="card-actions"><button class="button" id="request-export" type="button">Request export</button><button class="button button--dark" id="request-deletion" type="button">Request account deletion</button><button id="logout" type="button">Log out</button></div><p id="security-action-status" role="status"></p></div>` });
-      wireSecurityActions(adapter);
+      const operations = adapter.features?.accountOperations === false ? "" : '<button class="button" id="request-export" type="button">Request export</button><button class="button button--dark" id="request-deletion" type="button">Request account deletion</button>';
+      renderAccountPage({ path, title: "Account & security", lede: "Manage your session, data, and account lifecycle.", session, content: `<div class="account-control-card"><p class="mono">VERIFIED SESSION</p><dl><div><dt>Account ID</dt><dd>${escapeHtml(session.subject_id)}</dd></div><div><dt>Vault ID</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Scopes</dt><dd>${escapeHtml((session.scopes || []).join(", ") || "Session verified")}</dd></div></dl><div class="card-actions">${operations}<button class="button button--quiet" id="logout" type="button">Log out</button></div><p id="security-action-status" role="status"></p></div>` });
+      if (adapter.features?.accountOperations === false) document.querySelector("#logout")?.addEventListener("click", () => { void accountLogout(); });
+      else wireSecurityActions(adapter);
       return true;
     }
     if (path === "/status") {
       const capabilities = await adapter.capabilities();
+      if (!navigationIsCurrent(navigationId)) return true;
       return renderAccountPage({ path, title: "System status", lede: "Current capabilities for this deployment.", session, content: `<div class="account-control-card"><p class="mono">${escapeHtml(capabilities.version)}</p><dl><div><dt>Authentication</dt><dd>${escapeHtml(capabilities.auth)}</dd></div><div><dt>Email delivery</dt><dd>${escapeHtml(capabilities.email_delivery)}</dd></div><div><dt>Tenant export</dt><dd>${capabilities.tenant_export ? "available" : "unavailable"}</dd></div></dl></div>` });
     }
-  } catch {
+  } catch (error) {
+    if (error?.code === "authentication_required" || error?.status === 401) {
+      return renderRoutePage(path, '<div class="empty-state" data-state="authentication-required"><span class="mono">SIGN IN REQUIRED</span><p>Your portal session is unavailable or has expired.</p><a class="button button--dark" href="#login">Sign in again</a></div>');
+    }
     return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ERROR</span><p>We could not load this account data. Please try again later.</p></div>`);
   }
   return unavailableRoute(path, staticPage[2]);
@@ -298,7 +358,24 @@ function inboxActionStatus(message, state = "") {
   target.textContent = message;
 }
 
-async function renderInboxRoute() {
+async function renderInboxRoute(navigationId = null) {
+  const admin = getAdminAdapter();
+  if (admin.status === "ready") {
+    if (document.querySelector(".account-app")) showAccountPending();
+    else renderRoutePage("/inbox", `<div class="empty-state"><span class="mono">LOADING INBOX</span><p>Checking which memories need attention…</p></div>`);
+    try {
+      const [session, result] = await Promise.all([admin.session(), admin.listMemories()]);
+      if (!navigationIsCurrent(navigationId)) return true;
+      return renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review the memories that need a decision.", session, content: renderAccountInbox(memoryItems(result)) });
+    } catch (error) {
+      if (error?.code === "authentication_required" || error?.status === 401) {
+        return renderRoutePage("/inbox", '<div class="empty-state" data-state="authentication-required"><span class="mono">SIGN IN REQUIRED</span><p>Your portal session is unavailable or has expired.</p><a class="button button--dark" href="#login">Sign in again</a></div>');
+      }
+      renderRoutePage("/inbox", `<div class="empty-state"><span class="mono">INBOX UNAVAILABLE</span><p>We could not load the review queue. Please try again.</p><button class="button button--dark" type="button" data-action="retry-inbox">Retry</button></div>`);
+      document.querySelector("[data-action='retry-inbox']")?.addEventListener("click", () => { void renderInboxRoute(); });
+      return true;
+    }
+  }
   const adapter = getMemoryInboxAdapter();
   renderRoutePage("/inbox", renderMemoryInbox({ state: "loading", mode: adapter.status }));
   try {
@@ -312,26 +389,12 @@ async function renderInboxRoute() {
       recall: inboxSnapshot.recall,
       restore: inboxSnapshot.restore,
     });
-    const admin = getAdminAdapter();
-    if (admin.status === "ready") {
-      const session = await admin.session();
-      renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review what your assistants would like to remember.", session, content });
-    } else {
-      renderRoutePage("/inbox", content);
-    }
+    renderRoutePage("/inbox", content);
     wireInboxActions(adapter);
     return true;
   } catch {
     const content = renderMemoryInbox({ state: "error", mode: adapter.status });
-    const admin = getAdminAdapter();
-    if (admin.status === "ready") {
-      try {
-        const session = await admin.session();
-        renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review what your assistants would like to remember.", session, content });
-      } catch { renderRoutePage("/inbox", content); }
-    } else {
-      renderRoutePage("/inbox", content);
-    }
+    renderRoutePage("/inbox", content);
     wireInboxActions(adapter);
     return true;
   }
@@ -498,23 +561,27 @@ function wireSecurityActions(adapter) {
     try {
       await adapter.logout();
       location.hash = "#login";
-      location.reload();
     } catch {
       status.textContent = "We could not log out. Please try again.";
     }
   });
 }
 
-async function renderMemoryDetail(memoryId) {
+async function renderMemoryDetail(memoryId, navigationId = null) {
   const adapter = getAdminAdapter();
   if (adapter.status !== "ready") return unavailableRoute("/memories", "A verified server session is required to view a memory.");
-  renderRoutePage("/memories", `<div class="empty-state"><span class="mono">LOADING MEMORY</span></div>`);
+  if (document.querySelector(".account-app")) showAccountPending();
+  else renderRoutePage("/memories", `<div class="empty-state"><span class="mono">LOADING MEMORY</span></div>`);
   try {
     const [memory, session] = await Promise.all([adapter.getMemory(memoryId), adapter.session()]);
+    if (!navigationIsCurrent(navigationId)) return true;
     const metadata = `<aside class="memory-inspector"><p class="account-eyebrow">About this memory</p><dl><div><dt>Type</dt><dd>${escapeHtml(memory.type || memory.memory_type || "memory")}</dd></div><div><dt>State</dt><dd>${escapeHtml(memoryStateLabel(memory.state))}</dd></div><div><dt>Space</dt><dd>${escapeHtml(memory.space || "General")}</dd></div><div><dt>Version</dt><dd>${escapeHtml(memory.version)}</dd></div></dl><p class="caption">Origin and relation details appear here when supplied by the administrative API.</p></aside>`;
-    const editor = `<section class="memory-editor"><a class="back-link" href="#/memories">← All memories</a><div class="memory-editor__content"><span class="memory-type">${escapeHtml(memory.type || memory.memory_type || "memory")}</span><p>${escapeHtml(memory.content)}</p></div><form id="memory-edit-form"><label for="memory-content">Edit memory</label><textarea id="memory-content" name="content" required>${escapeHtml(memory.content)}</textarea><div class="card-actions"><button class="button" type="submit">Save new version</button><button class="button button--quiet" id="forget-memory" type="button">Forget memory</button></div><p id="memory-action-status" role="status"></p></form></section>`;
+    const canWrite = adapter.features?.memoryWrite !== false;
+    const canForget = adapter.features?.memoryDelete !== false;
+    const controls = canWrite || canForget ? `<form id="memory-edit-form">${canWrite ? `<label for="memory-content">Edit memory</label><textarea id="memory-content" name="content" required>${escapeHtml(memory.content)}</textarea>` : ""}<div class="card-actions">${canWrite ? '<button class="button" type="submit">Save new version</button>' : ""}${canForget ? '<button class="button button--quiet" id="forget-memory" type="button">Forget memory</button>' : ""}</div><p id="memory-action-status" role="status"></p></form>` : '<p class="caption">This deployment currently provides a read-only view of your memories.</p>';
+    const editor = `<section class="memory-editor"><a class="back-link" href="#/memories">← All memories</a><div class="memory-editor__content"><span class="memory-type">${escapeHtml(memory.type || memory.memory_type || "memory")}</span><p>${escapeHtml(memory.content)}</p></div>${controls}</section>`;
     renderAccountPage({ path: `/memories/${memoryId}`, title: "Memory detail", lede: "Inspect its meaning, lifecycle, and origin.", session, content: `<div class="memory-detail-layout">${editor}${metadata}</div>` });
-    wireMemoryActions(adapter, memory);
+    if (canWrite || canForget) wireMemoryActions(adapter, memory);
     return true;
   } catch {
     return renderRoutePage("/memories", `<div class="empty-state"><span class="mono">NOT AVAILABLE</span><p>This memory is no longer available in the current session.</p><a class="button button--dark" href="#/memories">Back to memories</a></div>`);
@@ -525,8 +592,8 @@ function wireMemoryActions(adapter, memory) {
   const form = document.querySelector("#memory-edit-form");
   const forget = document.querySelector("#forget-memory");
   const status = document.querySelector("#memory-action-status");
-  if (!form || !forget || !status) return;
-  form.addEventListener("submit", async (event) => {
+  if (!form || !status) return;
+  if (adapter.features?.memoryWrite !== false) form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
     status.textContent = "Saving a new version…";
@@ -542,7 +609,7 @@ function wireMemoryActions(adapter, memory) {
       status.textContent = "We could not save this version. It may have changed; refresh and try again.";
     }
   });
-  forget.addEventListener("click", async () => {
+  forget?.addEventListener("click", async () => {
     if (!globalThis.confirm("Forget this memory? This cannot be undone from this screen.")) return;
     status.textContent = "Forgetting memory…";
     try {
@@ -557,7 +624,9 @@ function wireMemoryActions(adapter, memory) {
 function restoreLanding() {
   if (!location.hash || location.hash === "#top" || location.hash === "#login" || location.hash === "#how" || location.hash === "#control" || location.hash === "#compatibility" || location.hash === "#security") {
     document.body.classList.remove("account-mode");
-    if (document.querySelector(".route-page")) location.reload();
+    document.removeEventListener("keydown", focusVaultSearch);
+    const main = document.querySelector("#main");
+    if (main && main.innerHTML !== landingMarkup) main.innerHTML = landingMarkup;
     document.title = "UMCP — Open Memory Protocol";
   }
 }
@@ -628,6 +697,7 @@ function wireLogin() {
 }
 
 async function route() {
+  const navigationId = ++navigationRevision;
   const hashParts = location.hash.match(/^#\/callback\?(.+)$/);
   const query = hashParts ? new URLSearchParams(hashParts[1]) : new URLSearchParams(location.search);
   const callbackToken = query.get("token");
@@ -663,10 +733,17 @@ async function route() {
   const routeQuery = new URLSearchParams(hashQuery);
   if (path === "/consent") return renderConsentRoute();
   if (path === "/connections" && getAdminAdapter().status !== "ready") return renderConnectionsRoute();
-  if (path === "/inbox") return renderInboxRoute();
+  if (path === "/inbox") return renderInboxRoute(navigationId);
   const detail = path.match(/^\/memories\/([^/]+)$/);
-  if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]));
-  if (path && await renderAuthenticatedRoute(path, { query: routeQuery.get("query") || "" })) return;
+  if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]), navigationId);
+  if (path && await renderAuthenticatedRoute(path, {
+    query: routeQuery.get("query") || "",
+    space: routeQuery.get("space") || "",
+    state: routeQuery.get("state") || "",
+    type: routeQuery.get("type") || "",
+    view: routeQuery.get("view") === "list" ? "list" : "cards",
+    navigationId,
+  })) return;
   restoreLanding();
   renderCompatibility();
   wireLogin();

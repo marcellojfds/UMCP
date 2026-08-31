@@ -6,12 +6,17 @@ test("browser bootstrap enables only an explicitly configured same-origin Admin 
   assert.equal(getAdminAdapter({}).status, "unavailable");
   assert.equal(getAdminAdapter({ __UMCP_ADMIN_API_BASE_URL__: "//example.test" }), unavailableAdapter);
   assert.equal(getAdminAdapter({ __UMCP_ADMIN_API_BASE_URL__: "/admin" }).status, "ready");
+  assert.equal(getAdminAdapter({ __UMCP_ADMIN_API_BASE_URL__: "/portal" }).features.memoryWrite, false);
 });
 
 test("account preview is opt-in and restricted to local hosts", async () => {
-  const local = getAdminAdapter({ location: { hostname: "127.0.0.1", search: "?preview=account" } });
+  const scope = { location: { hostname: "127.0.0.1", search: "?preview=account" } };
+  const local = getAdminAdapter(scope);
   assert.equal(local.status, "ready");
   assert.equal((await local.session()).preview_mode, true);
+  const original = await local.getMemory("preview-1");
+  await local.updateMemory(original.id, { expected_version: original.version, patch: { content: "Updated preview" } });
+  assert.equal((await getAdminAdapter(scope).getMemory("preview-1")).content, "Updated preview");
   assert.equal(getAdminAdapter({ location: { hostname: "umcp.example", search: "?preview=account" } }), unavailableAdapter);
 });
 
@@ -26,6 +31,11 @@ test("HTTP adapter carries CSRF only after verified callback", async () => {
   await adapter.completeMagicLink("single-use-token");
   await adapter.logout();
   assert.equal(requests[2].options.headers["x-umcp-csrf"], "csrf-1");
+});
+
+test("HTTP adapter preserves authentication failures for a useful sign-in state", async () => {
+  const adapter = createHttpAdminAdapter({ baseUrl: "/portal", fetchImpl: async () => new Response(JSON.stringify({ error: "authentication_required" }), { status: 401 }) });
+  await assert.rejects(() => adapter.session(), (error) => error.code === "authentication_required" && error.status === 401);
 });
 
 test("HTTP adapter exposes only server-owned control-plane paths", async () => {
