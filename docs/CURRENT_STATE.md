@@ -1,8 +1,8 @@
 # Current deployed state
 
-**Last reconciled:** 2026-08-30  
+**Last reconciled:** 2026-08-31
 **Environment:** private GCP staging  
-**Canonical source:** `7ceb8dbbf559b78b6d2cdf09a6d0792098b0a992`
+**Canonical source:** `97318b5caebec6ec9de62c8ab1f768c265c4088b`
 
 ## Deployment
 
@@ -11,10 +11,10 @@
 | GCP project | `umcp-mcp-staging-20260825` |
 | Region | `us-central1` |
 | Cloud Run service | `umcp-cloud-staging` |
-| Active revision | `umcp-cloud-staging-account-vault` |
+| Active revision | `umcp-cloud-staging-portal-final` |
 | MCP endpoint | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp` |
 | Portal | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/` |
-| Image digest | `sha256:fa621a6b97c8b3d4133a22f23da5a511f48f27a7b39130a69b26102cfde57268` |
+| Image digest | `sha256:5368ca582bbf96a363ed3a3bf7686d722bddc55d256c9fb8f06ccb85c4f999e2` |
 
 Staging is allowlisted for the maintainer identity. It is not production,
 public beta, or a general availability claim.
@@ -57,6 +57,10 @@ A cor favorita de Marcello é roxo.
 - Owner portal session, list, detail, and logout endpoints.
 - Authenticated personal-vault shell with persistent account navigation, search,
   memory cards, pinned notes, and memory detail inspector.
+- In-app portal transitions without full-page reloads, working memory filters
+  and list/card views, and an Inbox review queue derived from owner memories.
+- Read-only capability gating for account controls that are not supported by
+  the current hosted API.
 - PostgreSQL/pgvector persistence and hosted tenant context.
 - Deployment provenance headers and immutable image/source metadata.
 
