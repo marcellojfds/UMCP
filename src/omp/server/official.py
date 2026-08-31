@@ -577,6 +577,7 @@ def create_cloud_http_app(
                     }
                 )
                 access_token = str(issued["access_token"])
+                refresh_token = str(issued["refresh_token"])
             except (KeyError, TypeError, ValueError, json.JSONDecodeError, OAuthError):
                 return JSONResponse({"error": "invalid_login"}, 400, headers={"cache-control": "no-store"})
             response = RedirectResponse("/portal/#/memories", status_code=302)
@@ -585,6 +586,15 @@ def create_cloud_http_app(
                 "umcp_portal_session",
                 access_token,
                 max_age=600,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/portal",
+            )
+            response.set_cookie(
+                "umcp_portal_refresh",
+                refresh_token,
+                max_age=7 * 24 * 60 * 60,
                 httponly=True,
                 secure=True,
                 samesite="lax",
@@ -616,6 +626,44 @@ def create_cloud_http_app(
                 "tenant_id": str(principal.tenant_id),
                 "expires_at": principal.expires_at.isoformat(),
             }
+
+        @app.post("/portal/api/refresh", include_in_schema=False)
+        async def portal_refresh(request: Request) -> object:
+            refresh_token = request.cookies.get("umcp_portal_refresh", "")
+            try:
+                issued = await oauth_server.token(
+                    {
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": PORTAL_CLIENT_ID,
+                    }
+                )
+            except OAuthError:
+                return JSONResponse(
+                    {"error": "authentication_required"},
+                    401,
+                    headers={"cache-control": "no-store"},
+                )
+            response = JSONResponse({}, 200, headers={"cache-control": "no-store"})
+            response.set_cookie(
+                "umcp_portal_session",
+                str(issued["access_token"]),
+                max_age=600,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/portal",
+            )
+            response.set_cookie(
+                "umcp_portal_refresh",
+                str(issued["refresh_token"]),
+                max_age=7 * 24 * 60 * 60,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/portal",
+            )
+            return response
 
         async def portal_memories_for(
             request: Request,
@@ -654,10 +702,14 @@ def create_cloud_http_app(
         @app.post("/portal/api/logout", include_in_schema=False)
         async def portal_logout(request: Request) -> object:
             token_value = request.cookies.get("umcp_portal_session", "")
+            refresh_value = request.cookies.get("umcp_portal_refresh", "")
             if token_value:
                 await oauth_server.revoke(token_value)
+            if refresh_value:
+                await oauth_server.revoke(refresh_value)
             response = JSONResponse({}, 200, headers={"cache-control": "no-store"})
             response.delete_cookie("umcp_portal_session", path="/portal")
+            response.delete_cookie("umcp_portal_refresh", path="/portal")
             return response
 
         if runtime.settings.oauth_audit_runner_enabled and len(audit_clients) == 1:

@@ -212,6 +212,9 @@ def test_portal_google_login_reuses_oauth_identity_and_lists_memories(tmp_path) 
     portal_access = token(
         local, {Scope.MEMORY_READ, Scope.MEMORY_WRITE, Scope.MEMORY_DELETE}
     )
+    refreshed_access = token(
+        local, {Scope.MEMORY_READ, Scope.MEMORY_WRITE, Scope.MEMORY_DELETE}
+    )
 
     class StubOAuthServer:
         config = SimpleNamespace(
@@ -252,7 +255,10 @@ def test_portal_google_login_reuses_oauth_identity_and_lists_memories(tmp_path) 
 
         async def token(self, form: dict[str, str]) -> dict[str, str]:
             assert form["client_id"] == "umcp-portal"
-            return {"access_token": portal_access, "refresh_token": "unused"}
+            if form["grant_type"] == "refresh_token":
+                assert form["refresh_token"] == "portal-refresh"
+                return {"access_token": refreshed_access, "refresh_token": "rotated-refresh"}
+            return {"access_token": portal_access, "refresh_token": "portal-refresh"}
 
         async def revoke(self, token_value: str) -> None:
             local.revoke(token_value)
@@ -283,12 +289,21 @@ def test_portal_google_login_reuses_oauth_identity_and_lists_memories(tmp_path) 
         callback = client.get(provider.headers["location"], follow_redirects=False)
         assert callback.status_code == 302
         assert callback.headers["location"] == "/portal/#/memories"
+        assert any(
+            "umcp_portal_refresh" in value
+            for value in callback.headers.get_list("set-cookie")
+        )
 
         session = client.get("/portal/api/session")
         assert session.status_code == 200
         memories = client.get("/portal/api/memories")
         assert memories.status_code == 200
         assert memories.json() == {"memories": [], "count": 0}
+
+        local.revoke(portal_access)
+        assert client.get("/portal/api/session").status_code == 401
+        assert client.post("/portal/api/refresh").status_code == 200
+        assert client.get("/portal/api/session").status_code == 200
 
         shell = client.get("/portal/")
         assert shell.status_code == 200

@@ -38,6 +38,24 @@ test("HTTP adapter preserves authentication failures for a useful sign-in state"
   await assert.rejects(() => adapter.session(), (error) => error.code === "authentication_required" && error.status === 401);
 });
 
+test("portal adapter refreshes an expired session once and retries the request", async () => {
+  const requests = [];
+  const adapter = createHttpAdminAdapter({ baseUrl: "/portal", fetchImpl: async (url, options) => {
+    requests.push({ url, options });
+    if (url === "/portal/api/refresh") return new Response("{}", { status: 200 });
+    if (requests.filter((item) => item.url === "/portal/api/session").length === 1) {
+      return new Response(JSON.stringify({ error: "authentication_required" }), { status: 401 });
+    }
+    return new Response(JSON.stringify({ subject_id: "subject", tenant_id: "tenant" }), { status: 200 });
+  }});
+  assert.equal((await adapter.session()).subject_id, "subject");
+  assert.deepEqual(requests.map(({ url }) => url), [
+    "/portal/api/session",
+    "/portal/api/refresh",
+    "/portal/api/session",
+  ]);
+});
+
 test("HTTP adapter exposes only server-owned control-plane paths", async () => {
   const requests = [];
   const adapter = createHttpAdminAdapter({ fetchImpl: async (url, options) => {

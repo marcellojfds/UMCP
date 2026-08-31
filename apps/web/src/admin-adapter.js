@@ -39,11 +39,20 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
   let csrf = null;
   const portalReadOnly = baseUrl === "/portal" || baseUrl.endsWith("/portal");
   async function request(path, options = {}) {
-    const response = await fetchImpl(`${baseUrl}${path}`, {
+    const send = () => fetchImpl(`${baseUrl}${path}`, {
       credentials: "same-origin",
       headers: { "content-type": "application/json", ...(csrf ? { "x-umcp-csrf": csrf } : {}), ...(options.headers || {}) },
       ...options,
     });
+    let response = await send();
+    if (portalReadOnly && response.status === 401 && path !== "/api/refresh") {
+      const refreshed = await fetchImpl(`${baseUrl}/api/refresh`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+      });
+      if (refreshed.ok) response = await send();
+    }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       const error = new Error("Administrative request failed");
