@@ -3,6 +3,7 @@ import { getAuthAdapter } from "./auth-fixture.js";
 import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
 import { renderMemoryInbox } from "./memory-inbox-view.js";
 import { M1_FIXTURE_MEMORY_ID } from "./memory-inbox-contract.js";
+import { renderAccountShell } from "./account-shell.js";
 
 const surfaces = [
   ["ChatGPT developer mode", "Remote /mcp or private test tunnel", "Unverified"],
@@ -37,12 +38,59 @@ function escapeHtml(value) {
 }
 
 function renderRoutePage(path, content) {
+  document.body.classList.remove("account-mode");
   const page = routePages[path];
   if (!page) return false;
   const [title, lede] = page;
   document.querySelector("#main").innerHTML = `<section class="section route-page"><p class="eyebrow">UMCP / ${path.slice(1)}</p><h1>${title}</h1><p class="lede">${lede}</p>${content}</section>`;
   document.title = `${title} — UMCP`;
   return true;
+}
+
+function memoryStateLabel(state) {
+  return ({ candidate: "Needs review", confirmed: "Confirmed", pinned: "Pinned", stale: "Review", active: "Active", archived: "Archived", contradicted: "Conflict", superseded: "Superseded" })[state] || state || "Memory";
+}
+
+function memoryCard(memory) {
+  const space = memory.space || "General";
+  const type = memory.type || memory.memory_type || "memory";
+  return `<article class="vault-memory-card"><div class="vault-memory-card__meta"><span class="memory-type">${escapeHtml(type)}</span><span class="memory-state memory-state--${escapeHtml(memory.state || "active")}">${escapeHtml(memoryStateLabel(memory.state))}</span></div><a href="#/memories/${encodeURIComponent(memory.id)}">${escapeHtml(memory.content)}</a><footer><span>${escapeHtml(space)}</span><span>v${escapeHtml(memory.version || 1)}</span></footer></article>`;
+}
+
+function renderAccountPage({ path, title, lede, session, content, toolbar = "", query = "" }) {
+  document.body.classList.add("account-mode");
+  document.querySelector("#main").innerHTML = renderAccountShell({ path, title, lede, session, content, toolbar });
+  document.title = `${title} — UMCP`;
+  const search = document.querySelector(".vault-search");
+  const input = search?.querySelector("input");
+  if (input) input.value = query;
+  search?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const value = new FormData(search).get("query")?.toString().trim() || "";
+    location.hash = value ? `#/memories?query=${encodeURIComponent(value)}` : "#/memories";
+  });
+  document.removeEventListener("keydown", focusVaultSearch);
+  document.addEventListener("keydown", focusVaultSearch);
+  document.querySelector("[data-account-logout]")?.addEventListener("click", () => { void accountLogout(); });
+  return true;
+}
+
+function focusVaultSearch(event) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    document.querySelector("#vault-search-input")?.focus();
+  }
+}
+
+async function accountLogout() {
+  const adapter = getAdminAdapter();
+  try {
+    await adapter.logout();
+    location.hash = "#login";
+    location.reload();
+  } catch {
+    globalThis.alert("We could not log out. Please try again.");
+  }
 }
 
 function unavailableRoute(path, message) {
@@ -57,47 +105,60 @@ function idempotencyKey() {
   return globalThis.crypto?.randomUUID?.() || `web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function renderAuthenticatedRoute(path) {
+async function renderAuthenticatedRoute(path, { query = "" } = {}) {
   const adapter = getAdminAdapter();
   const staticPage = routePages[path];
   if (!staticPage) return false;
   if (adapter.status !== "ready") return unavailableRoute(path, staticPage[2]);
   renderRoutePage(path, `<div class="empty-state"><span class="mono">LOADING SECURE DATA</span><p>Checking the server-side session…</p></div>`);
   try {
+    const session = await adapter.session();
     if (path === "/dashboard") {
-      const [session, result] = await Promise.all([adapter.session(), adapter.listMemories()]);
+      const [memoryResult, connectionResult] = await Promise.allSettled([adapter.listMemories(), adapter.listConnections()]);
+      const result = memoryResult.status === "fulfilled" ? memoryResult.value : { memories: [] };
+      const connections = connectionResult.status === "fulfilled" ? connectionResult.value.connections || [] : [];
+      const items = memoryItems(result);
       const count = Number(result.count || memoryItems(result).length);
-      return renderRoutePage(path, `<div class="control-card"><p class="mono">SIGNED IN</p><p>${escapeHtml(session.subject_id)}</p><dl><div><dt>Tenant</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Visible memories</dt><dd>${count}</dd></div></dl><a class="button button--dark" href="#/memories">Review memories</a></div>`);
+      const pending = items.filter((memory) => ["candidate", "stale", "contradicted"].includes(memory.state)).length;
+      const pinned = items.filter((memory) => memory.state === "pinned").length;
+      const activeConnections = connections.filter((connection) => connection.status === "active").length;
+      const recent = items.slice(0, 4);
+      const content = `<section class="vault-stats" aria-label="Vault overview"><a href="#/memories"><strong>${count}</strong><span>Memories</span><small>Your searchable vault</small></a><a href="#/inbox"><strong>${pending}</strong><span>To review</span><small>Candidates and conflicts</small></a><a href="#/connections"><strong>${activeConnections}</strong><span>Connections</span><small>Authorized clients</small></a></section>
+        <div class="vault-dashboard-grid"><section class="vault-panel"><header><div><p class="account-eyebrow">Continue exploring</p><h2>Recent memories</h2></div><a href="#/memories">View all</a></header><div class="vault-memory-list">${recent.length ? recent.map(memoryCard).join("") : '<div class="vault-empty"><span>✦</span><h3>Your vault is ready.</h3><p>Memories captured by an authorized connection will appear here.</p></div>'}</div></section>
+        <aside class="vault-panel mental-notes"><header><div><p class="account-eyebrow">Keep close</p><h2>Mental notes</h2></div><span>${pinned}</span></header>${pinned ? `<div class="vault-memory-list">${items.filter((memory) => memory.state === "pinned").slice(0, 3).map(memoryCard).join("")}</div>` : '<div class="vault-empty vault-empty--compact"><span>◇</span><h3>Nothing pinned yet</h3><p>Pin an important memory to keep it within reach.</p></div>'}</aside></div>`;
+      return renderAccountPage({ path, title: "Today", lede: "A calm overview of what your assistants remember.", session, content });
     }
     if (path === "/memories") {
-      const result = await adapter.listMemories();
+      const result = await adapter.listMemories(query);
       const items = memoryItems(result);
-      const rows = items.length ? items.map((memory) => `<li><a href="#/memories/${encodeURIComponent(memory.id)}">${escapeHtml(memory.content)}</a><small>v${escapeHtml(memory.version)} · ${escapeHtml(memory.state)}</small></li>`).join("") : "<li>No memories match this account.</li>";
-      return renderRoutePage(path, `<div class="control-card"><p class="mono">TENANT-SCOPED MEMORIES</p><ul class="data-list">${rows}</ul></div>`);
+      const spaces = [...new Set(items.map((memory) => memory.space).filter(Boolean))];
+      const toolbar = `<div class="account-page-actions"><button class="icon-button is-active" type="button" aria-label="Card view">▦</button><button class="icon-button" type="button" aria-label="List view" disabled>☷</button><button class="button button--dark" type="button" disabled title="Memory creation will be enabled with the next API contract">New memory</button></div>`;
+      const filters = `<div class="vault-filterbar"><span>${items.length} ${items.length === 1 ? "memory" : "memories"}</span><button type="button" class="filter-chip is-active">All</button>${spaces.slice(0, 4).map((space) => `<button type="button" class="filter-chip">${escapeHtml(space)}</button>`).join("")}<button type="button" class="filter-chip">Filters <span aria-hidden="true">＋</span></button></div>`;
+      const content = `${filters}<section class="vault-memory-grid">${items.length ? items.map(memoryCard).join("") : `<div class="vault-empty vault-empty--wide"><span>⌕</span><h2>${query ? "No matching memories" : "Your memory vault is empty"}</h2><p>${query ? `Try a different phrase or clear “${escapeHtml(query)}”.` : "Once an authorized assistant captures a memory, it will appear here with its origin and lifecycle."}</p>${query ? '<a class="button button--dark" href="#/memories">Clear search</a>' : ""}</div>`}</section>`;
+      return renderAccountPage({ path, title: "Memories", lede: "Explore, understand, and control what stays with you.", session, content, toolbar, query });
     }
     if (path === "/connections") {
       const result = await adapter.listConnections();
       const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))} · last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small>${connection.status === "active" ? `<button type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been created.</li>";
-      renderRoutePage(path, `<div class="control-card"><p class="mono">CONNECTIONS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>`);
+      renderAccountPage({ path, title: "Connections", lede: "Choose which assistants and clients can use your vault.", session, content: `<div class="account-control-card"><p class="mono">AUTHORIZED CLIENTS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>` });
       wireConnectionActions(adapter);
       return true;
     }
     if (path === "/agents") {
       const result = await adapter.listAgentCredentials();
       const rows = (result.credentials || []).map((credential) => `<li>${escapeHtml(credential.name)} <small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small>${!credential.revoked ? `<button type="button" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No agent credentials have been issued.</li>";
-      renderRoutePage(path, `<div class="control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul><form id="agent-form"><label for="agent-name">Agent name</label><input id="agent-name" name="name" required maxlength="128"><label for="agent-expiry">Expiry (seconds)</label><input id="agent-expiry" name="expires_in_seconds" type="number" min="60" max="86400" value="3600" required><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Issue credential</button><p id="agent-action-status" role="status"></p></form></div>`);
+      renderAccountPage({ path, title: "Agents", lede: "Issue narrow, revocable access for your own agents.", session, content: `<div class="account-control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul><form id="agent-form"><label for="agent-name">Agent name</label><input id="agent-name" name="name" required maxlength="128"><label for="agent-expiry">Expiry (seconds)</label><input id="agent-expiry" name="expires_in_seconds" type="number" min="60" max="86400" value="3600" required><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Issue credential</button><p id="agent-action-status" role="status"></p></form></div>` });
       wireAgentActions(adapter);
       return true;
     }
     if (path === "/settings/security") {
-      const session = await adapter.session();
-      renderRoutePage(path, `<div class="control-card"><p class="mono">VERIFIED SESSION</p><p>${escapeHtml(session.subject_id)}</p><dl><div><dt>Tenant</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Scopes</dt><dd>${escapeHtml((session.scopes || []).join(", "))}</dd></div></dl><div class="card-actions"><button class="button" id="request-export" type="button">Request export</button><button class="button button--dark" id="request-deletion" type="button">Request account deletion</button><button id="logout" type="button">Log out</button></div><p id="security-action-status" role="status"></p></div>`);
+      renderAccountPage({ path, title: "Account & security", lede: "Manage your session, data, and account lifecycle.", session, content: `<div class="account-control-card"><p class="mono">VERIFIED SESSION</p><dl><div><dt>Account ID</dt><dd>${escapeHtml(session.subject_id)}</dd></div><div><dt>Vault ID</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Scopes</dt><dd>${escapeHtml((session.scopes || []).join(", "))}</dd></div></dl><div class="card-actions"><button class="button" id="request-export" type="button">Request export</button><button class="button button--dark" id="request-deletion" type="button">Request account deletion</button><button id="logout" type="button">Log out</button></div><p id="security-action-status" role="status"></p></div>` });
       wireSecurityActions(adapter);
       return true;
     }
     if (path === "/status") {
       const capabilities = await adapter.capabilities();
-      return renderRoutePage(path, `<div class="control-card"><p class="mono">${escapeHtml(capabilities.version)}</p><dl><div><dt>Authentication</dt><dd>${escapeHtml(capabilities.auth)}</dd></div><div><dt>Email delivery</dt><dd>${escapeHtml(capabilities.email_delivery)}</dd></div><div><dt>Tenant export</dt><dd>${capabilities.tenant_export ? "available" : "unavailable"}</dd></div></dl></div>`);
+      return renderAccountPage({ path, title: "System status", lede: "Current capabilities for this deployment.", session, content: `<div class="account-control-card"><p class="mono">${escapeHtml(capabilities.version)}</p><dl><div><dt>Authentication</dt><dd>${escapeHtml(capabilities.auth)}</dd></div><div><dt>Email delivery</dt><dd>${escapeHtml(capabilities.email_delivery)}</dd></div><div><dt>Tenant export</dt><dd>${capabilities.tenant_export ? "available" : "unavailable"}</dd></div></dl></div>` });
     }
   } catch {
     return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ERROR</span><p>We could not load this account data. Please try again later.</p></div>`);
@@ -242,7 +303,7 @@ async function renderInboxRoute() {
   renderRoutePage("/inbox", renderMemoryInbox({ state: "loading", mode: adapter.status }));
   try {
     const [inbox, memories, connections] = await Promise.all([adapter.listInbox({ space: "MBA" }), adapter.listMemories(), adapter.listConnections()]);
-    renderRoutePage("/inbox", renderMemoryInbox({
+    const content = renderMemoryInbox({
       state: "success",
       mode: adapter.status,
       candidates: inbox.candidates || [],
@@ -250,11 +311,27 @@ async function renderInboxRoute() {
       connections: connections.connections || [],
       recall: inboxSnapshot.recall,
       restore: inboxSnapshot.restore,
-    }));
+    });
+    const admin = getAdminAdapter();
+    if (admin.status === "ready") {
+      const session = await admin.session();
+      renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review what your assistants would like to remember.", session, content });
+    } else {
+      renderRoutePage("/inbox", content);
+    }
     wireInboxActions(adapter);
     return true;
   } catch {
-    renderRoutePage("/inbox", renderMemoryInbox({ state: "error", mode: adapter.status }));
+    const content = renderMemoryInbox({ state: "error", mode: adapter.status });
+    const admin = getAdminAdapter();
+    if (admin.status === "ready") {
+      try {
+        const session = await admin.session();
+        renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review what your assistants would like to remember.", session, content });
+      } catch { renderRoutePage("/inbox", content); }
+    } else {
+      renderRoutePage("/inbox", content);
+    }
     wireInboxActions(adapter);
     return true;
   }
@@ -433,8 +510,10 @@ async function renderMemoryDetail(memoryId) {
   if (adapter.status !== "ready") return unavailableRoute("/memories", "A verified server session is required to view a memory.");
   renderRoutePage("/memories", `<div class="empty-state"><span class="mono">LOADING MEMORY</span></div>`);
   try {
-    const memory = await adapter.getMemory(memoryId);
-    renderRoutePage("/memories", `<div class="control-card"><p class="mono">MEMORY / v${escapeHtml(memory.version)}</p><p>${escapeHtml(memory.content)}</p><dl><div><dt>Type</dt><dd>${escapeHtml(memory.type)}</dd></div><div><dt>State</dt><dd>${escapeHtml(memory.state)}</dd></div></dl><form id="memory-edit-form"><label for="memory-content">Content</label><textarea id="memory-content" name="content" required>${escapeHtml(memory.content)}</textarea><div class="card-actions"><button class="button" type="submit">Save version</button><button class="button button--dark" id="forget-memory" type="button">Forget memory</button></div><p id="memory-action-status" role="status"></p></form><a class="text-link" href="#/memories">Back to memories</a></div>`);
+    const [memory, session] = await Promise.all([adapter.getMemory(memoryId), adapter.session()]);
+    const metadata = `<aside class="memory-inspector"><p class="account-eyebrow">About this memory</p><dl><div><dt>Type</dt><dd>${escapeHtml(memory.type || memory.memory_type || "memory")}</dd></div><div><dt>State</dt><dd>${escapeHtml(memoryStateLabel(memory.state))}</dd></div><div><dt>Space</dt><dd>${escapeHtml(memory.space || "General")}</dd></div><div><dt>Version</dt><dd>${escapeHtml(memory.version)}</dd></div></dl><p class="caption">Origin and relation details appear here when supplied by the administrative API.</p></aside>`;
+    const editor = `<section class="memory-editor"><a class="back-link" href="#/memories">← All memories</a><div class="memory-editor__content"><span class="memory-type">${escapeHtml(memory.type || memory.memory_type || "memory")}</span><p>${escapeHtml(memory.content)}</p></div><form id="memory-edit-form"><label for="memory-content">Edit memory</label><textarea id="memory-content" name="content" required>${escapeHtml(memory.content)}</textarea><div class="card-actions"><button class="button" type="submit">Save new version</button><button class="button button--quiet" id="forget-memory" type="button">Forget memory</button></div><p id="memory-action-status" role="status"></p></form></section>`;
+    renderAccountPage({ path: `/memories/${memoryId}`, title: "Memory detail", lede: "Inspect its meaning, lifecycle, and origin.", session, content: `<div class="memory-detail-layout">${editor}${metadata}</div>` });
     wireMemoryActions(adapter, memory);
     return true;
   } catch {
@@ -477,6 +556,7 @@ function wireMemoryActions(adapter, memory) {
 
 function restoreLanding() {
   if (!location.hash || location.hash === "#top" || location.hash === "#login" || location.hash === "#how" || location.hash === "#control" || location.hash === "#compatibility" || location.hash === "#security") {
+    document.body.classList.remove("account-mode");
     if (document.querySelector(".route-page")) location.reload();
     document.title = "UMCP — Open Memory Protocol";
   }
@@ -578,13 +658,15 @@ async function route() {
       }
     }
   }
-  const path = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
+  const rawPath = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
+  const [path, hashQuery = ""] = rawPath.split("?");
+  const routeQuery = new URLSearchParams(hashQuery);
   if (path === "/consent") return renderConsentRoute();
   if (path === "/connections" && getAdminAdapter().status !== "ready") return renderConnectionsRoute();
   if (path === "/inbox") return renderInboxRoute();
   const detail = path.match(/^\/memories\/([^/]+)$/);
   if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]));
-  if (path && await renderAuthenticatedRoute(path)) return;
+  if (path && await renderAuthenticatedRoute(path, { query: routeQuery.get("query") || "" })) return;
   restoreLanding();
   renderCompatibility();
   wireLogin();
