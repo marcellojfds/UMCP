@@ -367,6 +367,17 @@ def create_cloud_http_app(
     @app.middleware("http")
     async def add_provenance_headers(request: Request, call_next: object) -> object:
         response: Any = await cast(Any, call_next)(request)
+        path = request.url.path
+        if (
+            path in {"/portal", "/portal/", "/web", "/web/"}
+            or path.startswith("/portal/src/")
+            or path.startswith("/web/src/")
+        ):
+            # The portal is a small, unbundled module application. Caching one
+            # module across deployments can mix incompatible generations and
+            # leave an already-open tab on obsolete navigation behavior.
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["Pragma"] = "no-cache"
         if runtime.settings.image_digest:
             response.headers["X-UMCP-Image-Digest"] = runtime.settings.image_digest
         if runtime.settings.image_source_sha:
