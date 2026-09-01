@@ -37,6 +37,9 @@ export function getAdminAdapter(scope = globalThis) {
 /** Create the browser-side transport to the server-owned Admin API. */
 export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {}) {
   let csrf = null;
+  let cachedSession = null;
+  let cachedSessionTime = 0;
+  const SESSION_TTL = 60000;
   const portalReadOnly = baseUrl === "/portal" || baseUrl.endsWith("/portal");
   async function request(path, options = {}) {
     const send = () => fetchImpl(`${baseUrl}${path}`, {
@@ -54,6 +57,10 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
       if (refreshed.ok) response = await send();
     }
     if (!response.ok) {
+      if (response.status === 401) {
+        cachedSession = null;
+        cachedSessionTime = 0;
+      }
       const payload = await response.json().catch(() => ({}));
       const error = new Error("Administrative request failed");
       error.code = payload.error || (response.status === 401 ? "authentication_required" : "administrative_request_failed");
@@ -66,8 +73,15 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
     status: "ready",
     features: Object.freeze({ memoryWrite: !portalReadOnly, memoryDelete: !portalReadOnly, connections: !portalReadOnly, agents: !portalReadOnly, accountOperations: !portalReadOnly }),
     requestMagicLink: ({ email }) => request("/api/auth/magic-link", { method: "POST", body: JSON.stringify({ email }) }),
-    completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; return result; },
-    session: () => request("/api/session", { method: "GET" }),
+    completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; cachedSession = null; return result; },
+    session: async () => {
+      const now = Date.now();
+      if (cachedSession && now - cachedSessionTime < SESSION_TTL) return cachedSession;
+      const data = await request("/api/session", { method: "GET" });
+      cachedSession = data;
+      cachedSessionTime = Date.now();
+      return data;
+    },
     capabilities: () => request("/api/capabilities", { method: "GET" }),
     listMemories: (query = "") => request(`/api/memories?query=${encodeURIComponent(query)}`, { method: "GET" }),
     getMemory: (id) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "GET" }),
@@ -83,6 +97,10 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
     exportTenant: () => request("/api/exports", { method: "POST" }),
     requestAccountDeletion: () => request("/api/account-deletions", { method: "POST" }),
     operationStatus: (id) => request(`/api/operations/${encodeURIComponent(id)}`, { method: "GET" }),
-    logout: () => request("/api/logout", { method: "POST" }),
+    logout: async () => {
+      cachedSession = null;
+      cachedSessionTime = 0;
+      return request("/api/logout", { method: "POST" });
+    },
   });
 }

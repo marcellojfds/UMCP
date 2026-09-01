@@ -167,14 +167,16 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
   if (document.querySelector(".account-app")) showAccountPending();
   else renderRoutePage(path, `<div class="empty-state"><span class="mono">LOADING SECURE DATA</span><p>Checking the server-side session…</p></div>`);
   try {
-    const session = await adapter.session();
-    if (!navigationIsCurrent(navigationId)) return true;
     if (path === "/dashboard") {
       const connectionRequest = adapter.features?.connections === false ? Promise.resolve({ connections: [] }) : adapter.listConnections();
-      const [memoryResult, connectionResult] = await Promise.allSettled([adapter.listMemories(), connectionRequest]);
+      const [session, memoryResult, connectionResult] = await Promise.all([
+        adapter.session(),
+        adapter.listMemories().catch(() => ({ memories: [] })),
+        connectionRequest.catch(() => ({ connections: [] })),
+      ]);
       if (!navigationIsCurrent(navigationId)) return true;
-      const result = memoryResult.status === "fulfilled" ? memoryResult.value : { memories: [] };
-      const connections = connectionResult.status === "fulfilled" ? connectionResult.value.connections || [] : [];
+      const result = memoryResult || { memories: [] };
+      const connections = connectionResult?.connections || [];
       const items = memoryItems(result);
       const count = Number(result.count || memoryItems(result).length);
       const pending = items.filter((memory) => ["candidate", "stale", "contradicted"].includes(memory.state)).length;
@@ -188,7 +190,10 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       return renderAccountPage({ path, title: "Today", lede: "A calm overview of what your assistants remember.", session, content });
     }
     if (path === "/memories") {
-      const result = await adapter.listMemories(query);
+      const [session, result] = await Promise.all([
+        adapter.session(),
+        adapter.listMemories(query),
+      ]);
       if (!navigationIsCurrent(navigationId)) return true;
       const items = memoryItems(result);
       const browser = renderMemoryBrowser({ items, query, space, state, type, view });
@@ -197,8 +202,14 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       return true;
     }
     if (path === "/connections") {
-      if (adapter.features?.connections === false) return renderAccountPage({ path, title: "Connections", lede: "Connection management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Your existing memory access remains unchanged.</p></div>' });
-      const result = await adapter.listConnections();
+      if (adapter.features?.connections === false) {
+        const session = await adapter.session();
+        return renderAccountPage({ path, title: "Connections", lede: "Connection management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Your existing memory access remains unchanged.</p></div>' });
+      }
+      const [session, result] = await Promise.all([
+        adapter.session(),
+        adapter.listConnections(),
+      ]);
       if (!navigationIsCurrent(navigationId)) return true;
       const rows = (result.connections || []).map((connection) => `<li><div><strong>${escapeHtml(connection.name)}</strong><small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))} · last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small></div>${connection.status === "active" ? `<button class="button button--quiet" type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li><div><strong>No connections</strong><small>No authorized clients found.</small></div></li>";
       renderAccountPage({ path, title: "Connections", lede: "Choose which assistants and clients can use your vault.", session, content: `<div class="account-control-card"><p class="mono">AUTHORIZED CLIENTS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>` });
@@ -206,8 +217,14 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       return true;
     }
     if (path === "/agents") {
-      if (adapter.features?.agents === false) return renderAccountPage({ path, title: "Agents", lede: "Agent credential management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Nothing can be issued or revoked from this deployment.</p></div>' });
-      const result = await adapter.listAgentCredentials();
+      if (adapter.features?.agents === false) {
+        const session = await adapter.session();
+        return renderAccountPage({ path, title: "Agents", lede: "Agent credential management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Nothing can be issued or revoked from this deployment.</p></div>' });
+      }
+      const [session, result] = await Promise.all([
+        adapter.session(),
+        adapter.listAgentCredentials(),
+      ]);
       if (!navigationIsCurrent(navigationId)) return true;
       const rows = (result.credentials || []).map((credential) => `<li><div><strong>${escapeHtml(credential.name)}</strong><small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small></div>${!credential.revoked ? `<button class="button button--quiet" type="button" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button>` : ""}</li>`).join("") || "<li><div><strong>No credentials</strong><small>No agent credentials have been issued.</small></div></li>";
       renderAccountPage({ path, title: "Agents", lede: "Issue narrow, revocable access for your own agents.", session, content: `<div class="account-control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul><form id="agent-form"><label for="agent-name">Agent name</label><input id="agent-name" name="name" required maxlength="128"><label for="agent-expiry">Expiry (seconds)</label><input id="agent-expiry" name="expires_in_seconds" type="number" min="60" max="86400" value="3600" required><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Issue credential</button><p id="agent-action-status" role="status"></p></form></div>` });
@@ -215,6 +232,7 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       return true;
     }
     if (path === "/settings/security") {
+      const session = await adapter.session();
       const operations = adapter.features?.accountOperations === false ? "" : '<button class="button" id="request-export" type="button">Request export</button><button class="button button--dark" id="request-deletion" type="button">Request account deletion</button>';
       renderAccountPage({ path, title: "Account & security", lede: "Manage your session, data, and account lifecycle.", session, content: `<div class="account-control-card"><p class="mono">VERIFIED SESSION</p><dl><div><dt>Account ID</dt><dd>${escapeHtml(session.subject_id)}</dd></div><div><dt>Vault ID</dt><dd>${escapeHtml(session.tenant_id)}</dd></div><div><dt>Scopes</dt><dd>${escapeHtml((session.scopes || []).join(", ") || "Session verified")}</dd></div></dl><div class="card-actions">${operations}<button class="button button--quiet" id="logout" type="button">Log out</button></div><p id="security-action-status" role="status"></p></div>` });
       if (adapter.features?.accountOperations === false) document.querySelector("#logout")?.addEventListener("click", () => { void accountLogout(); });
@@ -222,7 +240,10 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       return true;
     }
     if (path === "/status") {
-      const capabilities = await adapter.capabilities();
+      const [session, capabilities] = await Promise.all([
+        adapter.session(),
+        adapter.capabilities(),
+      ]);
       if (!navigationIsCurrent(navigationId)) return true;
       return renderAccountPage({ path, title: "System status", lede: "Current capabilities for this deployment.", session, content: `<div class="account-control-card"><p class="mono">${escapeHtml(capabilities.version)}</p><dl><div><dt>Authentication</dt><dd>${escapeHtml(capabilities.auth)}</dd></div><div><dt>Email delivery</dt><dd>${escapeHtml(capabilities.email_delivery)}</dd></div><div><dt>Tenant export</dt><dd>${capabilities.tenant_export ? "available" : "unavailable"}</dd></div></dl></div>` });
     }

@@ -158,6 +158,7 @@ class OAuthConfiguration:
 class OAuthServer:
     def __init__(self, engine: AsyncEngine, config: OAuthConfiguration) -> None:
         self.engine, self.config = engine, config
+        self._token_cache: dict[str, tuple[float, AccessToken]] = {}
 
     def metadata(self) -> dict[str, Any]:
         base = self.config.issuer
@@ -234,15 +235,26 @@ class OAuthServer:
 
     async def revoke(self, token: str) -> None:
         if token:
+            self._token_cache.pop(_digest(token), None)
             async with self.engine.begin() as conn:
                 await conn.execute(text("UPDATE oauth_tokens SET revoked_at=COALESCE(revoked_at, now()) WHERE token_digest=:d"), {"d": _digest(token)})
 
     async def verify_token(self, token: str) -> AccessToken | None:
+        now_ts = datetime.now(UTC).timestamp()
+        digest = _digest(token)
+        cached = self._token_cache.get(digest)
+        if cached is not None:
+            expires_cache, access_token = cached
+            if now_ts < expires_cache and access_token.expires_at > now_ts:
+                return access_token
+            self._token_cache.pop(digest, None)
         async with self.engine.connect() as conn:
-            row = (await conn.execute(text("SELECT client_id,subject_id,tenant_id,membership_id,credential_id,scopes,expires_at FROM oauth_tokens WHERE token_digest=:d AND token_kind='access' AND revoked_at IS NULL AND expires_at>now()"), {"d": _digest(token)})).mappings().first()
+            row = (await conn.execute(text("SELECT client_id,subject_id,tenant_id,membership_id,credential_id,scopes,expires_at FROM oauth_tokens WHERE token_digest=:d AND token_kind='access' AND revoked_at IS NULL AND expires_at>now()"), {"d": digest})).mappings().first()
         if row is None:
             return None
-        return AccessToken(token=token, client_id=row["client_id"], scopes=list(row["scopes"]), expires_at=int(row["expires_at"].timestamp()), resource=self.config.issuer + "/mcp", subject=str(row["subject_id"]), claims={"iss": self.config.issuer, "tenant_id": str(row["tenant_id"]), "membership_id": str(row["membership_id"]), "credential_id": str(row["credential_id"])})
+        access_token = AccessToken(token=token, client_id=row["client_id"], scopes=list(row["scopes"]), expires_at=int(row["expires_at"].timestamp()), resource=self.config.issuer + "/mcp", subject=str(row["subject_id"]), claims={"iss": self.config.issuer, "tenant_id": str(row["tenant_id"]), "membership_id": str(row["membership_id"]), "credential_id": str(row["credential_id"])})
+        self._token_cache[digest] = (min(now_ts + 60, float(access_token.expires_at)), access_token)
+        return access_token
 
     async def _issue(self, conn: Any, row: Any) -> dict[str, Any]:
         access, refresh, family = _random("at_"), _random("rt_"), uuid4()
