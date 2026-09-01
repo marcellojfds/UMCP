@@ -50,3 +50,14 @@ test("account shell hides control-plane sections when the deployment is read-onl
   assert.doesNotMatch(html, />Agents</);
   assert.match(html, />Inbox</);
 });
+
+test("account shell renders settings navigation and highlights active state", () => {
+  const html = renderAccountShell({
+    path: "/settings/security",
+    title: "Security",
+    content: "",
+  });
+  assert.match(html, /account-nav__link--mobile-only is-active/);
+  assert.match(html, /account-nav__link--desktop-only is-active/);
+  assert.match(html, /href="#\/settings\/security"/);
+});

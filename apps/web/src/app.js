@@ -86,12 +86,21 @@ function renderAccountPage({ path, title, lede, session, content, toolbar = "", 
   }
   document.removeEventListener("keydown", focusVaultSearch);
   document.addEventListener("keydown", focusVaultSearch);
+  document.removeEventListener("click", closeProfileMenuOnClickOutside);
+  document.addEventListener("click", closeProfileMenuOnClickOutside);
   const logout = document.querySelector("[data-account-logout]");
   if (logout && !logout.dataset.wired) {
     logout.dataset.wired = "true";
     logout.addEventListener("click", () => { void accountLogout(); });
   }
   return true;
+}
+
+function closeProfileMenuOnClickOutside(event) {
+  const profile = document.querySelector(".account-profile[open]");
+  if (profile && !profile.contains(event.target)) {
+    profile.removeAttribute("open");
+  }
 }
 
 function focusVaultSearch(event) {
@@ -191,7 +200,7 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       if (adapter.features?.connections === false) return renderAccountPage({ path, title: "Connections", lede: "Connection management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Your existing memory access remains unchanged.</p></div>' });
       const result = await adapter.listConnections();
       if (!navigationIsCurrent(navigationId)) return true;
-      const rows = (result.connections || []).map((connection) => `<li>${escapeHtml(connection.name)} <small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))} · last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small>${connection.status === "active" ? `<button type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No connections have been created.</li>";
+      const rows = (result.connections || []).map((connection) => `<li><div><strong>${escapeHtml(connection.name)}</strong><small>${escapeHtml(connection.status)} · ${escapeHtml((connection.scopes || []).join(", "))} · last used: ${escapeHtml(connection.last_used_at || "Not used yet")}</small></div>${connection.status === "active" ? `<button class="button button--quiet" type="button" data-revoke-connection="${escapeHtml(connection.id)}">Revoke</button>` : ""}</li>`).join("") || "<li><div><strong>No connections</strong><small>No authorized clients found.</small></div></li>";
       renderAccountPage({ path, title: "Connections", lede: "Choose which assistants and clients can use your vault.", session, content: `<div class="account-control-card"><p class="mono">AUTHORIZED CLIENTS</p><ul class="data-list">${rows}</ul><form id="connection-form"><label for="connection-name">Connection name</label><input id="connection-name" name="name" required maxlength="128"><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Create connection</button><p id="connection-action-status" role="status"></p></form></div>` });
       wireConnectionActions(adapter);
       return true;
@@ -200,7 +209,7 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       if (adapter.features?.agents === false) return renderAccountPage({ path, title: "Agents", lede: "Agent credential management is not enabled in this portal yet.", session, content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>No controls are available here</h2><p>Nothing can be issued or revoked from this deployment.</p></div>' });
       const result = await adapter.listAgentCredentials();
       if (!navigationIsCurrent(navigationId)) return true;
-      const rows = (result.credentials || []).map((credential) => `<li>${escapeHtml(credential.name)} <small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small>${!credential.revoked ? `<button type="button" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button>` : ""}</li>`).join("") || "<li>No agent credentials have been issued.</li>";
+      const rows = (result.credentials || []).map((credential) => `<li><div><strong>${escapeHtml(credential.name)}</strong><small>${escapeHtml(credential.revoked ? "revoked" : "active")} · ${escapeHtml((credential.scopes || []).join(", "))}</small></div>${!credential.revoked ? `<button class="button button--quiet" type="button" data-revoke-agent="${escapeHtml(credential.id)}">Revoke</button>` : ""}</li>`).join("") || "<li><div><strong>No credentials</strong><small>No agent credentials have been issued.</small></div></li>";
       renderAccountPage({ path, title: "Agents", lede: "Issue narrow, revocable access for your own agents.", session, content: `<div class="account-control-card"><p class="mono">AGENT CREDENTIALS</p><ul class="data-list">${rows}</ul><form id="agent-form"><label for="agent-name">Agent name</label><input id="agent-name" name="name" required maxlength="128"><label for="agent-expiry">Expiry (seconds)</label><input id="agent-expiry" name="expires_in_seconds" type="number" min="60" max="86400" value="3600" required><fieldset><legend>Scopes</legend>${scopeFields()}</fieldset><button class="button" type="submit">Issue credential</button><p id="agent-action-status" role="status"></p></form></div>` });
       wireAgentActions(adapter);
       return true;
@@ -537,33 +546,27 @@ function wireSecurityActions(adapter) {
   const exportButton = document.querySelector("#request-export");
   const deletionButton = document.querySelector("#request-deletion");
   const logoutButton = document.querySelector("#logout");
-  if (!status || !exportButton || !deletionButton || !logoutButton) return;
-  exportButton.addEventListener("click", async () => {
-    status.textContent = "Requesting export…";
+  exportButton?.addEventListener("click", async () => {
+    if (status) status.textContent = "Requesting export…";
     try {
       const result = await adapter.exportTenant();
-      status.textContent = `Export request ${result.receipt.id} is ${result.receipt.status}.`;
+      if (status) status.textContent = `Export request ${result.receipt.id} is ${result.receipt.status}.`;
     } catch {
-      status.textContent = "We could not request an export. Please try again.";
+      if (status) status.textContent = "We could not request an export. Please try again.";
     }
   });
-  deletionButton.addEventListener("click", async () => {
+  deletionButton?.addEventListener("click", async () => {
     if (!globalThis.confirm("Request account deletion? This starts a destructive server-side workflow.")) return;
-    status.textContent = "Requesting account deletion…";
+    if (status) status.textContent = "Requesting account deletion…";
     try {
       const result = await adapter.requestAccountDeletion();
-      status.textContent = `Deletion request ${result.receipt.id} is ${result.receipt.status}.`;
+      if (status) status.textContent = `Deletion request ${result.receipt.id} is ${result.receipt.status}.`;
     } catch {
-      status.textContent = "We could not request account deletion. Please try again.";
+      if (status) status.textContent = "We could not request account deletion. Please try again.";
     }
   });
-  logoutButton.addEventListener("click", async () => {
-    try {
-      await adapter.logout();
-      location.hash = "#login";
-    } catch {
-      status.textContent = "We could not log out. Please try again.";
-    }
+  logoutButton?.addEventListener("click", () => {
+    void accountLogout();
   });
 }
 
@@ -642,8 +645,11 @@ function wireLogin() {
   if (typeof hostedGoogle === "string" && /^\/(?![\\/])/.test(hostedGoogle)) {
     form.hidden = true;
     document.querySelector(".or-divider")?.setAttribute("hidden", "");
-    status.textContent = "Redirecting to secure Google sign-in…";
-    google.addEventListener("click", () => { location.assign(hostedGoogle); });
+    status.textContent = "Use Google to access your UMCP memories.";
+    google.addEventListener("click", () => {
+      status.textContent = "Redirecting to secure Google sign-in…";
+      location.assign(hostedGoogle);
+    });
     return;
   }
 
@@ -696,6 +702,16 @@ function wireLogin() {
   });
 }
 
+function renderDocsRoute() {
+  const content = `<div class="control-card"><p class="mono">GETTING STARTED &amp; REFERENCE</p><p>UMCP provides a structured memory layer with clear ownership and verified lifecycle contracts.</p><ul class="data-list">
+    <li><div><strong>Community Installation</strong><small>Run UMCP locally with PostgreSQL, pgvector, and stdio MCP transport.</small></div><a class="button button--quiet" href="#how">How it works</a></li>
+    <li><div><strong>Protocol &amp; Contracts</strong><small>Strict tool boundaries: memory.write, memory.search, memory.update, and memory.forget.</small></div><a class="button button--quiet" href="#control">Control model</a></li>
+    <li><div><strong>Client Compatibility</strong><small>Surface-specific guides for ChatGPT Developer Mode, Claude, Gemini CLI, and custom agents.</small></div><a class="button button--quiet" href="#compatibility">Compatibility</a></li>
+    <li><div><strong>Security &amp; Privacy</strong><small>Encrypted transport, scoped tokens, tenant isolation, and auditable forget guarantees.</small></div><a class="button button--quiet" href="#security">Security</a></li>
+  </ul><div class="card-actions"><a class="button" href="#top">Back to overview</a><a class="button button--dark" href="#login">Sign in</a></div></div>`;
+  return renderRoutePage("/docs", content);
+}
+
 async function route() {
   const navigationId = ++navigationRevision;
   const hashParts = location.hash.match(/^#\/callback\?(.+)$/);
@@ -731,6 +747,7 @@ async function route() {
   const rawPath = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
   const [path, hashQuery = ""] = rawPath.split("?");
   const routeQuery = new URLSearchParams(hashQuery);
+  if (path === "/docs") return renderDocsRoute();
   if (path === "/consent") return renderConsentRoute();
   if (path === "/connections" && getAdminAdapter().status !== "ready") return renderConnectionsRoute();
   if (path === "/inbox") return renderInboxRoute(navigationId);

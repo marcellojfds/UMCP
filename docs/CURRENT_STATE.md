@@ -2,7 +2,7 @@
 
 **Last reconciled:** 2026-08-31
 **Environment:** private GCP staging  
-**Canonical source:** `97318b5caebec6ec9de62c8ab1f768c265c4088b`
+**Canonical source:** `820760f`
 
 ## Deployment
 
@@ -11,10 +11,10 @@
 | GCP project | `umcp-mcp-staging-20260825` |
 | Region | `us-central1` |
 | Cloud Run service | `umcp-cloud-staging` |
-| Active revision | `umcp-cloud-staging-portal-final` |
+| Active revision | `umcp-cloud-staging-portal-session` |
 | MCP endpoint | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp` |
 | Portal | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/` |
-| Image digest | `sha256:5368ca582bbf96a363ed3a3bf7686d722bddc55d256c9fb8f06ccb85c4f999e2` |
+| Image digest | `sha256:88c95d5232f6a676d19a51a2db6de96eb7da168a626716c0850014835d528ab7` |
 
 Staging is allowlisted for the maintainer identity. It is not production,
 public beta, or a general availability claim.
@@ -61,6 +61,9 @@ A cor favorita de Marcello é roxo.
   and list/card views, and an Inbox review queue derived from owner memories.
 - Read-only capability gating for account controls that are not supported by
   the current hosted API.
+- No-store portal assets with explicit entrypoint versioning, plus transparent
+  rotation of the short-lived portal access session through an HttpOnly refresh
+  cookie.
 - PostgreSQL/pgvector persistence and hosted tenant context.
 - Deployment provenance headers and immutable image/source metadata.
 

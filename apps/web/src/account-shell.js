@@ -30,6 +30,7 @@ function navIcon(kind) {
     inbox: '<path d="M3 11h4l2 3h2l2-3h4"/><path d="m5 5-2 6v6h14v-6l-2-6Z"/>',
     connection: '<circle cx="6" cy="10" r="3"/><circle cx="14" cy="6" r="2"/><circle cx="14" cy="15" r="2"/><path d="m8.5 8.5 3.6-1.7M8.7 11.4l3.5 2.4"/>',
     agent: '<rect x="4" y="6" width="12" height="10" rx="3"/><path d="M10 3v3M7.5 11h.01M12.5 11h.01M8 14h4"/>',
+    settings: '<circle cx="10" cy="10" r="3"/><path d="M10 2.5v2m0 11v2m-5.3-2.2 1.4-1.4m7.8-7.8 1.4-1.4M2.5 10h2m11 0h2m-2.2 5.3-1.4-1.4M6.1 6.1 4.7 4.7"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 20 20">${paths[kind] || paths.home}</svg>`;
 }
@@ -41,12 +42,13 @@ export function renderAccountShell({ path, title, lede = "", session = {}, conte
     const active = path === href || (href === "/memories" && path.startsWith("/memories/"));
     return `<a class="account-nav__link${active ? " is-active" : ""}" href="#${href}"${active ? ' aria-current="page"' : ""}>${navIcon(icon)}<span>${label}</span></a>`;
   }).join("");
+  const isSettingsActive = path === "/settings/security";
   return `<div class="account-app">
     <aside class="account-sidebar">
       <a class="account-brand" href="#/dashboard" aria-label="UMCP home"><span class="account-brand__mark">U</span><span>UMCP<small>Memory vault</small></span></a>
-      <nav class="account-nav" aria-label="Account navigation">${links}</nav>
+      <nav class="account-nav" aria-label="Account navigation">${links}<a class="account-nav__link account-nav__link--mobile-only${isSettingsActive ? " is-active" : ""}" href="#/settings/security"${isSettingsActive ? ' aria-current="page"' : ""}>${navIcon("settings")}<span>Settings</span></a></nav>
       <div class="account-sidebar__spacer"></div>
-      <a class="account-nav__link" href="#/settings/security">${navIcon("connection")}<span>Settings</span></a>
+      <a class="account-nav__link account-nav__link--desktop-only${isSettingsActive ? " is-active" : ""}" href="#/settings/security"${isSettingsActive ? ' aria-current="page"' : ""}>${navIcon("settings")}<span>Settings</span></a>
       <details class="account-profile">
         <summary><span class="account-avatar">${escapeHtml(identity.initials)}</span><span class="account-profile__copy"><strong>${escapeHtml(identity.name)}</strong><small>${escapeHtml(identity.secondary)}</small></span><span aria-hidden="true">•••</span></summary>
         <div class="account-profile__menu"><a href="#/settings/security">Account &amp; security</a>${features.connections === false ? "" : '<a href="#/connections">Manage connections</a>'}<button type="button" data-account-logout>Log out</button></div>

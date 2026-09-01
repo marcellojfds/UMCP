@@ -28,3 +28,10 @@ test("account inbox contains only memories that need a decision", () => {
   assert.match(html, />C</);
   assert.doesNotMatch(html, />B</);
 });
+
+test("memory browser renders calm empty vault without filter controls when 0 memories exist", () => {
+  const view = renderMemoryBrowser({ items: [], query: "", space: "", state: "", type: "", view: "cards" });
+  assert.match(view.content, /Your memory vault is empty/);
+  assert.doesNotMatch(view.content, /vault-filterbar/);
+  assert.equal(view.toolbar, "");
+});
