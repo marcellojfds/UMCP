@@ -238,6 +238,18 @@ body.account-mode > #main { min-height: 100vh; }
 .vault-memory-grid.is-list .vault-memory-card { display: grid; grid-template-columns: minmax(160px, .35fr) minmax(0, 1fr) auto; gap: 1rem; align-items: center; }
 .vault-memory-grid.is-list .vault-memory-card__meta { margin: 0; }
 .vault-memory-grid.is-list .vault-memory-card footer { min-width: 130px; margin: 0; padding: 0; border: 0; }
+.vault-graph-container { border: 1px solid #d9d7cf; border-radius: 12px; background: radial-gradient(circle at center, #ffffff 0%, #fbfaf7 100%); overflow: hidden; display: grid; grid-template-rows: 1fr auto; }
+.vault-graph-canvas { width: 100%; min-height: 480px; display: flex; align-items: center; justify-content: center; }
+.vault-graph-svg { width: 100%; height: auto; max-height: 520px; display: block; }
+.graph-edge { stroke: #d0cec5; stroke-width: 1.5px; stroke-dasharray: 4 2; opacity: .8; }
+.graph-node { cursor: pointer; transition: transform .15s ease; }
+.graph-node:hover { transform: scale(1.15); }
+.graph-node a { text-decoration: none; }
+.graph-label { font: 11px var(--sans); fill: #3c3d39; font-weight: 500; pointer-events: all; text-shadow: 0 1px 3px rgba(255,255,255,.9), 0 0 2px rgba(255,255,255,.9); }
+.graph-label--concept { font-family: var(--mono); font-weight: 700; fill: var(--orange); font-size: 10px; }
+.vault-graph-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1.25rem; padding: .85rem 1.25rem; border-top: 1px solid #e5e3dc; background: #fdfdfc; font: 11px var(--mono); color: #6d6e67; }
+.graph-legend-item { display: inline-flex; align-items: center; gap: .4rem; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .account-app[aria-busy="true"] .account-workspace::before { content: ""; position: fixed; z-index: 10; top: 0; left: 248px; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--orange), transparent); animation: vault-loading 1s linear infinite; }
 @keyframes vault-loading { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .inbox-review { max-width: 920px; }

@@ -772,7 +772,7 @@ async function route() {
     space: routeQuery.get("space") || "",
     state: routeQuery.get("state") || "",
     type: routeQuery.get("type") || "",
-    view: routeQuery.get("view") === "list" ? "list" : "cards",
+    view: routeQuery.get("view") === "list" ? "list" : (routeQuery.get("view") === "graph" ? "graph" : "cards"),
     navigationId,
   })) return;
   restoreLanding();

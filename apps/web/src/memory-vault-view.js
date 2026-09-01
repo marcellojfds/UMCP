@@ -42,17 +42,140 @@ function options(values, selected) {
   return values.map((value) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`).join("");
 }
 
+export function renderMemoryGraph(items = []) {
+  if (!items.length) return '<div class="vault-empty vault-empty--wide"><span>🕸</span><h2>No memories to map</h2><p>Capture memories to visualize their connections.</p></div>';
+
+  const conceptMap = new Map();
+  const nodes = [];
+  const edges = [];
+
+  items.forEach((m) => {
+    const memoryNodeId = `mem_${m.id}`;
+    const cleanContent = (m.content || "").replace(/\[\[(.*?)\]\]/g, "$1");
+    const shortLabel = cleanContent.length > 28 ? cleanContent.slice(0, 26) + "…" : cleanContent;
+    nodes.push({
+      id: memoryNodeId,
+      rawId: m.id,
+      label: shortLabel,
+      fullContent: m.content,
+      type: m.type || m.memory_type || "fact",
+      space: m.space || "General",
+      kind: "memory",
+      degree: 0,
+    });
+
+    const wikilinks = extractWikilinks(m.content);
+    wikilinks.forEach((concept) => {
+      if (!conceptMap.has(concept)) {
+        conceptMap.set(concept, {
+          id: `concept_${concept}`,
+          label: concept,
+          kind: "concept",
+          degree: 0,
+        });
+      }
+      const cNode = conceptMap.get(concept);
+      cNode.degree += 1;
+      const memNode = nodes.find((n) => n.id === memoryNodeId);
+      if (memNode) memNode.degree += 1;
+      edges.push({ source: memoryNodeId, target: cNode.id });
+    });
+  });
+
+  conceptMap.forEach((cNode) => {
+    nodes.push(cNode);
+  });
+
+  const width = 840;
+  const height = 480;
+  const cx = width / 2;
+  const cy = height / 2;
+
+  let conceptIdx = 0;
+  let memIdx = 0;
+  nodes.forEach((node) => {
+    if (node.kind === "concept") {
+      const angle = (conceptIdx / Math.max(1, conceptMap.size)) * 2 * Math.PI;
+      const radius = 100 + (conceptIdx % 2) * 35;
+      node.x = cx + radius * Math.cos(angle);
+      node.y = cy + radius * Math.sin(angle);
+      conceptIdx += 1;
+    } else {
+      const angle = (memIdx / Math.max(1, items.length)) * 2 * Math.PI;
+      const radius = 210 + (memIdx % 3) * 35;
+      node.x = cx + radius * Math.cos(angle);
+      node.y = cy + radius * Math.sin(angle);
+      memIdx += 1;
+    }
+  });
+
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  const renderedEdges = edges.map((e) => {
+    const s = nodeMap.get(e.source);
+    const t = nodeMap.get(e.target);
+    if (!s || !t) return "";
+    return `<line class="graph-edge" x1="${s.x.toFixed(1)}" y1="${s.y.toFixed(1)}" x2="${t.x.toFixed(1)}" y2="${t.y.toFixed(1)}" />`;
+  }).join("");
+
+  const colorForType = (type) => ({
+    decision: "#8b5cf6",
+    preference: "#3b82f6",
+    lesson: "#10b981",
+    goal: "#ec4899",
+    open_question: "#eab308",
+    project_context: "#06b6d4",
+  })[type] || "#64748b";
+
+  const renderedNodes = nodes.map((n) => {
+    if (n.kind === "concept") {
+      return `<g class="graph-node graph-node--concept" transform="translate(${n.x.toFixed(1)}, ${n.y.toFixed(1)})" data-concept="${escapeHtml(n.label)}">
+        <circle r="16" fill="#fff" stroke="#c45b2b" stroke-width="2.5" />
+        <circle r="6" fill="#c45b2b" />
+        <a href="#/memories?query=${encodeURIComponent(n.label)}"><text y="28" text-anchor="middle" class="graph-label graph-label--concept">[[${escapeHtml(n.label)}]]</text></a>
+        <title>Concept Hub: ${escapeHtml(n.label)} (${n.degree} connections)</title>
+      </g>`;
+    }
+    const color = colorForType(n.type);
+    return `<g class="graph-node graph-node--memory" transform="translate(${n.x.toFixed(1)}, ${n.y.toFixed(1)})" data-memory-id="${escapeHtml(n.rawId)}">
+      <circle r="12" fill="#fff" stroke="${color}" stroke-width="2" />
+      <circle r="5" fill="${color}" />
+      <a href="#/memories/${encodeURIComponent(n.rawId)}"><text y="24" text-anchor="middle" class="graph-label">${escapeHtml(n.label)}</text></a>
+      <title>${escapeHtml(n.fullContent)} (${n.space} · ${n.type})</title>
+    </g>`;
+  }).join("");
+
+  return `<div class="vault-graph-container">
+    <div class="vault-graph-canvas">
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" class="vault-graph-svg" aria-label="Knowledge Graph">
+        <g class="graph-edges">${renderedEdges}</g>
+        <g class="graph-nodes">${renderedNodes}</g>
+      </svg>
+    </div>
+    <footer class="vault-graph-legend">
+      <div class="graph-legend-item"><span class="legend-dot" style="background:#c45b2b;"></span><span>Concept Hub ([[...]])</span></div>
+      <div class="graph-legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span><span>Decision</span></div>
+      <div class="graph-legend-item"><span class="legend-dot" style="background:#3b82f6;"></span><span>Preference</span></div>
+      <div class="graph-legend-item"><span class="legend-dot" style="background:#10b981;"></span><span>Lesson</span></div>
+      <div class="graph-legend-item"><span class="legend-dot" style="background:#ec4899;"></span><span>Goal</span></div>
+      <div class="graph-legend-item"><span class="legend-dot" style="background:#64748b;"></span><span>Fact / Context</span></div>
+    </footer>
+  </div>`;
+}
+
 export function renderMemoryBrowser({ items, query = "", space = "", state = "", type = "", view = "cards" }) {
   const spaces = [...new Set(items.map((memory) => memory.space).filter(Boolean))].sort();
   const states = [...new Set(items.map((memory) => memory.state).filter(Boolean))].sort();
   const types = [...new Set(items.map((memory) => memory.type || memory.memory_type).filter(Boolean))].sort();
   const visible = filterMemories(items, { space, state, type });
   const activeFilters = [space, state, type].filter(Boolean).length;
+  const isGraph = view === "graph";
+  const isList = view === "list";
   const params = new URLSearchParams();
   if (query) params.set("query", query);
   if (state) params.set("state", state);
   if (type) params.set("type", type);
-  if (view === "list") params.set("view", "list");
+  if (view && view !== "cards") params.set("view", view);
   const spaceHash = (value) => {
     const next = new URLSearchParams(params);
     if (value) next.set("space", value);
@@ -64,9 +187,12 @@ export function renderMemoryBrowser({ items, query = "", space = "", state = "",
   const filters = `<form class="vault-advanced-filters" data-memory-filters${activeFilters ? "" : " hidden"}><label>State<select name="state"><option value="">Any state</option>${options(states, state)}</select></label><label>Type<select name="type"><option value="">Any type</option>${options(types, type)}</select></label><div class="vault-filter-actions"><button class="button button--dark" type="submit">Apply filters</button><a href="#/memories${query ? `?query=${encodeURIComponent(query)}` : ""}">Clear</a></div></form>`;
   const empty = `<div class="vault-empty vault-empty--wide"><span>⌕</span><h2>${query || activeFilters ? "No matching memories" : "Your memory vault is empty"}</h2><p>${query || activeFilters ? "Try a different search or clear the active filters." : "Once an authorized assistant captures a memory, it will appear here with its origin and lifecycle."}</p>${query || activeFilters ? '<a class="button button--dark" href="#/memories">Clear search and filters</a>' : ""}</div>`;
   const filterbar = items.length || query || activeFilters ? `<div class="vault-filterbar"><span aria-live="polite">${count}</span>${chips}<button type="button" class="filter-chip${activeFilters ? " is-active" : ""}" data-toggle-filters aria-expanded="${activeFilters ? "true" : "false"}">Filters${activeFilters ? ` (${activeFilters})` : ""} <span aria-hidden="true">＋</span></button></div>${filters}` : "";
+  const body = isGraph
+    ? renderMemoryGraph(visible)
+    : `<section class="vault-memory-grid${isList ? " is-list" : ""}" aria-label="Memories">${visible.length ? visible.map(memoryCard).join("") : empty}</section>`;
   return {
-    content: `${filterbar}<section class="vault-memory-grid${view === "list" ? " is-list" : ""}" aria-label="Memories">${visible.length ? visible.map(memoryCard).join("") : empty}</section>`,
-    toolbar: items.length || query || activeFilters ? `<div class="account-page-actions" aria-label="Memory view"><a class="icon-button${view === "cards" ? " is-active" : ""}" href="${memoryViewHash({ query, space, state, type, view: "cards" })}" aria-label="Card view"${view === "cards" ? ' aria-current="true"' : ""}>▦</a><a class="icon-button${view === "list" ? " is-active" : ""}" href="${memoryViewHash({ query, space, state, type, view: "list" })}" aria-label="List view"${view === "list" ? ' aria-current="true"' : ""}>☷</a></div>` : "",
+    content: `${filterbar}${body}`,
+    toolbar: items.length || query || activeFilters ? `<div class="account-page-actions" aria-label="Memory view"><a class="icon-button${view === "cards" ? " is-active" : ""}" href="${memoryViewHash({ query, space, state, type, view: "cards" })}" aria-label="Card view"${view === "cards" ? ' aria-current="true"' : ""}>▦</a><a class="icon-button${view === "list" ? " is-active" : ""}" href="${memoryViewHash({ query, space, state, type, view: "list" })}" aria-label="List view"${view === "list" ? ' aria-current="true"' : ""}>☷</a><a class="icon-button${view === "graph" ? " is-active" : ""}" href="${memoryViewHash({ query, space, state, type, view: "graph" })}" aria-label="Graph view"${view === "graph" ? ' aria-current="true"' : ""}>🕸</a></div>` : "",
   };
 }
 
@@ -76,7 +202,7 @@ export function memoryViewHash({ query = "", space = "", state = "", type = "", 
   if (space) params.set("space", space);
   if (state) params.set("state", state);
   if (type) params.set("type", type);
-  if (view === "list") params.set("view", "list");
+  if (view && view !== "cards") params.set("view", view);
   const suffix = params.toString();
   return `#/memories${suffix ? `?${suffix}` : ""}`;
 }
