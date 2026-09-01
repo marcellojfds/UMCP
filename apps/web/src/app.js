@@ -1,4 +1,5 @@
 import { getAdminAdapter } from "./admin-adapter.js";
+import { accountPreviewEnabled } from "./account-preview.js";
 import { getAuthAdapter } from "./auth-fixture.js";
 import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
 import { renderMemoryInbox } from "./memory-inbox-view.js";
@@ -753,6 +754,10 @@ async function route() {
         loginStatus.textContent = callbackCode ? authSnapshot.message : "This sign-in link is invalid, expired, or has already been used.";
       }
     }
+  }
+  if (accountPreviewEnabled() && (!location.hash || location.hash === "#" || location.hash === "#top")) {
+    location.hash = "#/dashboard";
+    return;
   }
   const rawPath = location.hash.startsWith("#/") ? location.hash.slice(1) : "";
   const [path, hashQuery = ""] = rawPath.split("?");
