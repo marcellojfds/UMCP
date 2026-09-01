@@ -210,6 +210,10 @@ body.account-mode > #main { min-height: 100vh; }
 .memory-state--pinned { background: #eee7f5; color: #6c4b80; }
 .memory-state--candidate, .memory-state--stale, .memory-state--contradicted { background: #fff0e9; color: #9c4e32; }
 .vault-memory-card > a { display: block; color: #333430; text-decoration: none; font: 500 1rem/1.4 var(--serif); }
+.wikilink { display: inline-flex; align-items: baseline; gap: 1px; color: var(--orange); background: rgba(196, 91, 43, .08); border: 1px solid rgba(196, 91, 43, .22); border-radius: 4px; padding: 0 .3rem; font-family: var(--sans); font-weight: 600; text-decoration: none; }
+.wikilink span { opacity: .55; font: 10px var(--mono); }
+.taglink { display: inline-block; color: #5c6270; background: rgba(92, 98, 112, .08); border-radius: 3px; padding: 0 .25rem; font: 11px var(--mono); }
+.memory-connections { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed #dedcd5; }
 .vault-memory-card footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: .8rem; padding: .7rem 0 0; border: 0; border-top: 1px solid #eeece7; color: #92938c; font: 9px var(--mono); }
 .vault-empty { min-height: 240px; display: grid; place-items: center; align-content: center; text-align: center; color: #777870; }
 .vault-empty > span { font-size: 2rem; color: #aa806d; }

@@ -91,7 +91,12 @@ def create_official_server(runtime: ServerRuntime) -> FastMCP:
     server = FastMCP(
         name="open-memory-protocol",
         instructions=(
-            "Use the four memory tools conservatively; an empty search is a valid abstention."
+            "UMCP is the user's permanent, cross-assistant knowledge graph. "
+            "Autonomously identify durable preferences, technical decisions, project facts, "
+            "and lessons from conversations and record them using memory.write/capture. "
+            "Enclose key concepts and entities in [[Concept]] links and tag spaces (e.g. dev, work). "
+            "Use memory.search proactively when prior context helps answer user questions. "
+            "Never capture transient chat, credentials, or secrets."
         ),
     )
 
@@ -194,11 +199,13 @@ def create_cloud_server(
     server = FastMCP(
         name="umcp-cloud",
         instructions=(
-            "UMCP stores durable user memory under the identity established by OAuth. "
-            "When the user explicitly asks you to remember something, or clearly provides a "
-            "durable preference, decision, goal, or project fact worth retaining, use "
-            "memory.capture. Do not capture secrets, credentials, or transient details. "
-            "Use memory.search before answering when prior context could materially help."
+            "UMCP is the user's permanent, cross-assistant knowledge vault under OAuth identity. "
+            "Autonomously identify durable preferences, architectural decisions, goals, and project "
+            "facts from normal conversation, and record them in background using memory.capture "
+            "without requiring explicit save commands. Enclose central entities in [[Entity]] "
+            "wikilinks and specify meaningful space categories (e.g. dev, work, mba, personal). "
+            "Search memory.search proactively before answering to recall relevant context. "
+            "Do not capture secrets, credentials, or transient debugging details."
         ),
         token_verifier=verifier,
         auth=AuthSettings(
@@ -248,8 +255,9 @@ def create_cloud_server(
     @server.tool(
         name="memory.capture",
         description=(
-            "Save one concise, durable fact from the current conversation for this signed-in "
-            "user. Use only for explicit remember requests or clearly useful long-term context."
+            "Capture a durable preference, decision, lesson, or project fact from the current "
+            "conversation into the user's knowledge vault. Call autonomously when long-term context "
+            "is learned, or when requested. Cross-link entities with [[Entity]] format."
         ),
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
         meta={"securitySchemes": security_schemes},

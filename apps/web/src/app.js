@@ -4,7 +4,7 @@ import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
 import { renderMemoryInbox } from "./memory-inbox-view.js";
 import { M1_FIXTURE_MEMORY_ID } from "./memory-inbox-contract.js";
 import { renderAccountShell } from "./account-shell.js";
-import { memoryCard, memoryStateLabel, memoryViewHash, renderAccountInbox, renderMemoryBrowser } from "./memory-vault-view.js";
+import { extractWikilinks, formatMemoryContent, memoryCard, memoryStateLabel, memoryViewHash, renderAccountInbox, renderMemoryBrowser } from "./memory-vault-view.js";
 
 const landingMarkup = document.querySelector("#main")?.innerHTML || "";
 let navigationRevision = 0;
@@ -581,8 +581,11 @@ async function renderMemoryDetail(memoryId, navigationId = null) {
     const metadata = `<aside class="memory-inspector"><p class="account-eyebrow">About this memory</p><dl><div><dt>Type</dt><dd>${escapeHtml(memory.type || memory.memory_type || "memory")}</dd></div><div><dt>State</dt><dd>${escapeHtml(memoryStateLabel(memory.state))}</dd></div><div><dt>Space</dt><dd>${escapeHtml(memory.space || "General")}</dd></div><div><dt>Version</dt><dd>${escapeHtml(memory.version)}</dd></div></dl><p class="caption">Origin and relation details appear here when supplied by the administrative API.</p></aside>`;
     const canWrite = adapter.features?.memoryWrite !== false;
     const canForget = adapter.features?.memoryDelete !== false;
-    const controls = canWrite || canForget ? `<form id="memory-edit-form">${canWrite ? `<label for="memory-content">Edit memory</label><textarea id="memory-content" name="content" required>${escapeHtml(memory.content)}</textarea>` : ""}<div class="card-actions">${canWrite ? '<button class="button" type="submit">Save new version</button>' : ""}${canForget ? '<button class="button button--quiet" id="forget-memory" type="button">Forget memory</button>' : ""}</div><p id="memory-action-status" role="status"></p></form>` : '<p class="caption">This deployment currently provides a read-only view of your memories.</p>';
-    const editor = `<section class="memory-editor"><a class="back-link" href="#/memories">← All memories</a><div class="memory-editor__content"><span class="memory-type">${escapeHtml(memory.type || memory.memory_type || "memory")}</span><p>${escapeHtml(memory.content)}</p></div>${controls}</section>`;
+    const entities = extractWikilinks(memory.content);
+    const entityChips = entities.length
+      ? `<div class="memory-connections"><p class="account-eyebrow">Connected Concepts</p><div class="vault-filterbar" style="margin: 0.5rem 0 1rem; border: 0; padding: 0;">${entities.map((e) => `<a class="filter-chip" href="#/memories?query=${encodeURIComponent(e)}">[[${escapeHtml(e)}]]</a>`).join("")}</div></div>`
+      : "";
+    const editor = `<section class="memory-editor"><a class="back-link" href="#/memories">← All memories</a><div class="memory-editor__content"><span class="memory-type">${escapeHtml(memory.type || memory.memory_type || "memory")}</span><p>${formatMemoryContent(memory.content)}</p>${entityChips}</div>${controls}</section>`;
     renderAccountPage({ path: `/memories/${memoryId}`, title: "Memory detail", lede: "Inspect its meaning, lifecycle, and origin.", session, content: `<div class="memory-detail-layout">${editor}${metadata}</div>` });
     if (canWrite || canForget) wireMemoryActions(adapter, memory);
     return true;

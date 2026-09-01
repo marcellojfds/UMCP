@@ -1,9 +1,9 @@
 const previewMemories = Object.freeze([
-  { id: "preview-1", content: "Prefer concise executive reports with a clear recommendation first.", type: "preference", state: "pinned", space: "Work", version: 3 },
-  { id: "preview-2", content: "Poorly designed incentives make teams optimize the metric, not the outcome.", type: "lesson", state: "confirmed", space: "MBA", version: 1 },
-  { id: "preview-3", content: "UMCP should make provenance visible whenever a memory is recalled.", type: "decision", state: "active", space: "UMCP", version: 2 },
-  { id: "preview-4", content: "Explore a navigable personal Memory Atlas inspired by linked notes.", type: "goal", state: "candidate", space: "UMCP", version: 1 },
-  { id: "preview-5", content: "Review the positioning hypothesis before the next product milestone.", type: "open_question", state: "stale", space: "Work", version: 2 },
+  { id: "preview-1", content: "Prefer concise executive reports for [[Leadership]] with a clear recommendation first. #work", type: "preference", state: "pinned", space: "Work", version: 3 },
+  { id: "preview-2", content: "Poorly designed incentives make teams optimize the metric, not the outcome. [[Systems Thinking]] #mba", type: "lesson", state: "confirmed", space: "MBA", version: 1 },
+  { id: "preview-3", content: "[[UMCP]] should make provenance visible whenever a memory is recalled across [[ChatGPT]] and [[Claude]]. #dev", type: "decision", state: "active", space: "UMCP", version: 2 },
+  { id: "preview-4", content: "Explore a navigable personal [[Memory Atlas]] inspired by linked notes in [[Obsidian]]. #dev", type: "goal", state: "candidate", space: "UMCP", version: 1 },
+  { id: "preview-5", content: "Review the positioning hypothesis for [[UMCP Cloud]] before the next product milestone. #strategy", type: "open_question", state: "stale", space: "Work", version: 2 },
 ]);
 
 function clone(value) {

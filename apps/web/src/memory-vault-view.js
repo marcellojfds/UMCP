@@ -13,10 +13,22 @@ export function memoryStateLabel(state) {
   })[state] || state || "Memory";
 }
 
+export function formatMemoryContent(content = "") {
+  const escaped = escapeHtml(content);
+  return escaped
+    .replace(/\[\[(.*?)\]\]/g, (_, entity) => `<span class="wikilink" title="Connected concept"><span>[[</span><strong>${entity}</strong><span>]]</span></span>`)
+    .replace(/(^|\s)#([\wÀ-ÿ-]+)/g, (_, prefix, tag) => `${prefix}<span class="taglink">#${tag}</span>`);
+}
+
+export function extractWikilinks(content = "") {
+  const matches = [...String(content).matchAll(/\[\[(.*?)\]\]/g)];
+  return [...new Set(matches.map((m) => m[1].trim()).filter(Boolean))];
+}
+
 export function memoryCard(memory) {
   const space = memory.space || "General";
   const type = memory.type || memory.memory_type || "memory";
-  return `<article class="vault-memory-card"><div class="vault-memory-card__meta"><span class="memory-type">${escapeHtml(type)}</span><span class="memory-state memory-state--${escapeHtml(memory.state || "active")}">${escapeHtml(memoryStateLabel(memory.state))}</span></div><a href="#/memories/${encodeURIComponent(memory.id)}">${escapeHtml(memory.content)}</a><footer><span>${escapeHtml(space)}</span><span>v${escapeHtml(memory.version || 1)}</span></footer></article>`;
+  return `<article class="vault-memory-card"><div class="vault-memory-card__meta"><span class="memory-type">${escapeHtml(type)}</span><span class="memory-state memory-state--${escapeHtml(memory.state || "active")}">${escapeHtml(memoryStateLabel(memory.state))}</span></div><a class="vault-memory-card__content" href="#/memories/${encodeURIComponent(memory.id)}">${formatMemoryContent(memory.content)}</a><footer><span>${escapeHtml(space)}</span><span>v${escapeHtml(memory.version || 1)}</span></footer></article>`;
 }
 
 export function filterMemories(items, { space = "", state = "", type = "" } = {}) {
