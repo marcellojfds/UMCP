@@ -1,8 +1,11 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { dirname, extname, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.env.UMCP_WEB_ROOT || "dist";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const defaultRoot = resolve(__dirname, "..", "dist");
+const root = resolve(process.env.UMCP_WEB_ROOT || defaultRoot);
 const types = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -10,8 +13,10 @@ const types = {
   ".json": "application/json; charset=utf-8",
 };
 
+const port = Number(process.env.PORT || 4174);
 createServer(async (req, res) => {
-  const reqUrl = req.url === "/" ? "index.html" : req.url.split("?")[0].replace(/^\//, "");
+  const pathname = (req.url || "/").split("?")[0];
+  const reqUrl = (pathname === "/" || pathname === "/index.html" || !pathname) ? "index.html" : pathname.replace(/^\//, "");
   const filePath = normalize(join(root, reqUrl));
   if (!filePath.startsWith(root)) {
     res.writeHead(400).end();
@@ -24,4 +29,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end("Not found");
   }
-}).listen(Number(process.env.PORT || 4174), "127.0.0.1", () => console.log("UMCP web server ready on http://127.0.0.1:4174"));
+}).listen(port, "127.0.0.1", () => console.log(`UMCP web server ready on http://127.0.0.1:${port}`));
