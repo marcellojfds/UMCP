@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 import hashlib
 import threading
 from pathlib import Path
@@ -31,6 +32,7 @@ class LocalTransformerEmbeddingProvider:
         query_prefix: str = "query: ",
         passage_prefix: str = "passage: ",
         max_length: int = 256,
+        cache_size: int = 2048,
     ) -> None:
         if dimension != 384:
             raise ValueError("the Alpha semantic provider requires dimension 384")
@@ -41,6 +43,9 @@ class LocalTransformerEmbeddingProvider:
         self._query_prefix = query_prefix
         self._passage_prefix = passage_prefix
         self._max_length = max_length
+        self._cache_size = cache_size
+        self._cache: OrderedDict[tuple[str, bool], tuple[float, ...]] = OrderedDict()
+        self._cache_lock = threading.Lock()
         self._tokenizer: Any | None = None
         self._model: Any | None = None
         self._torch: Any | None = None
@@ -81,7 +86,17 @@ class LocalTransformerEmbeddingProvider:
     async def embed(self, text: str, *, query: bool = False) -> tuple[float, ...]:
         if not text.strip():
             raise ValueError("embedding text must be non-empty")
-        return await asyncio.to_thread(self._encode, text, query)
+        key = (text, query)
+        with self._cache_lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
+        vector = await asyncio.to_thread(self._encode, text, query)
+        with self._cache_lock:
+            self._cache[key] = vector
+            if len(self._cache) > self._cache_size:
+                self._cache.popitem(last=False)
+        return vector
 
     def _load(self) -> None:
         if self._model is not None and self._tokenizer is not None:
