@@ -147,8 +147,8 @@ function wireMemoryBrowser() {
   });
 }
 
-function unavailableRoute(path, message) {
-  return renderRoutePage(path, `<div class="empty-state"><span class="mono">SERVER ADAPTER REQUIRED</span><p>${message}</p><a class="button button--dark" href="#top">Back to overview</a></div>`);
+function unavailableRoute(path, message = "") {
+  return renderRoutePage(path, `<div class="empty-state" data-state="authentication-required"><span class="mono">SIGN IN REQUIRED</span><p>${message || "Sign in to access your personal memory vault."}</p><div class="card-actions"><a class="button button--dark" href="#login">Sign in to your vault</a><a class="button button--quiet" href="#top">Back to overview</a></div></div>`);
 }
 
 function memoryItems(result) {
@@ -163,7 +163,7 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
   const adapter = getAdminAdapter();
   const staticPage = routePages[path];
   if (!staticPage) return false;
-  if (adapter.status !== "ready") return unavailableRoute(path, staticPage[2]);
+  if (adapter.status !== "ready") return unavailableRoute(path);
   if (document.querySelector(".account-app")) showAccountPending();
   else renderRoutePage(path, `<div class="empty-state"><span class="mono">LOADING SECURE DATA</span><p>Checking the server-side session…</p></div>`);
   try {
@@ -369,42 +369,21 @@ function inboxActionStatus(message, state = "") {
 
 async function renderInboxRoute(navigationId = null) {
   const admin = getAdminAdapter();
-  if (admin.status === "ready") {
-    if (document.querySelector(".account-app")) showAccountPending();
-    else renderRoutePage("/inbox", `<div class="empty-state"><span class="mono">LOADING INBOX</span><p>Checking which memories need attention…</p></div>`);
-    try {
-      const [session, result] = await Promise.all([admin.session(), admin.listMemories()]);
-      if (!navigationIsCurrent(navigationId)) return true;
-      return renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review the memories that need a decision.", session, content: renderAccountInbox(memoryItems(result)) });
-    } catch (error) {
-      if (error?.code === "authentication_required" || error?.status === 401) {
-        return renderRoutePage("/inbox", '<div class="empty-state" data-state="authentication-required"><span class="mono">SIGN IN REQUIRED</span><p>Your portal session is unavailable or has expired.</p><a class="button button--dark" href="#login">Sign in again</a></div>');
-      }
-      renderRoutePage("/inbox", `<div class="empty-state"><span class="mono">INBOX UNAVAILABLE</span><p>We could not load the review queue. Please try again.</p><button class="button button--dark" type="button" data-action="retry-inbox">Retry</button></div>`);
-      document.querySelector("[data-action='retry-inbox']")?.addEventListener("click", () => { void renderInboxRoute(); });
-      return true;
-    }
+  if (admin.status !== "ready") {
+    return unavailableRoute("/inbox");
   }
-  const adapter = getMemoryInboxAdapter();
-  renderRoutePage("/inbox", renderMemoryInbox({ state: "loading", mode: adapter.status }));
+  if (document.querySelector(".account-app")) showAccountPending();
+  else renderRoutePage("/inbox", `<div class="empty-state"><span class="mono">LOADING INBOX</span><p>Checking which memories need attention…</p></div>`);
   try {
-    const [inbox, memories, connections] = await Promise.all([adapter.listInbox({ space: "MBA" }), adapter.listMemories(), adapter.listConnections()]);
-    const content = renderMemoryInbox({
-      state: "success",
-      mode: adapter.status,
-      candidates: inbox.candidates || [],
-      memories: memories.memories || [],
-      connections: connections.connections || [],
-      recall: inboxSnapshot.recall,
-      restore: inboxSnapshot.restore,
-    });
-    renderRoutePage("/inbox", content);
-    wireInboxActions(adapter);
-    return true;
-  } catch {
-    const content = renderMemoryInbox({ state: "error", mode: adapter.status });
-    renderRoutePage("/inbox", content);
-    wireInboxActions(adapter);
+    const [session, result] = await Promise.all([admin.session(), admin.listMemories()]);
+    if (!navigationIsCurrent(navigationId)) return true;
+    return renderAccountPage({ path: "/inbox", title: "Inbox", lede: "Review the memories that need a decision.", session, content: renderAccountInbox(memoryItems(result)) });
+  } catch (error) {
+    if (error?.code === "authentication_required" || error?.status === 401) {
+      return unavailableRoute("/inbox");
+    }
+    renderRoutePage("/inbox", `<div class="empty-state"><span class="mono">INBOX UNAVAILABLE</span><p>We could not load the review queue. Please try again.</p><button class="button button--dark" type="button" data-action="retry-inbox">Retry</button></div>`);
+    document.querySelector("[data-action='retry-inbox']")?.addEventListener("click", () => { void renderInboxRoute(); });
     return true;
   }
 }
@@ -572,7 +551,7 @@ function wireSecurityActions(adapter) {
 
 async function renderMemoryDetail(memoryId, navigationId = null) {
   const adapter = getAdminAdapter();
-  if (adapter.status !== "ready") return unavailableRoute("/memories", "A verified server session is required to view a memory.");
+  if (adapter.status !== "ready") return unavailableRoute("/memories");
   if (document.querySelector(".account-app")) showAccountPending();
   else renderRoutePage("/memories", `<div class="empty-state"><span class="mono">LOADING MEMORY</span></div>`);
   try {
@@ -587,7 +566,14 @@ async function renderMemoryDetail(memoryId, navigationId = null) {
     if (canWrite || canForget) wireMemoryActions(adapter, memory);
     return true;
   } catch {
-    return renderRoutePage("/memories", `<div class="empty-state"><span class="mono">NOT AVAILABLE</span><p>This memory is no longer available in the current session.</p><a class="button button--dark" href="#/memories">Back to memories</a></div>`);
+    const session = await adapter.session().catch(() => ({}));
+    return renderAccountPage({
+      path: "/memories",
+      title: "Memory not found",
+      lede: "This memory is no longer available in your vault.",
+      session,
+      content: '<div class="vault-empty vault-empty--wide"><span>◇</span><h2>Memory not found</h2><p>This memory may have been forgotten or does not exist in this session.</p><a class="button button--dark" href="#/memories">Back to all memories</a></div>',
+    });
   }
 }
 
@@ -749,7 +735,6 @@ async function route() {
   const routeQuery = new URLSearchParams(hashQuery);
   if (path === "/docs") return renderDocsRoute();
   if (path === "/consent") return renderConsentRoute();
-  if (path === "/connections" && getAdminAdapter().status !== "ready") return renderConnectionsRoute();
   if (path === "/inbox") return renderInboxRoute(navigationId);
   const detail = path.match(/^\/memories\/([^/]+)$/);
   if (detail) return renderMemoryDetail(decodeURIComponent(detail[1]), navigationId);
