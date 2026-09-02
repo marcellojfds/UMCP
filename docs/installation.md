@@ -27,6 +27,42 @@ allowlisted maintainer identity.
 The exact ChatGPT UI and availability can change; this is a private staging
 recipe, not a published-app installation guide.
 
+### Claude Code
+
+Claude Code is the selected Claude surface for the private staging acceptance.
+The hosted service uses Streamable HTTP plus OAuth/PKCE; do not configure the
+local `python -m omp.server` stdio process when you intend to use the hosted
+vault.
+
+1. Use a current Claude Code release with remote MCP OAuth support.
+2. Add UMCP as a user-level server with the registered public client and fixed
+   loopback callback:
+
+   ```bash
+   claude mcp add --transport http --scope user \
+     --client-id umcp-claude-code --callback-port 17171 \
+     umcp https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp
+   ```
+
+3. Start Claude Code, enter `/mcp`, select `umcp`, and complete Google sign-in
+   with an allowlisted account. Newer releases also support:
+
+   ```bash
+   claude mcp login umcp
+   ```
+
+4. Verify the result:
+
+   ```bash
+   claude mcp list
+   ```
+
+   The `umcp` server must report `Connected` before it can expose memory tools.
+5. Ask Claude explicitly to search UMCP or save a durable, non-sensitive memory.
+
+This recipe does not claim equivalent verification for Claude Desktop or the
+Claude API; those are separate surfaces with different setup and token flows.
+
 ### Gemini Spark
 
 1. In Gemini, open **Settings → Personal Intelligence → Connected Apps**.

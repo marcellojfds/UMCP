@@ -308,8 +308,8 @@ def test_portal_google_login_reuses_oauth_identity_and_lists_memories(tmp_path) 
         shell = client.get("/portal/")
         assert shell.status_code == 200
         assert "no-store" in shell.headers["cache-control"]
-        assert 'src="./src/app.js?v=portal-20260831-2"' in shell.text
-        portal_script = client.get("/portal/src/app.js?v=portal-20260831-2")
+        assert 'src="./src/app.js?v=portal-20260902-1"' in shell.text
+        portal_script = client.get("/portal/src/app.js?v=portal-20260902-1")
         assert portal_script.status_code == 200
         assert "no-store" in portal_script.headers["cache-control"]
         bootstrap = client.get("/portal/admin-config.js")
@@ -465,7 +465,7 @@ def test_local_cloud_composition_serves_admin_and_web_before_mcp_mount(tmp_path)
     with TestClient(app, base_url="https://local.umcp.invalid") as client:
         shell = client.get("/web/")
         assert shell.status_code == 200
-        assert 'src="./admin-config.js?v=portal-20260831-2"' in shell.text
+        assert 'src="./admin-config.js?v=portal-20260831-3"' in shell.text
         bootstrap = client.get("/web/admin-config.js")
         assert bootstrap.status_code == 200
         assert bootstrap.text == 'window.__UMCP_ADMIN_API_BASE_URL__ = "/admin";\n'

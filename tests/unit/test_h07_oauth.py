@@ -62,6 +62,21 @@ def test_oauth_configuration_accepts_multiple_explicitly_allowed_users() -> None
     assert config.allowed_email_digests == frozenset({"a" * 64, "b" * 64})
 
 
+def test_oauth_configuration_accepts_fixed_loopback_callback_for_native_client() -> None:
+    config = OAuthConfiguration.from_settings(
+        settings(
+            oauth_clients=json.dumps(
+                {"umcp-claude-code": "http://localhost:17171/callback"}
+            )
+        )
+    )
+
+    assert config is not None
+    assert config.clients == {
+        "umcp-claude-code": "http://localhost:17171/callback"
+    }
+
+
 def test_oauth_configuration_rejects_google_bundle_with_different_explicit_client_id() -> None:
     bundle = json.dumps(
         {
