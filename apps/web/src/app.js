@@ -17,7 +17,7 @@ function navigationIsCurrent(revision) {
 const surfaces = [
   ["ChatGPT developer mode", "Remote /mcp or private test tunnel", "Unverified"],
   ["OpenAI Responses API", "Authenticated remote MCP", "Unverified"],
-  ["Claude Code", "Remote Streamable HTTP + OAuth", "Private staging"],
+  ["Claude Code", "Remote Streamable HTTP + OAuth", "OAuth verified"],
   ["Claude Desktop", "Separate connector setup", "Unverified"],
   ["Claude API", "Remote MCP connector with supplied OAuth token", "Unverified"],
   ["Gemini CLI", "Local configuration or remote where documented", "Unverified"],
@@ -715,7 +715,7 @@ function wireLogin() {
 }
 
 function renderDocsRoute() {
-  const content = `<div class="control-card"><p class="mono">GETTING STARTED &amp; REFERENCE</p><p>UMCP provides a structured memory layer with clear ownership and verified lifecycle contracts.</p><div class="setup-guide"><p class="eyebrow">Claude Code / private staging</p><h2>Connect Claude Code to your vault</h2><p>Your Google account must be approved for this private staging service.</p><ol class="ai-steps"><li><strong>1. Add the remote MCP server</strong><pre><code>claude mcp add --transport http --scope user \\
+  const content = `<div class="control-card"><p class="mono">GETTING STARTED &amp; REFERENCE</p><p>UMCP provides a structured memory layer with clear ownership and verified lifecycle contracts.</p><div class="setup-guide"><p class="eyebrow">Claude Code / private staging</p><h2>Connect Claude Code to your vault</h2><p>Your Google account must be approved for this private staging service. Claude Code also requires Claude Pro or Max, or an Anthropic API key with available credits.</p><ol class="ai-steps"><li><strong>1. Add the remote MCP server</strong><pre><code>claude mcp add --transport http --scope user \\
   --client-id umcp-claude-code --callback-port 17171 \\
   umcp https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp</code></pre></li><li><strong>2. Authenticate</strong><span>Open <code>/mcp</code> inside Claude Code, choose <strong>umcp</strong>, and complete Google sign-in. Newer Claude Code releases also support <code>claude mcp login umcp</code>.</span></li><li><strong>3. Check the connection</strong><span>Run <code>claude mcp list</code>. UMCP should report <strong>Connected</strong> before you ask Claude to search or save memory.</span></li></ol><p class="caption">This is the supported Claude Code recipe. It does not claim verification for Claude Desktop or the Claude API.</p></div><ul class="data-list">
     <li><div><strong>Community Installation</strong><small>Run UMCP locally with PostgreSQL, pgvector, and stdio MCP transport.</small></div><a class="button button--quiet" href="#how">How it works</a></li>

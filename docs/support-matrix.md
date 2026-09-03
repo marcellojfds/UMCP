@@ -1,6 +1,6 @@
 # Support and verification matrix
 
-**Last reconciled:** 2026-08-30
+**Last reconciled:** 2026-09-02
 
 “Verified” below means one dated journey succeeded in the maintainer's private
 staging account. It does not imply general availability, marketplace approval,
@@ -12,7 +12,8 @@ scale, or a production SLA.
 | Gemini Spark custom app | **Verified in private staging** | OAuth, tool synchronization, and exact cross-surface recall succeeded; default retrieval threshold required an explicit `min_relevance=0.0` workaround |
 | UMCP owner portal | **Verified in private staging** | Same Google identity can list and inspect owner-scoped memories |
 | Gemini normal chat | **Not supported by this custom-app path** | Use Spark and select `@Umcp Cloud` |
-| Claude | **Not verified** | No current real-account OAuth and lifecycle report |
+| Claude Code | **OAuth/MCP handshake verified in private staging** | Claude Code 2.1.236 completed UMCP OAuth and reported the remote server `Connected` on 2026-09-02; model-driven lifecycle remains unverified because the available Anthropic account has neither Pro/Max access nor an API key |
+| Claude Desktop / API | **Not verified** | Separate surfaces; no current real-account lifecycle report |
 | Python agents | **Implemented/tested locally** | Python SDK, OAuth transport, controlled agent, and local/hosted audit runners exist |
 | TypeScript agents | **Experimental** | Transport-agnostic scaffold; no complete hosted acceptance |
 | Community stdio MCP | **Implemented/tested locally** | Caller-provided `owner_id`; trusted local boundary only |

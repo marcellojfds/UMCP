@@ -10,6 +10,7 @@ test("public landing page contains an actionable Claude Code OAuth recipe", () =
   assert.match(html, /claude mcp login umcp/);
   assert.match(html, /claude mcp list/);
   assert.match(html, /approved before OAuth will grant access/);
+  assert.match(html, /Claude Pro or Max account, or an Anthropic API key/);
 });
 
 test("Claude guidance does not confuse the hosted endpoint with local stdio", () => {

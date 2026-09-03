@@ -6,7 +6,7 @@
     <meta name="description" content="UMCP is a user-controlled memory layer for compatible assistants and agents." />
     <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
     <title>UMCP — Open Memory Protocol</title>
-    <link rel="stylesheet" href="./src/styles.css?v=portal-20260902-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=portal-20260902-2" />
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -19,7 +19,7 @@
         <p class="lede">These instructions use the private staging service. Your Google account must be approved before OAuth will grant access.</p>
         <div class="ai-grid">
           <article class="ai-card"><div class="ai-card__header"><span class="mono">OPENAI</span><h3>ChatGPT</h3><span class="status status--confirmed">Verified in staging</span></div><ol class="ai-steps"><li><strong>1. Add the MCP endpoint</strong><span>In ChatGPT Connected Apps / Developer Mode, enter <code>https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp</code>.</span></li><li><strong>2. Authorize with Google</strong><span>Complete the UMCP OAuth flow with your approved Google account.</span></li><li><strong>3. Ask ChatGPT to use UMCP</strong><span>Try: <em>“Remember in UMCP that I prefer Python and concise reports.”</em></span></li></ol></article>
-          <article class="ai-card ai-card--wide"><div class="ai-card__header"><span class="mono">ANTHROPIC</span><h3>Claude Code</h3><span class="status status--stale">Private staging</span></div><ol class="ai-steps"><li><strong>1. Add UMCP as a user-level remote server</strong><span>Run this once in a terminal:</span><pre><code>claude mcp add --transport http --scope user \
+          <article class="ai-card ai-card--wide"><div class="ai-card__header"><span class="mono">ANTHROPIC</span><h3>Claude Code</h3><span class="status status--stale">OAuth verified</span></div><ol class="ai-steps"><li><strong>Before you start</strong><span>Claude Code requires a Claude Pro or Max account, or an Anthropic API key with available credits. UMCP access is separate and currently limited to approved staging testers.</span></li><li><strong>1. Add UMCP as a user-level remote server</strong><span>Run this once in a terminal:</span><pre><code>claude mcp add --transport http --scope user \
   --client-id umcp-claude-code --callback-port 17171 \
   umcp https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp</code></pre></li><li><strong>2. Sign in</strong><span>Start Claude Code, enter <code>/mcp</code>, select <strong>umcp</strong>, and complete the Google login. On newer versions you can also run <code>claude mcp login umcp</code>.</span></li><li><strong>3. Verify and use it</strong><span>Run <code>claude mcp list</code> and confirm that <strong>umcp</strong> is connected. Then ask Claude to search or save a durable memory in UMCP.</span></li></ol><p class="caption">This recipe is for Claude Code. Claude Desktop and the Claude API have different setup paths and are not claimed as verified here.</p></article>
           <article class="ai-card"><div class="ai-card__header"><span class="mono">GOOGLE</span><h3>Gemini</h3><span class="status status--confirmed">Verified in Spark</span></div><ol class="ai-steps"><li><strong>1. Add the connected app</strong><span>Open <strong>Settings → Personal Intelligence → Connected Apps</strong> and add the UMCP MCP endpoint.</span></li><li><strong>2. Authenticate</strong><span>Authorize with the same approved Google account used for your portal vault.</span></li><li><strong>3. Call @Umcp Cloud</strong><span>In <strong>Gemini Spark</strong>, type <code>@Umcp Cloud</code> and approve the requested memory tool.</span></li></ol></article>
@@ -35,6 +35,6 @@
     </main>
     <footer><span>UMCP — Open Memory Protocol</span><a href="#/docs">Documentation</a><a href="#security">Security</a><a href="#control">Control</a><a href="#login">Sign in</a></footer>
     <script src="./admin-config.js?v=portal-20260831-3"></script>
-    <script type="module" src="./src/app.js?v=portal-20260902-1"></script>
+    <script type="module" src="./src/app.js?v=portal-20260902-2"></script>
   </body>
 </html>

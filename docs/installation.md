@@ -34,7 +34,10 @@ The hosted service uses Streamable HTTP plus OAuth/PKCE; do not configure the
 local `python -m omp.server` stdio process when you intend to use the hosted
 vault.
 
-1. Use a current Claude Code release with remote MCP OAuth support.
+1. Use a current Claude Code release with remote MCP OAuth support. Running the
+   Claude model also requires a Claude Pro or Max account, or an Anthropic API
+   key with available credits; authenticating UMCP does not supply Claude model
+   access.
 2. Add UMCP as a user-level server with the registered public client and fixed
    loopback callback:
 

@@ -1,6 +1,6 @@
 # Known issues
 
-**Updated:** 2026-08-30
+**Updated:** 2026-09-02
 **Applies to:** private staging MVP at source
 `1233b221fd89edb1691bd6bd09c2d21eee4822bf`
 
@@ -57,8 +57,11 @@ the user may need to sign in again after expiry.
 ## P2 — incomplete client coverage
 
 - ChatGPT and Gemini have maintainer-account evidence only.
-- Claude has no equivalent current real-client report.
-- Gemini normal chat, Gemini CLI, Gemini API/ADK, Claude Desktop/Code, and
+- Claude Code 2.1.236 completed OAuth and reports the hosted UMCP server as
+  `Connected`, but the available Anthropic account has neither Pro/Max model
+  access nor an API key. A model-driven write/search/update/forget report is
+  therefore still missing.
+- Gemini normal chat, Gemini CLI, Gemini API/ADK, Claude Desktop, Claude API, and
   published marketplace applications must be evaluated separately.
 
 ## P2 — repository quality gates are not green
