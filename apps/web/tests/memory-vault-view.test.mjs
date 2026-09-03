@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterMemories, memoryViewHash, renderAccountInbox, renderMemoryBrowser } from "../src/memory-vault-view.js";
+import { filterMemories, memoryViewHash, renderAccountInbox, renderKeyConcepts, renderMemoryBrowser } from "../src/memory-vault-view.js";
 
 const memories = [
   { id: "1", content: "A", type: "lesson", state: "candidate", space: "MBA", version: 1 },
@@ -34,4 +34,20 @@ test("memory browser renders calm empty vault without filter controls when 0 mem
   assert.match(view.content, /Your memory vault is empty/);
   assert.doesNotMatch(view.content, /vault-filterbar/);
   assert.equal(view.toolbar, "");
+});
+
+test("renderKeyConcepts clusters memories by wikilinks, spaces and highlights decisions", () => {
+  const testMemories = [
+    { id: "m1", content: "Priorizar [[Marketing Digital]] e redes sociais", type: "decision", space: "marketing" },
+    { id: "m2", content: "Criar conteúdo técnico para [[Marketing Digital]]", type: "lesson", space: "marketing" },
+    { id: "m3", content: "Equilíbrio em [[Relacionamentos]] profissionais", type: "insight", space: "pessoal" },
+  ];
+  const html = renderKeyConcepts(testMemories);
+  assert.match(html, /Atlas de Conceitos/);
+  assert.match(html, /\[\[Marketing Digital\]\]/);
+  assert.match(html, /\[\[Relacionamentos\]\]/);
+  assert.match(html, /2 pensamentos/);
+  assert.match(html, /Decisão ativa:/);
+  assert.match(html, /1 decision/);
+  assert.match(html, /1 lesson/);
 });

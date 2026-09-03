@@ -1,6 +1,7 @@
 const navigation = Object.freeze([
   ["/dashboard", "Today", "home"],
   ["/memories", "Memories", "memory"],
+  ["/concepts", "Key Concepts", "concept"],
   ["/inbox", "Inbox", "inbox"],
   ["/connections", "Connections", "connection"],
   ["/agents", "Agents", "agent"],
@@ -27,6 +28,7 @@ function navIcon(kind) {
   const paths = {
     home: '<path d="M3 10.5 10 4l7 6.5V18H6v-7.5Z"/><path d="M8.5 18v-5h3v5"/>',
     memory: '<rect x="4" y="3" width="12" height="14" rx="2"/><path d="M7 7h6M7 10h6M7 13h4"/>',
+    concept: '<path d="M10 2a6 6 0 0 0-6 6c0 2.2 1.2 4.1 3 5.1V15a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1.9c1.8-1 3-2.9 3-5.1a6 6 0 0 0-6-6Z"/><path d="M8 18h4"/>',
     inbox: '<path d="M3 11h4l2 3h2l2-3h4"/><path d="m5 5-2 6v6h14v-6l-2-6Z"/>',
     connection: '<circle cx="6" cy="10" r="3"/><circle cx="14" cy="6" r="2"/><circle cx="14" cy="15" r="2"/><path d="m8.5 8.5 3.6-1.7M8.7 11.4l3.5 2.4"/>',
     agent: '<rect x="4" y="6" width="12" height="10" rx="3"/><path d="M10 3v3M7.5 11h.01M12.5 11h.01M8 14h4"/>',
@@ -55,7 +57,25 @@ export function renderAccountShell({ path, title, lede = "", session = {}, conte
       </details>
     </aside>
     <section class="account-workspace">
-      <header class="account-topbar"><a class="account-mobile-brand" href="#/dashboard">UMCP</a><form class="vault-search" role="search"><label class="sr-only" for="vault-search-input">Search your memories</label><span aria-hidden="true">⌕</span><input id="vault-search-input" name="query" type="search" placeholder="Search your memories…" autocomplete="off"><kbd>⌘ K</kbd><button class="sr-only" type="submit">Search memories</button></form><span class="vault-label">Personal vault</span></header>${session.preview_mode ? '<div class="account-preview-banner" role="status"><strong>Local preview</strong><span>Sample data only · actions do not affect your vault</span></div>' : ""}
+      <header class="account-topbar">
+        <a class="account-mobile-brand" href="#/dashboard">UMCP</a>
+        <form class="vault-search" role="search">
+          <label class="sr-only" for="vault-search-input">Search your memories</label>
+          <span aria-hidden="true">⌕</span>
+          <input id="vault-search-input" name="query" type="search" placeholder="Search your memories…" autocomplete="off">
+          <kbd>⌘ K</kbd>
+          <button class="sr-only" type="submit">Search memories</button>
+        </form>
+        <div class="vault-topbar-actions">
+          <button type="button" class="vault-sync-btn" data-vault-sync title="Atualizar dados do cofre sem recarregar a página" aria-label="Atualizar dados">
+            <svg class="vault-sync-icon" aria-hidden="true" viewBox="0 0 20 20" width="15" height="15">
+              <path d="M3.5 10a6.5 6.5 0 1 1 1.9 4.6l-1.4 1.4M3.5 16v-4.5H8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="vault-sync-label">Atualizar</span>
+          </button>
+          <span class="vault-label">Personal vault</span>
+        </div>
+      </header>${session.preview_mode ? '<div class="account-preview-banner" role="status"><strong>Local preview</strong><span>Sample data only · actions do not affect your vault</span></div>' : ""}
       <main class="account-main" id="account-main"><header class="account-page-header"><div><p class="account-eyebrow">Personal vault</p><h1>${escapeHtml(title)}</h1>${lede ? `<p>${escapeHtml(lede)}</p>` : ""}</div>${toolbar}</header>${content}</main>
     </section>
   </div>`;

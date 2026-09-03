@@ -91,11 +91,20 @@ def create_official_server(runtime: ServerRuntime) -> FastMCP:
     server = FastMCP(
         name="open-memory-protocol",
         instructions=(
-            "Use the four memory tools conservatively; an empty search is a valid abstention."
+            "UMCP is the user's permanent Second Brain. "
+            "Proactively recall context with memory.search when substantive topics are discussed, "
+            "and record important conclusions, principles, and decisions with memory.write."
         ),
     )
 
-    @server.tool(name="memory.write", structured_output=False)
+    @server.tool(
+        name="memory.write",
+        description=(
+            "Write a durable memory entry (fact, decision, insight, preference, lesson, concept) "
+            "to the user's vault."
+        ),
+        structured_output=False,
+    )
     async def memory_write(
         content: Annotated[str, Field(min_length=1, max_length=MAX_CONTENT_LENGTH)],
         type: MemoryType,
@@ -109,7 +118,14 @@ def create_official_server(runtime: ServerRuntime) -> FastMCP:
     ) -> str:
         return await _call(runtime, "memory.write", locals())
 
-    @server.tool(name="memory.search", structured_output=False)
+    @server.tool(
+        name="memory.search",
+        description=(
+            "Search the user's vault for past thoughts, decisions, principles, and preferences. "
+            "Call this proactively before answering when substantive topics are discussed."
+        ),
+        structured_output=False,
+    )
     async def memory_search(
         query: Annotated[str, Field(min_length=1, max_length=MAX_QUERY_LENGTH)],
         owner_id: Annotated[str, Field(min_length=1, max_length=128)],
@@ -117,7 +133,7 @@ def create_official_server(runtime: ServerRuntime) -> FastMCP:
         type: MemoryType | None = None,
         state: MemoryState | None = None,
         limit: Annotated[int, Field(ge=1, le=50)] = 10,
-        min_relevance: Annotated[float, Field(ge=0, le=1)] = 0.78,
+        min_relevance: Annotated[float, Field(ge=0, le=1)] = 0.45,
         timeout_ms: Annotated[int, Field(ge=1, le=MAX_TIMEOUT_MS)] = DEFAULT_TIMEOUT_MS,
     ) -> str:
         return await _call(runtime, "memory.search", locals())
@@ -194,11 +210,19 @@ def create_cloud_server(
     server = FastMCP(
         name="umcp-cloud",
         instructions=(
-            "UMCP stores durable user memory under the identity established by OAuth. "
-            "When the user explicitly asks you to remember something, or clearly provides a "
-            "durable preference, decision, goal, or project fact worth retaining, use "
-            "memory.capture. Do not capture secrets, credentials, or transient details. "
-            "Use memory.search before answering when prior context could materially help."
+            "UMCP is the user's permanent Second Brain across Claude, ChatGPT, and Gemini. "
+            "Act as a proactive thought partner with continuous memory awareness:\n"
+            "1. PROACTIVE RECALL: When the user starts or shifts to a substantive topic "
+            "(e.g., marketing, relationships, personal principles, business decisions, architecture), "
+            "call memory.search in the background before answering to check for established context. "
+            "If relevant memories exist, weave them naturally into your response; if none exist, "
+            "answer directly without distraction.\n"
+            "2. PROACTIVE CAPTURE: When the conversation reaches a significant conclusion, "
+            "decision, mental model, validated insight, or enduring preference, proactively save "
+            "it using memory.capture without waiting to be asked. Provide a concise, self-contained "
+            "summary and assign an appropriate type and space.\n"
+            "3. NOISE CONTROL & PRIVACY: Never capture transient pleasantries, intermediate drafts, "
+            "or credentials. Keep captured thoughts high-signal, atomic, and durable."
         ),
         token_verifier=verifier,
         auth=AuthSettings(
@@ -234,37 +258,95 @@ def create_cloud_server(
     ) -> str:
         return await _call_cloud(runtime, "memory.write", locals(), Scope.MEMORY_WRITE)
 
-    @server.tool(name="memory.search", annotations=ToolAnnotations(readOnlyHint=True), meta={"securitySchemes": security_schemes})
+    @server.tool(
+        name="memory.search",
+        description=(
+            "Search the user's personal vault for past thoughts, decisions, principles, "
+            "and preferences. Proactively call this before formulating answers whenever the "
+            "discussion touches domain topics (e.g. marketing, relationships, strategy, "
+            "goals) where the user may have established prior context."
+        ),
+        annotations=ToolAnnotations(readOnlyHint=True),
+        meta={"securitySchemes": security_schemes},
+    )
     async def memory_search_cloud(
-        query: Annotated[str, Field(min_length=1, max_length=MAX_QUERY_LENGTH)],
-        space: Annotated[str | None, Field(min_length=1, max_length=128)] = None,
-        type: MemoryType | None = None,
-        state: MemoryState | None = None,
-        limit: Annotated[int, Field(ge=1, le=50)] = 10,
-        min_relevance: Annotated[float, Field(ge=0, le=1)] = 0.78,
+        query: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=MAX_QUERY_LENGTH,
+                description="Natural-language search query or topic keywords (e.g. 'marketing strategy', 'relacionamentos', 'decisões de produto')",
+            ),
+        ],
+        space: Annotated[
+            str | None,
+            Field(
+                min_length=1,
+                max_length=128,
+                description="Optional domain space filter, e.g. 'marketing', 'relacionamentos', 'pessoal', 'trabalho'",
+            ),
+        ] = None,
+        type: Annotated[
+            MemoryType | None,
+            Field(description="Optional memory type filter, e.g. 'insight', 'decision', 'lesson', 'preference'"),
+        ] = None,
+        state: Annotated[MemoryState | None, Field(description="Memory state filter ('active', 'archived', etc.)")] = None,
+        limit: Annotated[int, Field(ge=1, le=50, description="Maximum number of memories to return")] = 10,
+        min_relevance: Annotated[
+            float,
+            Field(
+                ge=0,
+                le=1,
+                description="Relevance threshold between 0.0 and 1.0. Defaults to 0.45 for flexible semantic recall.",
+            ),
+        ] = 0.45,
     ) -> str:
         return await _call_cloud(runtime, "memory.search", locals(), Scope.MEMORY_READ)
 
     @server.tool(
         name="memory.capture",
         description=(
-            "Save one concise, durable fact from the current conversation for this signed-in "
-            "user. Use only for explicit remember requests or clearly useful long-term context."
+            "Proactively capture a concise, durable insight, strategic decision, lesson learned, "
+            "or core preference from the current conversation for the user's permanent vault. "
+            "Call this whenever a meaningful conclusion or guideline crystallizes during "
+            "the discussion—do not wait for an explicit command. Do not capture ephemeral chat, "
+            "temporary notes, or credentials."
         ),
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True),
         meta={"securitySchemes": security_schemes},
     )
     async def memory_capture_cloud(
-        content: Annotated[str, Field(min_length=1, max_length=MAX_CONTENT_LENGTH)],
-        type: MemoryType = "fact",
-        reason: Annotated[str | None, Field(max_length=2_000)] = None,
-        source_id: Annotated[str | None, Field(max_length=256)] = None,
-        space: Annotated[str | None, Field(min_length=1, max_length=128)] = None,
-        importance: Annotated[float, Field(ge=0, le=1)] = 0.5,
-        confidence: Annotated[float, Field(ge=0, le=1)] = 0.8,
+        content: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=MAX_CONTENT_LENGTH,
+                description="Concise, self-contained summary of the insight, decision, or fact to remember permanently",
+            ),
+        ],
+        type: Annotated[
+            MemoryType,
+            Field(description="Category of memory: 'insight', 'decision', 'lesson', 'preference', 'fact', 'concept', 'goal', 'project_context'"),
+        ] = "fact",
+        reason: Annotated[
+            str | None,
+            Field(max_length=2_000, description="Trigger or context explaining why this thought is valuable for long-term recall"),
+        ] = None,
+        source_id: Annotated[str | None, Field(max_length=256, description="Optional conversation or session identifier")] = None,
+        source_model: Annotated[
+            str | None,
+            Field(max_length=128, description="Identifier of the client model capturing this thought (e.g. 'claude', 'chatgpt', 'gemini')"),
+        ] = None,
+        space: Annotated[
+            str | None,
+            Field(min_length=1, max_length=128, description="Domain space tag, e.g. 'marketing', 'relacionamentos', 'carreira', 'tecnologia'"),
+        ] = None,
+        importance: Annotated[float, Field(ge=0, le=1, description="Subjective importance from 0.0 (minor) to 1.0 (vital)")] = 0.5,
+        confidence: Annotated[float, Field(ge=0, le=1, description="Confidence in the validity of this thought from 0.0 to 1.0")] = 0.8,
     ) -> str:
         normalized = " ".join(content.split())
-        identity = source_id or "chatgpt-conversation"
+        client_model = source_model or "assistant"
+        identity = source_id or f"{client_model}-conversation"
         arguments: dict[str, object] = {
             "content": normalized,
             "type": type,
@@ -272,7 +354,7 @@ def create_cloud_server(
                 source_type="conversation",
                 captured_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 source_id=source_id,
-                source_model="chatgpt",
+                source_model=client_model,
                 evidence=reason,
             ),
             "idempotency_key": "capture-" + hashlib.sha256(

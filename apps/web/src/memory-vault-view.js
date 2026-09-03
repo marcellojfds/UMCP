@@ -215,3 +215,128 @@ export function renderAccountInbox(items = []) {
   }
   return `<section class="vault-panel inbox-review" aria-labelledby="inbox-review-heading"><header><div><p class="account-eyebrow">Review queue</p><h2 id="inbox-review-heading">${review.length} ${review.length === 1 ? "memory needs" : "memories need"} your attention.</h2><p>Open a memory to review its content, state, and origin in context.</p></div><span class="inbox-count">${review.length}</span></header><div class="vault-memory-list">${review.map(memoryCard).join("")}</div></section>`;
 }
+
+export function renderKeyConcepts(items = []) {
+  if (!items.length) {
+    return `<div class="vault-empty vault-empty--wide">
+      <span>💡</span>
+      <h2>Nenhum conceito estruturado ainda</h2>
+      <p>Conforme seus assistentes capturam pensamentos, decisões e aprendizados com <code>[[Conceitos]]</code> ou espaços temáticos, eles serão automaticamente agrupados e sintetizados aqui.</p>
+      <a class="button button--dark" href="#/memories">Explorar o cofre</a>
+    </div>`;
+  }
+
+  const clusters = new Map();
+
+  const addClusterMemory = (conceptName, memory, isExplicit = true) => {
+    const key = conceptName.trim();
+    if (!key) return;
+    if (!clusters.has(key)) {
+      clusters.set(key, {
+        name: key,
+        memories: [],
+        typeCounts: {},
+        spaces: new Set(),
+        isExplicitWiki: isExplicit,
+      });
+    }
+    const cluster = clusters.get(key);
+    if (!cluster.memories.some((m) => m.id === memory.id)) {
+      cluster.memories.push(memory);
+      const type = memory.type || memory.memory_type || "fact";
+      cluster.typeCounts[type] = (cluster.typeCounts[type] || 0) + 1;
+      if (memory.space) cluster.spaces.add(memory.space);
+    }
+  };
+
+  items.forEach((memory) => {
+    const content = memory.content || "";
+    const wikilinks = extractWikilinks(content);
+    const tags = [...content.matchAll(/(?:^|\s)#([\wÀ-ÿ-]+)/g)].map((m) => m[1]);
+
+    if (wikilinks.length) {
+      wikilinks.forEach((concept) => addClusterMemory(concept, memory, true));
+    }
+    if (tags.length) {
+      tags.forEach((tag) => addClusterMemory(tag, memory, false));
+    }
+    if (!wikilinks.length && !tags.length) {
+      const spaceName = memory.space ? memory.space.charAt(0).toUpperCase() + memory.space.slice(1) : "General";
+      addClusterMemory(spaceName, memory, false);
+    }
+  });
+
+  const sortedClusters = [...clusters.values()].sort((a, b) => b.memories.length - a.memories.length);
+
+  const clusterCards = sortedClusters.map((cluster) => {
+    const decisions = cluster.memories.filter((m) => (m.type || m.memory_type) === "decision");
+    const insights = cluster.memories.filter((m) => (m.type || m.memory_type) === "insight");
+    const lessons = cluster.memories.filter((m) => (m.type || m.memory_type) === "lesson");
+
+    let executiveSummary = "";
+    if (decisions.length) {
+      const latestDec = decisions[0];
+      executiveSummary = `<strong>Decisão ativa:</strong> ${escapeHtml(latestDec.content.replace(/\[\[(.*?)\]\]/g, "$1"))}`;
+    } else if (insights.length) {
+      const latestIns = insights[0];
+      executiveSummary = `<strong>Insight central:</strong> ${escapeHtml(latestIns.content.replace(/\[\[(.*?)\]\]/g, "$1"))}`;
+    } else if (lessons.length) {
+      const latestLes = lessons[0];
+      executiveSummary = `<strong>Lição prática:</strong> ${escapeHtml(latestLes.content.replace(/\[\[(.*?)\]\]/g, "$1"))}`;
+    } else {
+      const latest = cluster.memories[0];
+      executiveSummary = `${escapeHtml(latest.content.replace(/\[\[(.*?)\]\]/g, "$1"))}`;
+    }
+
+    const typeBadges = Object.entries(cluster.typeCounts)
+      .map(([type, count]) => `<span class="concept-type-badge concept-type-badge--${escapeHtml(type)}">${count} ${escapeHtml(type)}</span>`)
+      .join("");
+
+    const spacesList = [...cluster.spaces].map((s) => `#${s}`).join(" ");
+
+    const memoryListItems = cluster.memories.slice(0, 3).map((m) => {
+      const t = m.type || m.memory_type || "memory";
+      return `<li class="concept-memory-item">
+        <span class="memory-type memory-type--compact">${escapeHtml(t)}</span>
+        <a href="#/memories/${encodeURIComponent(m.id)}">${formatMemoryContent(m.content)}</a>
+      </li>`;
+    }).join("");
+
+    const moreNotice = cluster.memories.length > 3
+      ? `<p class="concept-more"><a href="#/memories?query=${encodeURIComponent(cluster.name)}">+${cluster.memories.length - 3} mais pensamentos neste conceito</a></p>`
+      : "";
+
+    return `<article class="concept-atlas-card">
+      <header class="concept-card-header">
+        <div class="concept-card-title">
+          <span class="concept-icon">💡</span>
+          <h3>[[${escapeHtml(cluster.name)}]]</h3>
+          ${spacesList ? `<span class="concept-spaces">${escapeHtml(spacesList)}</span>` : ""}
+        </div>
+        <div class="concept-meta">
+          <span class="concept-count">${cluster.memories.length} ${cluster.memories.length === 1 ? "pensamento" : "pensamentos"}</span>
+        </div>
+      </header>
+      <div class="concept-summary">
+        ${executiveSummary}
+      </div>
+      <div class="concept-badges">
+        ${typeBadges}
+      </div>
+      <ul class="concept-memory-list">
+        ${memoryListItems}
+      </ul>
+      ${moreNotice}
+      <footer class="concept-card-footer">
+        <a class="button button--quiet" href="#/memories?query=${encodeURIComponent(cluster.name)}&view=graph">Ver no Grafo 🕸️</a>
+        <a class="button button--quiet" href="#/memories?query=${encodeURIComponent(cluster.name)}">Ver notas →</a>
+      </footer>
+    </article>`;
+  }).join("");
+
+  return `<section class="concept-atlas" aria-label="Atlas de Conceitos">
+    <div class="concept-atlas-grid">
+      ${clusterCards}
+    </div>
+  </section>`;
+}

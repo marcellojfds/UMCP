@@ -40,6 +40,8 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
   let cachedSession = null;
   let cachedSessionTime = 0;
   const SESSION_TTL = 60000;
+  const MEMORY_TTL = 30000;
+  const memoryCache = new Map();
   const portalReadOnly = baseUrl === "/portal" || baseUrl.endsWith("/portal");
   async function request(path, options = {}) {
     const send = () => fetchImpl(`${baseUrl}${path}`, {
@@ -72,8 +74,13 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
   return Object.freeze({
     status: "ready",
     features: Object.freeze({ memoryWrite: !portalReadOnly, memoryDelete: !portalReadOnly, connections: !portalReadOnly, agents: !portalReadOnly, accountOperations: !portalReadOnly }),
+    invalidateCache: () => {
+      cachedSession = null;
+      cachedSessionTime = 0;
+      memoryCache.clear();
+    },
     requestMagicLink: ({ email }) => request("/api/auth/magic-link", { method: "POST", body: JSON.stringify({ email }) }),
-    completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; cachedSession = null; return result; },
+    completeMagicLink: async (token) => { const result = await request(`/api/auth/callback?token=${encodeURIComponent(token)}`, { method: "GET" }); csrf = result.csrf; cachedSession = null; memoryCache.clear(); return result; },
     session: async () => {
       const now = Date.now();
       if (cachedSession && now - cachedSessionTime < SESSION_TTL) return cachedSession;
@@ -83,11 +90,20 @@ export function createHttpAdminAdapter({ baseUrl = "", fetchImpl = fetch } = {})
       return data;
     },
     capabilities: () => request("/api/capabilities", { method: "GET" }),
-    listMemories: (query = "") => request(`/api/memories?query=${encodeURIComponent(query)}`, { method: "GET" }),
+    listMemories: async (query = "", forceRefresh = false) => {
+      const now = Date.now();
+      const cached = memoryCache.get(query);
+      if (!forceRefresh && cached && now - cached.time < MEMORY_TTL) {
+        return cached.data;
+      }
+      const data = await request(`/api/memories?query=${encodeURIComponent(query)}`, { method: "GET" });
+      memoryCache.set(query, { data, time: now });
+      return data;
+    },
     getMemory: (id) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "GET" }),
-    createMemory: (memory) => request("/api/memories", { method: "POST", body: JSON.stringify(memory) }),
-    updateMemory: (id, update) => request(`/api/memories/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(update) }),
-    forgetMemory: (id, idempotencyKey) => request(`/api/memories/${encodeURIComponent(id)}?idempotency_key=${encodeURIComponent(idempotencyKey)}`, { method: "DELETE" }),
+    createMemory: async (memory) => { memoryCache.clear(); return request("/api/memories", { method: "POST", body: JSON.stringify(memory) }); },
+    updateMemory: async (id, update) => { memoryCache.clear(); return request(`/api/memories/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(update) }); },
+    forgetMemory: async (id, idempotencyKey) => { memoryCache.clear(); return request(`/api/memories/${encodeURIComponent(id)}?idempotency_key=${encodeURIComponent(idempotencyKey)}`, { method: "DELETE" }); },
     listConnections: () => request("/api/connections", { method: "GET" }),
     createConnection: (connection) => request("/api/connections", { method: "POST", body: JSON.stringify(connection) }),
     revokeConnection: (id) => request(`/api/connections/${encodeURIComponent(id)}/revoke`, { method: "POST" }),

@@ -5,7 +5,7 @@ import { getMemoryInboxAdapter } from "./memory-inbox-adapter.js";
 import { renderMemoryInbox } from "./memory-inbox-view.js";
 import { M1_FIXTURE_MEMORY_ID } from "./memory-inbox-contract.js";
 import { renderAccountShell } from "./account-shell.js";
-import { extractWikilinks, formatMemoryContent, memoryCard, memoryStateLabel, memoryViewHash, renderAccountInbox, renderMemoryBrowser } from "./memory-vault-view.js";
+import { extractWikilinks, formatMemoryContent, memoryCard, memoryStateLabel, memoryViewHash, renderAccountInbox, renderKeyConcepts, renderMemoryBrowser } from "./memory-vault-view.js";
 
 const landingMarkup = document.querySelector("#main")?.innerHTML || "";
 let navigationRevision = 0;
@@ -29,6 +29,7 @@ const routePages = {
   "/inbox": ["Memory Inbox", "Review what is waiting for your consent.", "The M1 Inbox fixture is available without a server session. A deployed adapter can replace it through the frozen M1 MCP boundary."],
   "/dashboard": ["Dashboard", "A calm overview of your memory layer.", "Start by connecting an authenticated Cloud adapter. Your dashboard will appear here once the server-side session is verified."],
   "/memories": ["Memories", "Review what your agents remember.", "No memories are loaded in this preview. The administrative adapter will provide paginated, tenant-scoped results without browser database access."],
+  "/concepts": ["Key Concepts", "Agrupamentos e sínteses automáticas dos seus pensamentos.", "Os conceitos são derivados e conectados dinamicamente a partir das memórias do seu cofre."],
   "/connections": ["Connections", "Choose which clients can use your memory.", "Connection scopes and revocation are server operations. Nothing is connected in this preview."],
   "/consent": ["Connection consent", "Review access before it begins.", "The server supplies the client, purpose, scopes, and consent version. The browser can only approve or deny that request."],
   "/agents": ["Agents", "Issue narrow credentials for your own agents.", "Agent credentials are one-time displayed, hashed at rest, scoped, and revocable. Provisioning is waiting for the Cloud adapter."],
@@ -95,7 +96,38 @@ function renderAccountPage({ path, title, lede, session, content, toolbar = "", 
     logout.dataset.wired = "true";
     logout.addEventListener("click", () => { void accountLogout(); });
   }
+  wireVaultSync();
   return true;
+}
+
+function wireVaultSync() {
+  const syncBtn = document.querySelector("[data-vault-sync]");
+  if (syncBtn && !syncBtn.dataset.wired) {
+    syncBtn.dataset.wired = "true";
+    syncBtn.addEventListener("click", async () => {
+      const adapter = getAdminAdapter();
+      const label = syncBtn.querySelector(".vault-sync-label");
+      syncBtn.classList.add("is-syncing");
+      if (label) label.textContent = "Atualizando…";
+      try {
+        if (typeof adapter.invalidateCache === "function") {
+          adapter.invalidateCache();
+        }
+        await route();
+        if (label) label.textContent = "Atualizado!";
+        setTimeout(() => {
+          if (label) label.textContent = "Atualizar";
+        }, 1500);
+      } catch (err) {
+        if (label) label.textContent = "Erro";
+        setTimeout(() => {
+          if (label) label.textContent = "Atualizar";
+        }, 2000);
+      } finally {
+        syncBtn.classList.remove("is-syncing");
+      }
+    });
+  }
 }
 
 function closeProfileMenuOnClickOutside(event) {
@@ -202,6 +234,21 @@ async function renderAuthenticatedRoute(path, { query = "", space = "", state = 
       renderAccountPage({ path, title: "Memories", lede: "Explore, understand, and control what stays with you.", session, content: browser.content, toolbar: browser.toolbar, query });
       wireMemoryBrowser();
       return true;
+    }
+    if (path === "/concepts") {
+      const [session, result] = await Promise.all([
+        adapter.session(),
+        adapter.listMemories(),
+      ]);
+      if (!navigationIsCurrent(navigationId)) return true;
+      const items = memoryItems(result);
+      return renderAccountPage({
+        path,
+        title: "Key Concepts",
+        lede: "Agrupamentos temáticos e sínteses executivas do seu Segundo Cérebro.",
+        session,
+        content: renderKeyConcepts(items),
+      });
     }
     if (path === "/connections") {
       if (adapter.features?.connections === false) {
@@ -778,6 +825,18 @@ async function route() {
     view: routeQuery.get("view") === "list" ? "list" : (routeQuery.get("view") === "graph" ? "graph" : "cards"),
     navigationId,
   })) return;
+  if (!path || path === "/" || path === "/top") {
+    const adapter = getAdminAdapter();
+    if (adapter.status === "ready" && typeof adapter.session === "function") {
+      try {
+        const session = await adapter.session();
+        if (session && (session.subject_id || session.tenant_id)) {
+          location.hash = "#/memories";
+          return;
+        }
+      } catch (_) {}
+    }
+  }
   restoreLanding();
   renderCompatibility();
   wireLogin();
