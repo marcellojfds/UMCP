@@ -1,8 +1,8 @@
 # Current deployed state
 
-**Last reconciled:** 2026-08-31
+**Last reconciled:** 2026-09-02
 **Environment:** private GCP staging  
-**Canonical source:** `820760f`
+**Canonical source:** `05b4a8eac282721eb4a7de5ecd511ce8e618a37c`
 
 ## Deployment
 
@@ -11,10 +11,10 @@
 | GCP project | `umcp-mcp-staging-20260825` |
 | Region | `us-central1` |
 | Cloud Run service | `umcp-cloud-staging` |
-| Active revision | `umcp-cloud-staging-portal-session` |
+| Active revision | `umcp-cloud-staging-claude-final5` |
 | MCP endpoint | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/mcp` |
 | Portal | `https://umcp-cloud-staging-yqjlathj7q-uc.a.run.app/portal/` |
-| Image digest | `sha256:88c95d5232f6a676d19a51a2db6de96eb7da168a626716c0850014835d528ab7` |
+| Image digest | `sha256:c4467b47e88329081303978d3ff6f22f2edd8f096d711c6c2756d604ec0a3c45` |
 
 Staging is allowlisted for the maintainer identity. It is not production,
 public beta, or a general availability claim.
@@ -66,6 +66,9 @@ A cor favorita de Marcello é roxo.
   cookie.
 - PostgreSQL/pgvector persistence and hosted tenant context.
 - Deployment provenance headers and immutable image/source metadata.
+- Actionable portal onboarding for ChatGPT, Claude Code, and Gemini, including
+  the exact hosted MCP endpoint, OAuth steps, verification commands, and
+  staging/account prerequisites.
 
 ## Acceptance by surface
 
@@ -74,7 +77,7 @@ A cor favorita de Marcello é roxo.
 | ChatGPT connected app | OAuth and owner-scoped capture exercised in the maintainer account |
 | Gemini consumer | Custom app connected in Gemini Spark; tools synchronized; exact owner memory retrieved |
 | UMCP portal | Google login and owner memory list/detail exercised |
-| Claude | No equivalent current real-account acceptance |
+| Claude Code | Remote HTTP server registered; UMCP OAuth completed; client reports `Connected`. Model-driven tool execution remains blocked because the tested Anthropic account has neither Claude Pro/Max nor an API key with credits |
 | Local agents | Python SDK, CLI, stdio, and deterministic connector tests exist |
 
 ## Open defects
@@ -88,5 +91,9 @@ A cor favorita de Marcello é roxo.
    a vague prompt to unrelated Google apps unless explicitly constrained.
 4. **Documentation/publication:** no production domain, public beta policy,
    SLA, or release artifact has been approved.
+5. **Claude model acceptance:** the MCP/OAuth handshake is verified, but an
+   end-to-end model-driven write/search/update/forget run still requires a
+   Claude Pro/Max account or an Anthropic API key with available credits.
 
-See [Known issues](known-issues.md) and [Roadmap](roadmap.md) for remediation.
+See [Claude Code OAuth acceptance](handoffs/roadmap/CLAUDE-CODE-OAUTH-ACCEPTANCE-20260902.md),
+[Known issues](known-issues.md), and [Roadmap](roadmap.md) for remediation.
