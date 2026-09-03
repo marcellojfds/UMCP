@@ -2,7 +2,7 @@
 
 **Updated:** 2026-09-02
 **Applies to:** private staging MVP at source
-`1233b221fd89edb1691bd6bd09c2d21eee4822bf`
+`05b4a8eac282721eb4a7de5ecd511ce8e618a37c`
 
 ## P0 — retrieval threshold hides relevant memories
 
@@ -48,12 +48,6 @@ digest. Other users will receive an authorization denial. This is intentional
 for private staging and must be replaced by an approved beta enrollment policy
 before invitations.
 
-## P1 — portal session is short-lived
-
-Portal access uses a short-lived UMCP access token stored in a Secure,
-HttpOnly cookie. The current portal does not rotate its session automatically;
-the user may need to sign in again after expiry.
-
 ## P2 — incomplete client coverage
 
 - ChatGPT and Gemini have maintainer-account evidence only.
@@ -66,20 +60,21 @@ the user may need to sign in again after expiry.
 
 ## P2 — repository quality gates are not green
 
-The documentation reconciliation on 2026-08-30 produced these results:
+The validation run on 2026-09-02 produced these results:
 
 - Markdown link/claim check: pass across 229 files;
-- portal web tests: 12 passed;
-- Python unit and contract suite: 147 passed and 5 failed;
+- portal web tests: 26 passed;
+- Python unit and contract suite: 147 passed and 7 failed;
 - `gate-fast`: blocked by 126 existing Ruff findings; and
 - `mypy src`: blocked by 32 existing type errors.
 
 Three Python failures require the optional M1 HTTP endpoint configured by
-`M1_HTTP_URL`. The other two expose unresolved M1 Streamable HTTP contract
-regressions: the exact `/mcp` test receives 404 and the rerunnable lifecycle
-test terminates its session. These are pre-existing implementation debt, not
-documentation-check failures, and must not be represented as a green release
-gate.
+`M1_HTTP_URL`. Two package-entrypoint checks currently fail because
+`python3 -m omp.server` is not an implemented module command. The remaining two
+expose unresolved M1 Streamable HTTP contract regressions: the exact `/mcp`
+test receives 404 and the rerunnable lifecycle test terminates its session.
+These are pre-existing implementation debt, not Claude onboarding failures,
+and must not be represented as a green release gate.
 
 ## Non-claims
 
